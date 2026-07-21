@@ -79,17 +79,19 @@ class JobService extends ChangeNotifier {
         final serviceCat = data['serviceCategory']?.toString();
 
         bool isMatch = false;
-        if (rawCategories is List) {
-          isMatch = rawCategories.contains(category) || 
-                    rawCategories.contains(category.toLowerCase().replaceAll(' ', '_')) ||
-                    rawCategories.contains('car_wash') && category.contains('Wash');
-        }
-        if (serviceCat != null && serviceCat.toLowerCase() == category.toLowerCase()) {
+        final cleanCategory = category.toLowerCase().trim();
+
+        if (serviceCat != null && serviceCat.toLowerCase().trim() == cleanCategory) {
           isMatch = true;
-        }
-        // If no categories filter defined, default to match
-        if (rawCategories.isEmpty && serviceCat == null) {
-          isMatch = true;
+        } else if (rawCategories is List) {
+          isMatch = rawCategories.any((cat) {
+            final c = cat.toString().toLowerCase().trim();
+            if (c == cleanCategory) return true;
+            if (cleanCategory == 'car wash' && (c == 'car_wash' || c.contains('wash'))) return true;
+            if (cleanCategory == 'house cleaning' && (c == 'house_cleaning' || c.contains('cleaning'))) return true;
+            if (cleanCategory == 'laundry' && (c == 'laundry' || c.contains('laundry'))) return true;
+            return false;
+          });
         }
 
         if (isMatch) {
@@ -100,44 +102,94 @@ class JobService extends ChangeNotifier {
             'id': doc.id,
             'name': name,
             'phone': data['phone'] ?? '+2348012345678',
+            'email': data['email'] ?? '${name.toLowerCase().replaceAll(' ', '.')}@gwashng.com',
             'rating': data['rating'] ?? 4.8,
             'vehicleType': data['vehicleType'] ?? 'Motorcycle',
+            'serviceCategory': serviceCat ?? category,
             ...data,
           });
         }
       }
 
-      // If no providers found in DB, provide realistic fallback demo providers
+      // If no providers found in DB, provide realistic category-specific fallback demo providers
       if (providers.isEmpty) {
-        providers = [
-          {
-            'id': 'provider_demo_1',
-            'name': 'Samuel Okon',
-            'phone': '+2348012345678',
-            'rating': 4.9,
-            'vehicleType': 'Motorcycle',
-            'currentLat': (userLat ?? 6.5244) + 0.005,
-            'currentLng': (userLng ?? 3.3792) + 0.005,
-          },
-          {
-            'id': 'provider_demo_2',
-            'name': 'Blessing Adebayo',
-            'phone': '+2348023456789',
-            'rating': 4.8,
-            'vehicleType': 'Car',
-            'currentLat': (userLat ?? 6.5244) + 0.008,
-            'currentLng': (userLng ?? 3.3792) - 0.006,
-          },
-          {
-            'id': 'provider_demo_3',
-            'name': 'Chidi Nnamdi',
-            'phone': '+2348034567890',
-            'rating': 4.7,
-            'vehicleType': 'Van',
-            'currentLat': (userLat ?? 6.5244) - 0.007,
-            'currentLng': (userLng ?? 3.3792) + 0.009,
-          },
-        ];
+        if (category == 'House Cleaning') {
+          providers = [
+            {
+              'id': 'provider_house_1',
+              'name': 'Grace Danjuma',
+              'phone': '+2348012345678',
+              'email': 'grace.danjuma@gwashng.com',
+              'rating': 4.9,
+              'vehicleType': 'Home Care Van',
+              'serviceCategory': 'House Cleaning',
+              'currentLat': (userLat ?? 6.5244) + 0.004,
+              'currentLng': (userLng ?? 3.3792) + 0.003,
+            },
+            {
+              'id': 'provider_house_2',
+              'name': 'Emmanuel Egbe',
+              'phone': '+2348023456789',
+              'email': 'emmanuel.egbe@gwashng.com',
+              'rating': 4.8,
+              'vehicleType': 'Cleaning Express',
+              'serviceCategory': 'House Cleaning',
+              'currentLat': (userLat ?? 6.5244) + 0.007,
+              'currentLng': (userLng ?? 3.3792) - 0.005,
+            },
+          ];
+        } else if (category == 'Laundry') {
+          providers = [
+            {
+              'id': 'provider_laundry_1',
+              'name': 'Fatima Bello',
+              'phone': '+2348034567890',
+              'email': 'fatima.bello@gwashng.com',
+              'rating': 4.9,
+              'vehicleType': 'Laundry Van',
+              'serviceCategory': 'Laundry',
+              'currentLat': (userLat ?? 6.5244) + 0.005,
+              'currentLng': (userLng ?? 3.3792) + 0.006,
+            },
+            {
+              'id': 'provider_laundry_2',
+              'name': 'Kenneth Obi',
+              'phone': '+2348045678901',
+              'email': 'kenneth.obi@gwashng.com',
+              'rating': 4.7,
+              'vehicleType': 'Motorcycle Express',
+              'serviceCategory': 'Laundry',
+              'currentLat': (userLat ?? 6.5244) - 0.006,
+              'currentLng': (userLng ?? 3.3792) + 0.004,
+            },
+          ];
+        } else {
+          // Default: Car Wash
+          providers = [
+            {
+              'id': 'provider_car_1',
+              'name': 'Samuel Okon',
+              'phone': '+2348012345678',
+              'email': 'samuel.okon@gwashng.com',
+              'rating': 4.9,
+              'vehicleType': 'Mobile Wash Rig',
+              'serviceCategory': 'Car Wash',
+              'currentLat': (userLat ?? 6.5244) + 0.005,
+              'currentLng': (userLng ?? 3.3792) + 0.005,
+            },
+            {
+              'id': 'provider_car_2',
+              'name': 'Blessing Adebayo',
+              'phone': '+2348023456789',
+              'email': 'blessing.adebayo@gwashng.com',
+              'rating': 4.8,
+              'vehicleType': 'Car Detailing Van',
+              'serviceCategory': 'Car Wash',
+              'currentLat': (userLat ?? 6.5244) + 0.008,
+              'currentLng': (userLng ?? 3.3792) - 0.006,
+            },
+          ];
+        }
       }
 
       // Calculate distances & ETA
@@ -382,15 +434,23 @@ class JobService extends ChangeNotifier {
       final snapshot = await _firestore
           .collection('jobs')
           .where('customerId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final list = snapshot.docs.map((doc) {
         return {
           'id': doc.id,
           ...doc.data(),
         };
       }).toList();
+
+      list.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
+
+      return list;
     } catch (e) {
       print('❌ Error getting user jobs: $e');
       return [];
@@ -405,15 +465,23 @@ class JobService extends ChangeNotifier {
       final snapshot = await _firestore
           .collection('jobs')
           .where('washerId', isEqualTo: washerId)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final list = snapshot.docs.map((doc) {
         return {
           'id': doc.id,
           ...doc.data(),
         };
       }).toList();
+
+      list.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
+
+      return list;
     } catch (e) {
       print('❌ Error getting washer jobs: $e');
       return [];
@@ -430,23 +498,31 @@ class JobService extends ChangeNotifier {
     double radiusKm = 10.0,
   }) async {
     try {
-      var query = _firestore
-          .collection('jobs')
-          .where('status', isEqualTo: 'searching')
-          .orderBy('createdAt', descending: true);
+      Query query = _firestore.collection('jobs');
 
       if (category != null && category != 'All') {
         query = query.where('serviceCategory', isEqualTo: category);
+      } else {
+        query = query.where('status', isEqualTo: 'searching');
       }
 
       final snapshot = await query.get();
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
+      final list = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
         return {
           'id': doc.id,
           ...data,
         };
       }).toList();
+
+      list.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
+
+      return list;
     } catch (e) {
       print('❌ Error getting pending jobs: $e');
       return [];

@@ -133,7 +133,7 @@ class HelpSupportScreen extends StatelessWidget {
   }
 
   void _rateApp(BuildContext context) {
-    // For demo, show rating dialog
+    // Show app rating dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

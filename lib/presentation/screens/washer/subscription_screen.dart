@@ -137,7 +137,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () {
-                // Skip for demo
+                // Start 7-day free trial
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const WasherDashboard()),

@@ -2,9 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/job_service.dart';
 import '../../../services/location_service.dart';
+import '../../../services/communication_service.dart';
+import '../../../services/app_notification_service.dart';
 import '../customer/tracking_screen.dart';
 
 class MatchingScreen extends StatefulWidget {
@@ -172,6 +175,34 @@ class _MatchingScreenState extends State<MatchingScreen> {
       });
 
       print('✅ Washer ${washer['name']} assigned to job ${widget.jobId}');
+
+      // Trigger local in-app top popup & offline notification
+      AppNotificationService().notify(
+        context: context,
+        title: '📍 Provider Assigned!',
+        message: '${washer['name']} is assigned for your ${widget.serviceCategory}.',
+        type: 'provider',
+        icon: Icons.person_pin_circle,
+        backgroundColor: Colors.blue.shade700,
+      );
+
+      // Send WhatsApp and Email notifications to assigned provider
+      final nowFormatted = DateFormat('EEE, MMM d, yyyy').format(DateTime.now());
+      final nowTimeFormatted = DateFormat('hh:mm a').format(DateTime.now());
+      CommunicationService.sendBookingNotifications(
+        providerPhone: washer['phone']?.toString(),
+        providerEmail: washer['email']?.toString(),
+        providerName: washer['name'] ?? 'Provider',
+        customerName: 'G-Wash Customer',
+        serviceCategory: widget.serviceCategory,
+        serviceName: widget.serviceName,
+        price: widget.price,
+        location: widget.location,
+        scheduledDate: nowFormatted,
+        scheduledTime: nowTimeFormatted,
+        jobId: widget.jobId,
+        context: context,
+      );
 
       // Navigate to tracking screen
       if (mounted) {

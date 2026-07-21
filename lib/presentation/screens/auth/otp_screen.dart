@@ -121,7 +121,7 @@ class _OTPScreenState extends State<OTPScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('New verification code sent! Demo code: 123456'),
+            content: Text('New verification code sent via SMS!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -290,26 +290,6 @@ class _OTPScreenState extends State<OTPScreen> {
             ),
             
             const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.orange),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Demo Mode: Enter any 6-digit code (e.g., 123456) to login',
-                      style: TextStyle(fontSize: 11, color: Colors.orange),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

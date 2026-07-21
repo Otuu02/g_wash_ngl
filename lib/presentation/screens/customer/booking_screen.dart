@@ -7,6 +7,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
+import '../../../services/communication_service.dart';
+import '../../../services/app_notification_service.dart';
 import '../washer/matching_screen.dart';
 import 'tracking_screen.dart';
 
@@ -223,7 +225,7 @@ class _BookingScreenState extends State<BookingScreen> {
       }
 
       final user = FirebaseAuth.instance.currentUser;
-      final uid = user?.uid ?? authService.userId ?? 'demo_user';
+      final uid = user?.uid ?? authService.userId ?? '';
       final customerName = authService.userName ?? 'Customer';
 
       // Create job in Firestore
@@ -326,7 +328,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.primary),
                   onTap: () {
                     Navigator.pop(context);
-                    _createBookingWithProvider(null, null);
+                    _createBookingWithProvider();
                   },
                 ),
               ),
@@ -357,7 +359,7 @@ class _BookingScreenState extends State<BookingScreen> {
                             ElevatedButton.icon(
                               onPressed: () {
                                 Navigator.pop(context);
-                                _createBookingWithProvider(null, null);
+                                _createBookingWithProvider();
                               },
                               icon: const Icon(Icons.flash_on),
                               label: const Text('Proceed with Auto-Assign'),
@@ -408,7 +410,14 @@ class _BookingScreenState extends State<BookingScreen> {
                             ),
                             onTap: () {
                               Navigator.pop(context);
-                              _createBookingWithProvider(providerId, name);
+                              final providerPhone = provider['phone']?.toString();
+                              final providerEmail = provider['email']?.toString();
+                              _createBookingWithProvider(
+                                providerId: providerId,
+                                providerName: name,
+                                providerPhone: providerPhone,
+                                providerEmail: providerEmail,
+                              );
                             },
                           ),
                         );
@@ -424,7 +433,12 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Future<void> _createBookingWithProvider(String? providerId, String? providerName) async {
+  Future<void> _createBookingWithProvider({
+    String? providerId,
+    String? providerName,
+    String? providerPhone,
+    String? providerEmail,
+  }) async {
     setState(() => _isBooking = true);
 
     try {
@@ -434,7 +448,7 @@ class _BookingScreenState extends State<BookingScreen> {
       }
 
       final user = FirebaseAuth.instance.currentUser;
-      final uid = user?.uid ?? authService.userId ?? 'demo_user';
+      final uid = user?.uid ?? authService.userId ?? '';
       final customerName = authService.userName ?? 'Customer';
 
       final result = await JobService().createJob(
@@ -453,6 +467,35 @@ class _BookingScreenState extends State<BookingScreen> {
       );
 
       final jobId = result['id'];
+
+      // Trigger local in-app top popup & offline notification
+      AppNotificationService().notify(
+        context: context,
+        title: '🎉 Booking Confirmed!',
+        message: 'Your $_selectedCategory request ($_selectedService) has been placed.',
+        type: 'booking',
+        icon: Icons.check_circle_outline,
+        backgroundColor: Colors.green.shade700,
+      );
+
+      // Send WhatsApp and Email notifications if a specific provider was selected
+      if (providerName != null && providerName.isNotEmpty) {
+        final formattedDate = DateFormat('EEE, MMM d, yyyy').format(_selectedDate);
+        CommunicationService.sendBookingNotifications(
+          providerPhone: providerPhone,
+          providerEmail: providerEmail,
+          providerName: providerName,
+          customerName: customerName,
+          serviceCategory: _selectedCategory,
+          serviceName: _selectedService,
+          price: _selectedServicePrice,
+          location: _selectedLocation,
+          scheduledDate: formattedDate,
+          scheduledTime: _selectedTime,
+          jobId: jobId,
+          context: context,
+        );
+      }
 
       if (mounted) {
         if (providerId != null && providerId.isNotEmpty) {

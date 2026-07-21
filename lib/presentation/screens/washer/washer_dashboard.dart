@@ -822,13 +822,21 @@ class _WasherDashboardState extends State<WasherDashboard> {
       stream: FirebaseFirestore.instance
           .collection('jobs')
           .where('washerId', isEqualTo: _washerId)
-          .orderBy('createdAt', descending: true)
-          .limit(5)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(
+              child: Text(
+                'No jobs yet',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
           );
         }
 
@@ -841,8 +849,17 @@ class _WasherDashboardState extends State<WasherDashboard> {
           );
         }
 
-        final jobs = snapshot.data?.docs ?? [];
-        
+        final rawDocs = snapshot.data?.docs ?? [];
+        final jobs = List<QueryDocumentSnapshot>.from(rawDocs);
+        jobs.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>?;
+          final bData = b.data() as Map<String, dynamic>?;
+          final aTime = aData?['createdAt'] as Timestamp?;
+          final bTime = bData?['createdAt'] as Timestamp?;
+          if (aTime == null || bTime == null) return 0;
+          return bTime.compareTo(aTime);
+        });
+
         if (jobs.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(20),

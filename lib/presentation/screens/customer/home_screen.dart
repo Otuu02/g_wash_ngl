@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/location_service.dart';
 import 'booking_screen.dart';
 import 'my_bookings_screen.dart';
 import 'profile_screen.dart';
@@ -223,6 +224,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             }
           }
         }
+      }
+
+      // Request live GPS location from browser/device
+      final locationService = LocationService();
+      final pos = await locationService.getCurrentLocation();
+      if (mounted) {
+        setState(() {
+          _selectedCoordinates = LatLng(pos.latitude, pos.longitude);
+          if (locationService.currentAddress != null && locationService.currentAddress!.isNotEmpty) {
+            _selectedLocation = locationService.currentAddress!;
+          }
+        });
       }
     } catch (e) {
       print('Error loading user location: $e');

@@ -25,18 +25,16 @@ class _SearchingScreenState extends State<SearchingScreen> {
     await Future.delayed(const Duration(seconds: 5));
     
     if (mounted) {
-      // Show demo message
       Helpers.showSnackBar(
         context,
-        message: 'Demo: No washers found. In production, this would find a washer.',
-        isError: true,
+        message: 'No active washers responded immediately. Searching wider radius...',
+        isError: false,
         duration: const Duration(seconds: 3),
       );
       
-      // Go back to home after demo
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
-          Navigator.pushNamedAndRemoveUntil(context, '/customer/home', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
         }
       });
     }

@@ -1,37 +1,20 @@
 // FILE: lib/presentation/screens/customer/my_bookings_screen.dart
-// PURPOSE: Display user's bookings (upcoming and history)
+// PURPOSE: Display user's bookings (upcoming and history) from Firestore
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/job_service.dart';
 
 class MyBookingsScreen extends StatelessWidget {
   const MyBookingsScreen({super.key});
 
-  final List<Map<String, dynamic>> _upcomingBookings = const [];
-  
-  final List<Map<String, dynamic>> _pastBookings = const [
-    {
-      'service': 'Full Detail',
-      'date': 'May 18, 2024',
-      'time': '10:30 AM',
-      'price': '₦10,000',
-      'status': 'Completed',
-      'washer': 'John A.',
-      'rating': 4.8,
-    },
-    {
-      'service': 'Interior Clean',
-      'date': 'May 16, 2024',
-      'time': '2:00 PM',
-      'price': '₦5,000',
-      'status': 'Completed',
-      'washer': 'John A.',
-      'rating': 4.8,
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final userId = authService.userId;
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -53,43 +36,92 @@ class MyBookingsScreen extends StatelessWidget {
             unselectedLabelColor: Colors.white70,
           ),
         ),
-        body: TabBarView(
-          children: [
-            // Upcoming Tab
-            _upcomingBookings.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.calendar_today, size: 80, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'No upcoming bookings',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 8),
-                        Text('Book a new wash to get started'),
-                      ],
+        body: userId == null || userId.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.account_circle_outlined, size: 64, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    const Text('Please login to view your bookings',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pushNamed(context, '/login'),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                      child: const Text('Go to Login'),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _upcomingBookings.length,
-                    itemBuilder: (context, index) => _buildBookingCard(_upcomingBookings[index]),
-                  ),
-            // History Tab
-            ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _pastBookings.length,
-              itemBuilder: (context, index) => _buildBookingCard(_pastBookings[index]),
-            ),
-          ],
-        ),
+                  ],
+                ),
+              )
+            : FutureBuilder<List<Map<String, dynamic>>>(
+                future: JobService().getUserJobs(userId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final allJobs = snapshot.data ?? [];
+                  final upcoming = allJobs.where((j) =>
+                      j['status'] == 'searching' ||
+                      j['status'] == 'assigned' ||
+                      j['status'] == 'in_progress').toList();
+                  final history = allJobs.where((j) =>
+                      j['status'] == 'completed' || j['status'] == 'cancelled').toList();
+
+                  return TabBarView(
+                    children: [
+                      // Upcoming Tab
+                      upcoming.isEmpty
+                          ? _buildEmptyState('No upcoming bookings', 'Book a new wash to get started')
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: upcoming.length,
+                              itemBuilder: (context, index) => _buildBookingCard(context, upcoming[index]),
+                            ),
+                      // History Tab
+                      history.isEmpty
+                          ? _buildEmptyState('No booking history', 'Your completed and cancelled orders will appear here')
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: history.length,
+                              itemBuilder: (context, index) => _buildBookingCard(context, history[index]),
+                            ),
+                    ],
+                  );
+                },
+              ),
       ),
     );
   }
 
-  Widget _buildBookingCard(Map<String, dynamic> booking) {
+  Widget _buildEmptyState(String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.calendar_today, size: 80, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(subtitle, style: const TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBookingCard(BuildContext context, Map<String, dynamic> booking) {
+    final serviceName = booking['serviceName'] ?? booking['serviceCategory'] ?? 'Service';
+    final status = (booking['status'] ?? 'pending').toString().toUpperCase();
+    final price = booking['price'] != null ? '₦${booking['price']}' : '₦0';
+    final scheduledDate = booking['scheduledTime'] ?? booking['scheduledDate'] ?? 'Scheduled';
+    final washerName = booking['washerName'] ?? 'Provider';
+
+    final isCompleted = booking['status'] == 'completed';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
@@ -104,7 +136,7 @@ class MyBookingsScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  booking['service'],
+                  serviceName,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -113,16 +145,17 @@ class MyBookingsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: booking['status'] == 'Completed'
+                    color: isCompleted
                         ? Colors.green.withOpacity(0.1)
                         : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    booking['status'],
+                    status,
                     style: TextStyle(
-                      color: booking['status'] == 'Completed' ? Colors.green : Colors.orange,
+                      color: isCompleted ? Colors.green : Colors.orange,
                       fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
@@ -134,7 +167,7 @@ class MyBookingsScreen extends StatelessWidget {
                 const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
                 const SizedBox(width: 4),
                 Text(
-                  '${booking['date']} • ${booking['time']}',
+                  scheduledDate,
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
@@ -144,31 +177,32 @@ class MyBookingsScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  booking['price'],
+                  price,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                     color: AppColors.primary,
                   ),
                 ),
-                if (booking.containsKey('washer'))
-                  Row(
-                    children: [
-                      const Icon(Icons.star, size: 14, color: Colors.amber),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${booking['washer']} ★${booking['rating']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    const Icon(Icons.person_outline, size: 16, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      washerName,
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
               ],
             ),
-            if (booking['status'] == 'Completed')
+            if (isCompleted)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: OutlinedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/booking');
+                  },
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.primary),
                     shape: RoundedRectangleBorder(

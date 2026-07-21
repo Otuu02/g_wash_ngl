@@ -25,7 +25,7 @@ class Env {
   static const Map<String, dynamic> _developmentConfig = {
     'apiUrl': 'https://dev-api.gwashng.com/v1',
     'paystackPublicKey': 'pk_test_xxxxxxxxxxxxxxxxxxxx',
-    'googleMapsApiKey': 'YOUR_DEV_GOOGLE_MAPS_API_KEY',
+    'googleMapsApiKey': 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
     'enableLogging': true,
     'enableCrashReporting': false,
     'enableAnalytics': false,
@@ -35,7 +35,7 @@ class Env {
   static const Map<String, dynamic> _stagingConfig = {
     'apiUrl': 'https://staging-api.gwashng.com/v1',
     'paystackPublicKey': 'pk_test_xxxxxxxxxxxxxxxxxxxx',
-    'googleMapsApiKey': 'YOUR_STAGING_GOOGLE_MAPS_API_KEY',
+    'googleMapsApiKey': 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
     'enableLogging': true,
     'enableCrashReporting': true,
     'enableAnalytics': true,
@@ -45,7 +45,7 @@ class Env {
   static const Map<String, dynamic> _productionConfig = {
     'apiUrl': 'https://api.gwashng.com/v1',
     'paystackPublicKey': 'pk_live_xxxxxxxxxxxxxxxxxxxx',
-    'googleMapsApiKey': 'YOUR_LIVE_GOOGLE_MAPS_API_KEY',
+    'googleMapsApiKey': 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
     'enableLogging': false,
     'enableCrashReporting': true,
     'enableAnalytics': true,

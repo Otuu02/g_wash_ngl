@@ -24,8 +24,8 @@ class AppConfig {
   static const String paystackPublicKey = paystackPublicKeyTest;
   
   // ==================== GOOGLE MAPS CONFIGURATION ====================
-  // Google Maps API Key (replace with your actual key)
-  static const String googleMapsApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+  // Google Maps API Key
+  static const String googleMapsApiKey = 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw';
   
   // ==================== ADMOB CONFIGURATION ====================
   // AdMob Ad Unit IDs (will add when ready to monetize)
@@ -38,7 +38,7 @@ class AppConfig {
   
   // ==================== FEATURE FLAGS ====================
   static const bool enableFirebase = false;      // Set to true when Firebase is configured
-  static const bool enableMaps = false;           // Set to true when Google Maps API key is added
+  static const bool enableMaps = true;            // Set to true when Google Maps API key is added
   static const bool enableAds = false;            // Set to true when ready to show ads
   static const bool enablePayments = false;       // Set to true when Paystack is integrated
   static const bool isDebugMode = true;           // Debug mode for development
