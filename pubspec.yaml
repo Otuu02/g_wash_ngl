@@ -63,10 +63,15 @@ dependencies:
   lottie: ^3.1.0
 
   # ==========================================
-  # FORMS - ONLY THE ESSENTIAL ONE
+  # FORMS
   # ==========================================
   flutter_form_builder: ^10.1.0
-  # form_builder_validators REMOVED - causing crash
+
+  # ==========================================
+  # ADDED MISSING PACKAGES
+  # ==========================================
+  page_view_dot_indicator: ^2.0.0
+  local_auth: ^2.1.6
 
 dev_dependencies:
   flutter_test:

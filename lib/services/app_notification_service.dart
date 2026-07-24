@@ -58,7 +58,6 @@ class AppNotificationService extends ChangeNotifier {
   List<AppNotificationItem> get notifications => List.unmodifiable(_notifications);
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
-  /// Load notifications from local SharedPreferences (works offline)
   Future<void> loadSavedNotifications() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -69,7 +68,6 @@ class AppNotificationService extends ChangeNotifier {
         _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         notifyListeners();
       } else if (_notifications.isEmpty) {
-        // Initial welcome notification if empty
         _notifications = [
           AppNotificationItem(
             id: 'welcome_1',
@@ -98,7 +96,28 @@ class AppNotificationService extends ChangeNotifier {
     }
   }
 
-  /// Add a local notification & trigger instant top banner pop-up
+  // ============================================================
+  // FIXED: ADDED addNotification METHOD
+  // ============================================================
+  void addNotification({
+    required String title,
+    required String message,
+    required String type,
+  }) {
+    final newItem = AppNotificationItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: title,
+      message: message,
+      timestamp: DateTime.now(),
+      type: type,
+      isRead: false,
+    );
+    
+    _notifications.insert(0, newItem);
+    _saveToStorage();
+    notifyListeners();
+  }
+
   Future<void> notify({
     BuildContext? context,
     required String title,
@@ -120,7 +139,6 @@ class AppNotificationService extends ChangeNotifier {
     await _saveToStorage();
     notifyListeners();
 
-    // Show animated top overlay banner if context is provided
     if (context != null && context.mounted) {
       showTopOverlayBanner(
         context,
@@ -132,7 +150,6 @@ class AppNotificationService extends ChangeNotifier {
     }
   }
 
-  /// Mark all notifications as read
   Future<void> markAllAsRead() async {
     for (var n in _notifications) {
       n.isRead = true;
@@ -141,14 +158,12 @@ class AppNotificationService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Clear all notifications
   Future<void> clearAll() async {
     _notifications.clear();
     await _saveToStorage();
     notifyListeners();
   }
 
-  /// Display a sleek top-floating notification banner (game/app popup style)
   static void showTopOverlayBanner(
     BuildContext context, {
     required String title,
@@ -220,7 +235,6 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
 
     _controller.forward();
 
-    // Auto dismiss after 3.5 seconds
     Future.delayed(const Duration(milliseconds: 3500), () {
       if (mounted) {
         _dismiss();

@@ -43,8 +43,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loadSettings() async {
-    // Load settings from shared preferences
-    // For now, set default
     setState(() {
       _twoFAEnabled = false;
     });
@@ -93,16 +91,14 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Authenticate to login to G Wash NG',
-        options: const AuthenticationOptions(
+        options: AuthenticationOptions( // REMOVED const
           stickyAuth: true,
           biometricOnly: true,
         ),
       );
 
       if (authenticated) {
-        // Use saved credentials to login
         final authService = Provider.of<AuthService>(context, listen: false);
-        // For demo, use demo login
         final success = await authService.demoLogin(_phoneController.text.trim());
         if (success) {
           Navigator.pushReplacement(
@@ -188,7 +184,6 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // ✅ Biometric Login
                   if (_biometricEnabled)
                     TextButton.icon(
                       onPressed: _isLoading ? null : _biometricLogin,
@@ -200,7 +195,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   TextButton(
                     onPressed: () {
-                      // Forgot password logic
                       _showError('Contact support to reset password: 07065584504');
                     },
                     child: const Text(
@@ -210,7 +204,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-              // ✅ 2FA Toggle
               Row(
                 children: [
                   Switch(

@@ -1,3 +1,4 @@
+// FILE: lib/presentation/screens/customer/booking_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -39,10 +40,8 @@ class _BookingScreenState extends State<BookingScreen> {
   String _selectedTime = '9:00 AM';
   bool _isBooking = false;
 
-  // ✅ Added Ride Service to categories
   final List<String> _categories = ['Car Wash', 'House Cleaning', 'Laundry', 'Ride Service'];
 
-  // Service Data - ✅ Added Ride Service
   final Map<String, List<Map<String, dynamic>>> _services = {
     'Car Wash': [
       {'name': 'Exterior Wash', 'price': 3000, 'duration': '30 mins', 'description': 'Wash and dry exterior'},
@@ -62,7 +61,6 @@ class _BookingScreenState extends State<BookingScreen> {
       {'name': 'Dry Cleaning', 'price': 5000, 'duration': '48 hours', 'description': 'Professional dry cleaning'},
       {'name': 'Ironing Only', 'price': 1500, 'duration': '12 hours', 'description': 'Ironing service only'},
     ],
-    // ✅ NEW: Ride Service
     'Ride Service': [
       {'name': 'Standard Ride', 'price': 2000, 'duration': 'On-demand', 'description': 'Comfortable sedan for up to 4 passengers'},
       {'name': 'SUV Ride', 'price': 3500, 'duration': 'On-demand', 'description': 'Spacious SUV for up to 6 passengers'},
@@ -118,5 +116,586 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  // ... rest of the methods remain the same as your existing code
-  // (The booking logic remains unchanged)
+  void _showServicePicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: 300,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Select Service',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _currentServices.length,
+                  itemBuilder: (context, index) {
+                    final service = _currentServices[index];
+                    final isSelected = service['name'] == _selectedService;
+                    return ListTile(
+                      tileColor: isSelected ? AppColors.primary.withOpacity(0.1) : null,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      title: Text(service['name']),
+                      subtitle: Text('₦${NumberFormat('#,###').format(service['price'])} · ${service['duration']}'),
+                      trailing: isSelected
+                          ? const Icon(Icons.check_circle, color: AppColors.primary)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedService = service['name'];
+                          _selectedServicePrice = service['price'];
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLocationPicker() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Change Location'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.location_on, color: AppColors.primary),
+              title: const Text('Lekki Phase 1, Lagos'),
+              onTap: () {
+                setState(() => _selectedLocation = 'Lekki Phase 1, Lagos');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.location_on, color: AppColors.primary),
+              title: const Text('Victoria Island, Lagos'),
+              onTap: () {
+                setState(() => _selectedLocation = 'Victoria Island, Lagos');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.location_on, color: AppColors.primary),
+              title: const Text('Ikeja, Lagos'),
+              onTap: () {
+                setState(() => _selectedLocation = 'Ikeja, Lagos');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.location_on, color: AppColors.primary),
+              title: const Text('Surulere, Lagos'),
+              onTap: () {
+                setState(() => _selectedLocation = 'Surulere, Lagos');
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _bookService() async {
+    setState(() => _isBooking = true);
+
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      if (!authService.isLoggedIn) {
+        throw Exception('Please login to book a service');
+      }
+
+      final user = FirebaseAuth.instance.currentUser;
+      final uid = user?.uid ?? authService.userId ?? '';
+      final customerName = authService.userName ?? 'Customer';
+
+      final result = await JobService().createJob(
+        customerId: uid,
+        customerName: customerName,
+        serviceCategory: _selectedCategory,
+        serviceName: _selectedService,
+        price: _selectedServicePrice,
+        location: _selectedLocation,
+        latitude: 6.5244,
+        longitude: 3.3792,
+        scheduledDate: _selectedDate,
+        scheduledTime: _selectedTime,
+      );
+
+      final jobId = result['id'];
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MatchingScreen(
+              jobId: jobId,
+              serviceCategory: _selectedCategory,
+              serviceName: _selectedService,
+              price: _selectedServicePrice,
+              location: _selectedLocation,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error creating job: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error booking service: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isBooking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final isLoggedIn = authService.isLoggedIn;
+    final serviceDetails = _currentServiceDetails;
+    final servicePrice = serviceDetails['price'] ?? 0;
+    final serviceDuration = serviceDetails['duration'] ?? '30 mins';
+    final serviceDescription = serviceDetails['description'] ?? '';
+
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: Text(
+          _selectedCategory == 'Car Wash' ? 'Book Car Wash' :
+          _selectedCategory == 'House Cleaning' ? 'Book House Cleaning' :
+          _selectedCategory == 'Laundry' ? 'Book Laundry' :
+          'Book Ride',
+          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: AppColors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isLoggedIn ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isLoggedIn ? Icons.check_circle : Icons.warning,
+                  color: isLoggedIn ? Colors.green : Colors.red,
+                  size: 16,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  isLoggedIn ? 'Logged In' : 'Not Logged In',
+                  style: TextStyle(
+                    color: isLoggedIn ? Colors.green : Colors.red,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: _categories.map((category) {
+                final isSelected = _selectedCategory == category;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = category;
+                        _selectedService = _services[category]![0]['name'];
+                        _selectedServicePrice = _services[category]![0]['price'];
+                      });
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Center(
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : AppColors.primary,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          if (!isLoggedIn)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber, color: Colors.red),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: const Text(
+                      'Please login to book a service',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/login');
+                    },
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionTitle('Service Selected'),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _selectedService,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '₦${NumberFormat('#,###').format(servicePrice)} · $serviceDuration',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (serviceDescription.isNotEmpty)
+                                Text(
+                                  serviceDescription,
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _showServicePicker,
+                          child: const Text(
+                            'Change',
+                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  _buildSectionTitle('Delivery Location'),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, color: AppColors.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _selectedLocation,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _showLocationPicker,
+                          child: const Text(
+                            'Change',
+                            style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  _buildSectionTitle('Preferred Date & Time'),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: 60,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            itemCount: 7,
+                            itemBuilder: (context, index) {
+                              final date = DateTime.now().add(Duration(days: index));
+                              final isSelected = _selectedDate.day == date.day &&
+                                  _selectedDate.month == date.month;
+                              final dayName = DateFormat('E').format(date);
+                              final dayNumber = date.day.toString();
+                              return GestureDetector(
+                                onTap: () => setState(() => _selectedDate = date),
+                                child: Container(
+                                  width: 65,
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AppColors.primary : AppColors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        index == 0 ? 'Today' : index == 1 ? 'Tomorrow' : dayName,
+                                        style: TextStyle(
+                                          color: isSelected ? Colors.white : Colors.grey,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                      Text(
+                                        dayNumber,
+                                        style: TextStyle(
+                                          color: isSelected ? Colors.white : Colors.black87,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const Divider(height: 16),
+                        SizedBox(
+                          height: 50,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            itemCount: _timeSlots.length,
+                            itemBuilder: (context, index) {
+                              final time = _timeSlots[index];
+                              final isSelected = _selectedTime == time;
+                              return GestureDetector(
+                                onTap: () => setState(() => _selectedTime = time),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? AppColors.primary : AppColors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      time,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.black87,
+                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, color: AppColors.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: const Text(
+                            '💳 Payment will be made after service completion',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isBooking || !isLoggedIn ? null : _bookService,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isLoggedIn ? AppColors.primary : Colors.grey,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isBooking
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : Text(
+                              !isLoggedIn ? 'Please Login to Book' : _actionButtonText,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  if (!isLoggedIn)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/login');
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: BorderSide(color: AppColors.primary),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Go to Login',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+}

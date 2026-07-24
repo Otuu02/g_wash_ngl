@@ -2,7 +2,7 @@
 // PURPOSE: Welcome/Onboarding screen with all services
 
 import 'package:flutter/material.dart';
-import 'package:page_view_dot_indicator/page_view_dot_indicator.dart';
+// Removed page_view_dot_indicator import - using custom indicator
 import '../../core/constants/app_colors.dart';
 import 'auth/login_screen.dart';
 import 'auth/signup_screen.dart';
@@ -91,16 +91,26 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 },
               ),
             ),
-            // Dot indicator
+            // ============================================================
+            // FIXED: Custom Dot Indicator (Replaced PageViewDotIndicator)
+            // ============================================================
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              child: PageViewDotIndicator(
-                currentItem: _currentPage,
-                count: _onboardingPages.length,
-                unselectedColor: Colors.grey.shade300,
-                selectedColor: AppColors.primary,
-                duration: const Duration(milliseconds: 200),
-                boxShape: BoxShape.circle,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _onboardingPages.length,
+                  (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: _currentPage == index ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _currentPage == index ? AppColors.primary : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
               ),
             ),
             // Next/Get Started button
