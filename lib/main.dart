@@ -70,9 +70,6 @@ void main() async {
 class GWashApp extends StatelessWidget {
   const GWashApp({super.key});
 
-  // ============================================================
-  // FIXED: Helper method to determine correct home screen
-  // ============================================================
   Widget _getHomeScreen(AuthService authService) {
     print('🔍 Determining home screen:');
     print('   isLoggedIn: ${authService.isLoggedIn}');
@@ -85,33 +82,21 @@ class GWashApp extends StatelessWidget {
       return const WelcomeScreen();
     }
     
-    // ============================================================
-    // FIX: Check if user is a washer FIRST
-    // ============================================================
-    // Check 1: Using isWasher getter
     if (authService.isWasher) {
-      print('✅ User is a WASHER (isWasher=true) - showing Washer Dashboard');
+      print('✅ User is a WASHER - showing Washer Dashboard');
       return const WasherDashboard();
     }
     
-    // Check 2: Using isServiceProvider getter
     if (authService.isServiceProvider) {
       print('✅ User is a SERVICE PROVIDER - showing Washer Dashboard');
       return const WasherDashboard();
     }
     
-    // Check 3: Check role string directly
     if (authService.userRole == 'washer' || 
         authService.userRole == 'cleaner' || 
         authService.userRole == 'laundry_provider') {
       print('✅ User role is ${authService.userRole} - showing Washer Dashboard');
       return const WasherDashboard();
-    }
-    
-    // Check 4: Check if user exists in washers collection (via refresh)
-    if (authService.userId != null) {
-      // This will be handled by the auth listener
-      print('🔄 Will check washers collection for user: ${authService.userId}');
     }
     
     print('✅ User is a CUSTOMER - showing Home Screen');
@@ -120,41 +105,156 @@ class GWashApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use Consumer to listen to AuthService changes
     return provider.Consumer<AuthService>(
       builder: (context, authService, child) {
         return MaterialApp(
           title: 'G Wash NG',
           debugShowCheckedModeBanner: false,
-          
           debugShowMaterialGrid: false,
           showSemanticsDebugger: false,
           
           theme: ThemeData(
             primaryColor: const Color(0xFF0CAF60),
             scaffoldBackgroundColor: Colors.white,
+            
+            // ============================================================
+            // FIX: Large, Bold Font Sizes (Like Your Screenshot)
+            // ============================================================
+            textTheme: const TextTheme(
+              displayLarge: TextStyle(
+                fontSize: 32, 
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              displayMedium: TextStyle(
+                fontSize: 28, 
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              displaySmall: TextStyle(
+                fontSize: 24, 
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              headlineLarge: TextStyle(
+                fontSize: 22, 
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              headlineMedium: TextStyle(
+                fontSize: 20, 
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              headlineSmall: TextStyle(
+                fontSize: 18, 
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              bodyLarge: TextStyle(
+                fontSize: 18, 
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              bodyMedium: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+              bodySmall: TextStyle(
+                fontSize: 14, 
+                fontWeight: FontWeight.w400,
+                color: Colors.black54,
+              ),
+              labelLarge: TextStyle(
+                fontSize: 18, 
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              labelMedium: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              labelSmall: TextStyle(
+                fontSize: 14, 
+                fontWeight: FontWeight.w500,
+                color: Colors.black54,
+              ),
+            ),
+            
             colorScheme: const ColorScheme.light(
               primary: Color(0xFF0CAF60),
               secondary: Color(0xFF0A8E4F),
               surface: Colors.white,
               error: Colors.red,
             ),
+            
+            // ============================================================
+            // FIX: Bold AppBar
+            // ============================================================
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.white,
               foregroundColor: Color(0xFF0CAF60),
               elevation: 0,
               centerTitle: false,
+              titleTextStyle: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0CAF60),
+              ),
             ),
+            
+            // ============================================================
+            // FIX: Bold Buttons
+            // ============================================================
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0CAF60),
                 foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
+                minimumSize: const Size(double.infinity, 55),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                textStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
+            
+            // ============================================================
+            // FIX: Bold List Tiles
+            // ============================================================
+            listTileTheme: const ListTileThemeData(
+              titleTextStyle: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              subtitleTextStyle: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.black54,
+              ),
+            ),
+            
+            // ============================================================
+            // FIX: Bold Input Text
+            // ============================================================
+            inputDecorationTheme: const InputDecorationTheme(
+              labelStyle: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
+              ),
+              hintStyle: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: Colors.grey,
+              ),
+            ),
+            
             useMaterial3: true,
           ),
           
@@ -183,7 +283,6 @@ class GWashApp extends StatelessWidget {
             '/privacy-security': (context) => const PrivacySecurityScreen(),
             '/help-support': (context) => const HelpSupportScreen(),
             
-            // Washer Routes
             '/washer-registration': (context) => const WasherRegistrationScreen(),
             '/washer-dashboard': (context) => const WasherDashboard(),
             '/washer-jobs': (context) => const JobRequestScreen(),
@@ -191,7 +290,6 @@ class GWashApp extends StatelessWidget {
             '/washer-profile': (context) => const WasherProfileScreen(),
             '/washer-subscription': (context) => const SubscriptionScreen(),
             
-            // Admin Route
             '/admin': (context) => const AdminDashboardScreen(),
           },
           

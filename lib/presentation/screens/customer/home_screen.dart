@@ -687,13 +687,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final userName = authService.userName ?? 'Guest';
+    final theme = Theme.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'G Wash NG',
-          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 20),
+          style: theme.textTheme.headlineSmall?.copyWith(
+            color: AppColors.primary,
+          ),
         ),
         backgroundColor: AppColors.white,
         elevation: 0,
@@ -790,23 +793,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // ============================================================
-  // UPDATED: _buildHomeTab with Overflow Fix
+  // UPDATED: _buildHomeTab with Larger, Bolder Fonts
   // ============================================================
   Widget _buildHomeTab(String userName) {
     final authService = Provider.of<AuthService>(context);
     final isLoggedIn = authService.isLoggedIn;
     final size = MediaQuery.of(context).size;
     final isSmallScreen = size.width < 380;
-    
-    // ============================================================
-    // FIX: Get bottom padding for safe area
-    // ============================================================
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final theme = Theme.of(context);
 
     return SingleChildScrollView(
-      // ============================================================
-      // FIX: Add bottom padding to prevent overflow
-      // ============================================================
       padding: EdgeInsets.only(bottom: bottomPadding + 80),
       physics: const BouncingScrollPhysics(),
       child: Column(
@@ -839,22 +836,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       children: [
                         Text(
                           _getGreeting(),
-                          style: const TextStyle(color: Colors.white70, fontSize: 14),
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: Colors.white70,
+                          ),
                         ),
                         Text(
                           '$userName ✨',
-                          style: TextStyle(
+                          style: theme.textTheme.headlineMedium?.copyWith(
                             color: Colors.white,
-                            fontSize: isSmallScreen ? 18 : 22,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           "Let's get your car sparkling ✨",
-                          style: TextStyle(
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             color: Colors.white.withOpacity(0.8),
-                            fontSize: isSmallScreen ? 12 : 14,
                           ),
                         ),
                         if (!isLoggedIn)
@@ -865,12 +861,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               color: Colors.red.withOpacity(0.3),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Not Logged In',
-                              style: TextStyle(
+                              style: theme.textTheme.labelSmall?.copyWith(
                                 color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -895,9 +889,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Where should we come to?',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white70,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 GestureDetector(
@@ -915,14 +911,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Expanded(
                           child: Text(
                             _selectedLocation,
-                            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Text(
+                        Text(
                           'Change',
-                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500),
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: AppColors.primary,
+                          ),
                         ),
                         const SizedBox(width: 4),
                         const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 20),
@@ -940,7 +940,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // 3-SLIDE CAROUSEL WITH YOUR REAL IMAGES
           // ============================================================
           SizedBox(
-            height: isSmallScreen ? 150 : 180, // Reduced height
+            height: isSmallScreen ? 150 : 180,
             child: PageView.builder(
               controller: _carouselController,
               onPageChanged: (index) {
@@ -967,9 +967,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     child: Stack(
                       children: [
-                        // ============================================================
-                        // YOUR REAL IMAGE AS BACKGROUND
-                        // ============================================================
                         Positioned.fill(
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
@@ -977,7 +974,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               item['imagePath'],
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
-                                // Fallback if image doesn't load
                                 return Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
@@ -1000,7 +996,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                         ),
-                        // Dark overlay for text readability
                         Positioned.fill(
                           child: Container(
                             decoration: BoxDecoration(
@@ -1016,7 +1011,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ),
                         ),
-                        // Content on top of image
                         Padding(
                           padding: const EdgeInsets.all(20),
                           child: Row(
@@ -1029,40 +1023,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   children: [
                                     Text(
                                       item['title'],
-                                      style: TextStyle(
+                                      style: theme.textTheme.headlineSmall?.copyWith(
                                         color: Colors.white,
-                                        fontSize: isSmallScreen ? 16 : 20,
-                                        fontWeight: FontWeight.bold,
                                         shadows: const [
-                                          Shadow(
-                                            blurRadius: 10,
-                                            color: Colors.black38,
-                                          ),
+                                          Shadow(blurRadius: 10, color: Colors.black38),
                                         ],
                                       ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       item['subtitle'],
-                                      style: TextStyle(
+                                      style: theme.textTheme.bodyLarge?.copyWith(
                                         color: Colors.white.withOpacity(0.95),
-                                        fontSize: isSmallScreen ? 12 : 14,
                                         shadows: const [
-                                          Shadow(
-                                            blurRadius: 8,
-                                            color: Colors.black38,
-                                          ),
+                                          Shadow(blurRadius: 8, color: Colors.black38),
                                         ],
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    // Features
                                     if (item['features'] != null)
                                       ...(item['features'] as List<String>).map((feature) => Padding(
                                         padding: const EdgeInsets.only(bottom: 2),
                                         child: Row(
                                           children: [
-                                            Icon(
+                                            const Icon(
                                               Icons.check_circle,
                                               color: Colors.white,
                                               size: 14,
@@ -1070,14 +1054,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                             const SizedBox(width: 6),
                                             Text(
                                               feature,
-                                              style: TextStyle(
+                                              style: theme.textTheme.bodyMedium?.copyWith(
                                                 color: Colors.white.withOpacity(0.9),
-                                                fontSize: isSmallScreen ? 10 : 12,
                                                 shadows: const [
-                                                  Shadow(
-                                                    blurRadius: 6,
-                                                    color: Colors.black38,
-                                                  ),
+                                                  Shadow(blurRadius: 6, color: Colors.black38),
                                                 ],
                                               ),
                                             ),
@@ -1110,16 +1090,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(30),
                                         ),
+                                        textStyle: theme.textTheme.labelLarge,
                                       ),
-                                      child: const Text(
-                                        'Book Now',
-                                        style: TextStyle(fontWeight: FontWeight.bold),
-                                      ),
+                                      child: const Text('Book Now'),
                                     ),
                                   ],
                                 ),
                               ),
-                              // Service icon on the right
                               Container(
                                 width: 70,
                                 height: 70,
@@ -1174,7 +1151,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 8),
 
           // ============================================================
-          // CATEGORY TABS
+          // CATEGORY TABS - Larger Text
           // ============================================================
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -1204,10 +1181,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           const SizedBox(width: 6),
                           Text(
                             category['name'],
-                            style: TextStyle(
+                            style: theme.textTheme.labelMedium?.copyWith(
                               color: isSelected ? Colors.white : AppColors.primary,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: isSmallScreen ? 11 : 13,
+                              fontSize: isSmallScreen ? 13 : 15,
                             ),
                           ),
                         ],
@@ -1222,7 +1199,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 20),
 
           // ============================================================
-          // SERVICES SECTION
+          // SERVICES SECTION - Larger, Bolder
           // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1231,15 +1208,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               children: [
                 Text(
                   'Our Services',
-                  style: TextStyle(
-                    fontSize: isSmallScreen ? 16 : 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                  style: theme.textTheme.headlineSmall,
                 ),
                 TextButton(
                   onPressed: () {},
-                  child: const Text('See all', style: TextStyle(color: AppColors.primary)),
+                  child: Text(
+                    'See all',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -1249,7 +1227,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // Service Cards - Responsive Grid
           if (isSmallScreen)
             SizedBox(
-              height: 140,
+              height: 160,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1270,7 +1248,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   crossAxisCount: size.width > 600 ? 4 : 2,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 1.1,
+                  childAspectRatio: 1.2,
                 ),
                 itemCount: _currentServices.length,
                 itemBuilder: (context, index) {
@@ -1283,7 +1261,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 24),
 
           // ============================================================
-          // WHY CHOOSE US
+          // WHY CHOOSE US - Larger Fonts
           // ============================================================
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -1296,9 +1274,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Why Choose Us',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: theme.textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 16),
                 _buildWhyUsItem(Icons.location_on, 'Hyper-local dispatch', 'Washers near you, assigned fast.'),
@@ -1313,7 +1291,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 16),
 
           // ============================================================
-          // REFER & EARN
+          // REFER & EARN - Larger Fonts
           // ============================================================
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -1328,14 +1306,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Refer & Earn',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Invite friends and earn amazing rewards',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white70,
+                      ),
                     ),
                   ],
                 ),
@@ -1347,9 +1329,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Invite',
-                      style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -1363,6 +1347,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildServiceCard(Map<String, dynamic> service, bool isSmall) {
+    final theme = Theme.of(context);
+    
     return GestureDetector(
       onTap: () => _selectService(service),
       child: Container(
@@ -1382,14 +1368,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 color: AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(service['icon'], size: isSmall ? 25 : 30, color: AppColors.primary),
+              child: Icon(service['icon'], size: isSmall ? 28 : 32, color: AppColors.primary),
             ),
             const SizedBox(height: 8),
             Text(
               service['name'],
-              style: TextStyle(
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontSize: isSmall ? 13 : 15,
                 fontWeight: FontWeight.w600,
-                fontSize: isSmall ? 11 : 13,
               ),
               textAlign: TextAlign.center,
               maxLines: 2,
@@ -1398,18 +1384,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             const SizedBox(height: 2),
             Text(
               service['priceDisplay'],
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
+              style: theme.textTheme.headlineSmall?.copyWith(
                 color: AppColors.primary,
-                fontSize: isSmall ? 12 : 14,
+                fontSize: isSmall ? 14 : 16,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               service['duration'],
-              style: TextStyle(
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: Colors.grey.shade500,
-                fontSize: isSmall ? 8 : 10,
+                fontSize: isSmall ? 10 : 12,
               ),
             ),
           ],
@@ -1419,6 +1404,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildWhyUsItem(IconData icon, String title, String subtitle) {
+    final theme = Theme.of(context);
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1428,16 +1415,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             color: AppColors.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 22),
+          child: Icon(icon, color: AppColors.primary, size: 24),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text(
+                title,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+              Text(
+                subtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey.shade600,
+                ),
+              ),
             ],
           ),
         ),
