@@ -55,17 +55,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   ];
 
   // ============================================================
-  // GOOGLE SIGN-IN - WITH CLIENT ID
+  // GOOGLE SIGN-IN - CORRECT FIREBASE WEB CLIENT ID
   // ============================================================
   Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
 
     try {
       // ============================================================
-      // FIX: Pass client ID explicitly
+      // FIX: Use correct Firebase Web Client ID
       // ============================================================
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: '304228050522-ttd627c29kt12d75sbe5um6145ellj05.apps.googleusercontent.com',
+        clientId: '268073858735-gg0t71o28uauh3rkfrf5gvu3bam2s867.apps.googleusercontent.com',
       );
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
