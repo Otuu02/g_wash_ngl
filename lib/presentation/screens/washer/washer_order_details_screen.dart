@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../services/app_notification_service.dart';
 
 class WasherOrderDetailsScreen extends StatefulWidget {
   final String jobId;
@@ -90,28 +91,73 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
         _isProcessing = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Order ${_getStatusDisplay(newStatus)}'),
-          backgroundColor: AppColors.success,
-        ),
+      // Trigger local in-app top popup & offline notification
+      String notifTitle = 'Order Updated';
+      String notifMsg = 'Order is now ${_getStatusDisplay(newStatus)}';
+      IconData notifIcon = Icons.info_outline;
+      Color notifColor = AppColors.primary;
+
+      switch (newStatus) {
+        case 'accepted':
+          notifTitle = '✅ Request Accepted';
+          notifMsg = 'You have accepted this service request.';
+          notifIcon = Icons.thumb_up_alt_outlined;
+          notifColor = Colors.blue;
+          break;
+        case 'enRoute':
+          notifTitle = '🚚 En Route';
+          notifMsg = 'You are now heading to the customer location.';
+          notifIcon = Icons.directions_car_outlined;
+          notifColor = Colors.orange;
+          break;
+        case 'arrived':
+          notifTitle = '📍 Arrived';
+          notifMsg = 'You have arrived at the customer location.';
+          notifIcon = Icons.location_on_outlined;
+          notifColor = Colors.green;
+          break;
+        case 'completed':
+          notifTitle = '🎉 Job Completed!';
+          notifMsg = 'The job has been completed successfully.';
+          notifIcon = Icons.check_circle_outline;
+          notifColor = Colors.green;
+          break;
+        case 'cancelled':
+          notifTitle = '🚨 Job Cancelled';
+          notifMsg = 'The job has been cancelled.';
+          notifIcon = Icons.cancel_outlined;
+          notifColor = Colors.red;
+          break;
+      }
+
+      AppNotificationService().notify(
+        context: context,
+        title: notifTitle,
+        message: notifMsg,
+        type: 'booking',
+        icon: notifIcon,
+        backgroundColor: notifColor,
       );
 
       // Navigate back after completion
       if (newStatus == 'completed') {
         Future.delayed(const Duration(seconds: 1), () {
-          Navigator.pop(context, true);
+          if (mounted) {
+            Navigator.pop(context, true);
+          }
         });
       }
     } catch (e) {
       print('❌ Error updating order: $e');
       setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating order: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating order: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 

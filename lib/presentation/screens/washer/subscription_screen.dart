@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../services/app_notification_service.dart';
 import 'washer_dashboard.dart';
 
 class SubscriptionScreen extends StatefulWidget {
@@ -24,17 +25,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     
     setState(() => _isLoading = false);
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Subscription activated successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const WasherDashboard()),
-    );
+    if (mounted) {
+      AppNotificationService().notify(
+        context: context,
+        title: '💎 Subscription Activated!',
+        message: 'You successfully subscribed to the G-Wash NG Provider network.',
+        type: 'system',
+        icon: Icons.workspace_premium,
+        backgroundColor: AppColors.primary,
+      );
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WasherDashboard()),
+      );
+    }
   }
 
   @override
@@ -138,6 +143,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             TextButton(
               onPressed: () {
                 // Start 7-day free trial
+                AppNotificationService().notify(
+                  context: context,
+                  title: '✨ Free Trial Started!',
+                  message: 'Your 7-day free trial has started. Start taking jobs!',
+                  type: 'system',
+                  icon: Icons.av_timer_outlined,
+                  backgroundColor: AppColors.primary,
+                );
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const WasherDashboard()),

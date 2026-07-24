@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/location_service.dart';
+import '../../../services/app_notification_service.dart';
 import '../customer/rating_screen.dart';
 
 class TrackingScreen extends StatefulWidget {
@@ -36,6 +37,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   int _currentStep = 1;
   String _jobStatus = 'assigned';
   String? _washerId;
+  String? _lastStatus;
   String _currentLocation = 'En route to your location';
   int _etaMinutes = 15;
   double _distanceKm = 1.5;
@@ -80,6 +82,57 @@ class _TrackingScreenState extends State<TrackingScreen> {
         if (_washerId != null && _washerId!.isNotEmpty && _washerSubscription == null) {
           _listenToWasherLocation(_washerId!);
         }
+
+        // Trigger local notification/popup on status changes
+        if (_lastStatus != null && _lastStatus != status) {
+          String notifTitle = 'Order Updated';
+          String notifMsg = 'Your booking status is now: $status.';
+          IconData notifIcon = Icons.info_outline;
+          Color notifColor = AppColors.primary;
+
+          switch (status) {
+            case 'accepted':
+              notifTitle = '✅ Request Accepted';
+              notifMsg = 'Your service request has been accepted by the provider.';
+              notifIcon = Icons.thumb_up_alt_outlined;
+              notifColor = Colors.blue;
+              break;
+            case 'enRoute':
+              notifTitle = '🚚 Provider En Route';
+              notifMsg = 'The service provider is now heading to your location.';
+              notifIcon = Icons.directions_car_outlined;
+              notifColor = Colors.orange;
+              break;
+            case 'arrived':
+              notifTitle = '📍 Provider Arrived';
+              notifMsg = 'The service provider has arrived at your location!';
+              notifIcon = Icons.location_on_outlined;
+              notifColor = Colors.green;
+              break;
+            case 'completed':
+              notifTitle = '🎉 Service Completed!';
+              notifMsg = 'Your booking has been completed successfully. Thank you!';
+              notifIcon = Icons.check_circle_outline;
+              notifColor = Colors.green;
+              break;
+            case 'cancelled':
+              notifTitle = '🚨 Service Cancelled';
+              notifMsg = 'Your booking has been cancelled.';
+              notifIcon = Icons.cancel_outlined;
+              notifColor = Colors.red;
+              break;
+          }
+
+          AppNotificationService().notify(
+            context: context,
+            title: notifTitle,
+            message: notifMsg,
+            type: 'booking',
+            icon: notifIcon,
+            backgroundColor: notifColor,
+          );
+        }
+        _lastStatus = status;
         
         setState(() {
           _jobStatus = status;

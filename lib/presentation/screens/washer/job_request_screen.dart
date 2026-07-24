@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
+import '../../../services/app_notification_service.dart';
 import 'navigation_screen.dart';
 
 class JobRequestScreen extends StatefulWidget {
@@ -25,11 +26,13 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
     try {
       await JobService().assignProviderToJob(jobId: jobId, providerId: washerId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Job accepted! Opening navigation...'),
-            backgroundColor: Colors.green,
-          ),
+        AppNotificationService().notify(
+          context: context,
+          title: '✅ Job Accepted!',
+          message: 'Opening navigation for the customer request.',
+          type: 'booking',
+          icon: Icons.check_circle_outline,
+          backgroundColor: Colors.green,
         );
         Navigator.push(
           context,
@@ -61,11 +64,13 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
       await JobService().cancelJob(jobId: jobId, reason: 'Declined by service provider');
       if (mounted) {
         setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Job declined'),
-            backgroundColor: AppColors.error,
-          ),
+        AppNotificationService().notify(
+          context: context,
+          title: '🚨 Job Declined',
+          message: 'The customer request has been declined.',
+          type: 'booking',
+          icon: Icons.cancel_outlined,
+          backgroundColor: Colors.red,
         );
       }
     } catch (e) {
