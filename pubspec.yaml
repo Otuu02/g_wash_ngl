@@ -48,7 +48,7 @@ dependencies:
   # UTILITIES
   # ==========================================
   image_picker: ^1.1.2
-  intl: ^0.20.2
+  intl: ^0.19.0
   connectivity_plus: ^6.0.3
   permission_handler: ^11.3.1
   url_launcher: ^6.3.0

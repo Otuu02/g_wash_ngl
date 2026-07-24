@@ -33,7 +33,7 @@ class TrackingScreen extends StatefulWidget {
 class _TrackingScreenState extends State<TrackingScreen> {
   bool _isLoading = true;
   bool _isServiceCompleted = false;
-  int _currentStep = 1; // 0=Confirmed, 1=En Route, 2=Arrived, 3=Completed
+  int _currentStep = 1;
   String _jobStatus = 'assigned';
   String? _washerId;
   String _currentLocation = 'En route to your location';
@@ -187,7 +187,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      // Update job status to completed
       await FirebaseFirestore.instance
           .collection('jobs')
           .doc(widget.jobId)
@@ -203,7 +202,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
         _isProcessing = false;
       });
 
-      // Show payment dialog
       _showPaymentDialog();
       
     } catch (e) {
@@ -286,14 +284,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   Future<void> _processPayment() async {
-    Navigator.pop(context); // Close payment dialog
+    Navigator.pop(context);
     
     try {
-      // Process payment (integrate with Paystack or Flutterwave)
-      // For now, simulate payment
       await Future.delayed(const Duration(seconds: 2));
 
-      // Update payment status
       await FirebaseFirestore.instance
           .collection('jobs')
           .doc(widget.jobId)
@@ -341,8 +336,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
-              // Navigate to rating screen
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -366,7 +360,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   void _callWasher() {
-    // In production, use url_launcher to call
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Calling washer... (Feature coming soon)'),
@@ -385,14 +378,66 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
     final isCancelled = _jobStatus == 'cancelled';
 
+    if (isCancelled) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text(
+            'Track Your Wash',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.cancel, size: 60, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text(
+                'Job Cancelled',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'This job has been cancelled',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Track Your Washer'),
-        backgroundColor: AppColors.white,
-        foregroundColor: AppColors.black,
-        elevation: 1,
+        title: const Text(
+          'Track Your Wash',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -494,284 +539,298 @@ class _TrackingScreenState extends State<TrackingScreen> {
             ),
           ),
           
-          // Bottom Panel
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -2),
+          const SizedBox(height: 20),
+          
+          // Status Section
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Icon(
+                  _currentStep >= 3 ? Icons.check_circle : Icons.directions_car,
+                  color: _currentStep >= 3 ? Colors.green : AppColors.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _currentStep >= 3 ? 'Service Completed!' : 'Washer On The Way',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        _currentLocation,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: isCancelled
-                  ? _buildCancelledView()
-                  : Column(
-                      children: [
-                        // Progress Steps
-                        Row(
-                          children: [
-                            _buildProgressStep(0, 'Confirmed', _currentStep >= 0),
-                            Expanded(child: _buildProgressLine(_currentStep >= 1)),
-                            _buildProgressStep(1, 'En Route', _currentStep >= 1),
-                            Expanded(child: _buildProgressLine(_currentStep >= 2)),
-                            _buildProgressStep(2, 'Arrived', _currentStep >= 2),
-                            Expanded(child: _buildProgressLine(_currentStep >= 3)),
-                            _buildProgressStep(3, 'Completed', _currentStep >= 3),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        
-                        // Washer Info
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.grey50,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const CircleAvatar(
-                                radius: 25,
-                                backgroundColor: AppColors.primary,
-                                child: Icon(Icons.person, color: Colors.white, size: 28),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      widget.washerName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Row(
-                                      children: [
-                                        Icon(Icons.star, size: 14, color: Colors.amber),
-                                        Icon(Icons.star, size: 14, color: Colors.amber),
-                                        Icon(Icons.star, size: 14, color: Colors.amber),
-                                        Icon(Icons.star, size: 14, color: Colors.amber),
-                                        Icon(Icons.star_half, size: 14, color: Colors.amber),
-                                        SizedBox(width: 4),
-                                        Text('4.8 (156 reviews)', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: _currentStep >= 3 ? Colors.green.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  _currentStep >= 3 ? '✅ Done' : 'ETA: ${_etaMinutes} mins',
-                                  style: TextStyle(
-                                    color: _currentStep >= 3 ? Colors.green : AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Current Status
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: AppColors.grey200),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _currentStep >= 3 ? Icons.check_circle : Icons.directions_car,
-                                color: _currentStep >= 3 ? Colors.green : AppColors.primary,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Current Status',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                                    ),
-                                    Text(
-                                      _currentLocation,
-                                      style: const TextStyle(fontWeight: FontWeight.w500),
-                                    ),
-                                    if (_currentStep < 3)
-                                      Text(
-                                        'Estimated arrival in $_etaMinutes minutes',
-                                        style: TextStyle(fontSize: 12, color: AppColors.grey600),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        
-                        const Spacer(),
-                        
-                        // Action Buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: _currentStep >= 3 || _isProcessing ? null : _callWasher,
-                                icon: const Icon(Icons.phone, color: AppColors.primary),
-                                label: const Text('Call Washer'),
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: AppColors.primary,
-                                  side: const BorderSide(color: AppColors.primary),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _currentStep >= 3
-                                  ? ElevatedButton(
-                                      onPressed: _isProcessing ? null : _confirmCompletion,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                      child: _isProcessing
-                                          ? const SizedBox(
-                                              height: 20,
-                                              width: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            )
-                                          : const Text('Confirm Complete'),
-                                    )
-                                  : ElevatedButton(
-                                      onPressed: _isProcessing ? null : _cancelJob,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                      child: _isProcessing
-                                          ? const SizedBox(
-                                              height: 20,
-                                              width: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            )
-                                          : const Text('Cancel Request'),
-                                    ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCancelledView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.cancel, size: 60, color: Colors.red),
+          
           const SizedBox(height: 16),
-          const Text(
-            'Job Cancelled',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'This job has been cancelled',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+          
+          // Washer Info Card
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Card(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person,
+                        size: 28,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.washerName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                '4.8',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Professional Washer',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            child: const Text('Go Back'),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // ETA & Service Details
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'ETA',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _etaMinutes.toString(),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                'mins',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Service',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.serviceName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Price',
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '₦${widget.price.toString()}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const Spacer(),
+          
+          // Cancel Button
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _jobStatus == 'on_the_way' || _jobStatus == 'assigned'
+                    ? () => _showCancelDialog()
+                    : null,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: const BorderSide(color: Colors.red),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Cancel Booking',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProgressStep(int index, String label, bool isActive) {
-    final icons = [Icons.check_circle, Icons.directions_car, Icons.location_on, Icons.done];
-    return Column(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isActive ? AppColors.primary : AppColors.grey300,
+  void _showCancelDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Booking'),
+        content: const Text('Are you sure you want to cancel this booking?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('No'),
           ),
-          child: Center(
-            child: Icon(
-              icons[index],
-              size: 18,
-              color: isActive ? Colors.white : AppColors.grey500,
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await FirebaseFirestore.instance
+                  .collection('jobs')
+                  .doc(widget.jobId)
+                  .update({
+                'status': 'cancelled',
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
             ),
+            child: const Text('Yes, Cancel'),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: isActive ? AppColors.primary : Colors.grey,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProgressLine(bool isActive) {
-    return Container(
-      height: 2,
-      color: isActive ? AppColors.primary : AppColors.grey300,
+        ],
+      ),
     );
   }
 }

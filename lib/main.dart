@@ -70,7 +70,9 @@ void main() async {
 class GWashApp extends StatelessWidget {
   const GWashApp({super.key});
 
-  // Helper method to determine the correct home screen based on user role
+  // ============================================================
+  // FIXED: Helper method to determine correct home screen
+  // ============================================================
   Widget _getHomeScreen(AuthService authService) {
     print('🔍 Determining home screen:');
     print('   isLoggedIn: ${authService.isLoggedIn}');
@@ -83,9 +85,33 @@ class GWashApp extends StatelessWidget {
       return const WelcomeScreen();
     }
     
-    if (authService.isServiceProvider || authService.isWasher) {
+    // ============================================================
+    // FIX: Check if user is a washer FIRST
+    // ============================================================
+    // Check 1: Using isWasher getter
+    if (authService.isWasher) {
+      print('✅ User is a WASHER (isWasher=true) - showing Washer Dashboard');
+      return const WasherDashboard();
+    }
+    
+    // Check 2: Using isServiceProvider getter
+    if (authService.isServiceProvider) {
       print('✅ User is a SERVICE PROVIDER - showing Washer Dashboard');
       return const WasherDashboard();
+    }
+    
+    // Check 3: Check role string directly
+    if (authService.userRole == 'washer' || 
+        authService.userRole == 'cleaner' || 
+        authService.userRole == 'laundry_provider') {
+      print('✅ User role is ${authService.userRole} - showing Washer Dashboard');
+      return const WasherDashboard();
+    }
+    
+    // Check 4: Check if user exists in washers collection (via refresh)
+    if (authService.userId != null) {
+      // This will be handled by the auth listener
+      print('🔄 Will check washers collection for user: ${authService.userId}');
     }
     
     print('✅ User is a CUSTOMER - showing Home Screen');
@@ -101,9 +127,6 @@ class GWashApp extends StatelessWidget {
           title: 'G Wash NG',
           debugShowCheckedModeBanner: false,
           
-          // ============================================================
-          // FIX: Disable ALL debug overlays and indicators
-          // ============================================================
           debugShowMaterialGrid: false,
           showSemanticsDebugger: false,
           
@@ -135,22 +158,15 @@ class GWashApp extends StatelessWidget {
             useMaterial3: true,
           ),
           
-          // ============================================================
-          // FIX: Wrap app to prevent overflow indicators
-          // ============================================================
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
-                // Ensure proper padding for safe areas
                 padding: MediaQuery.of(context).padding,
               ),
               child: child!,
             );
           },
           
-          // ============================================
-          // FIXED: Use Consumer to rebuild when auth changes
-          // ============================================
           home: _getHomeScreen(authService),
           
           routes: {
@@ -180,7 +196,6 @@ class GWashApp extends StatelessWidget {
           },
           
           onGenerateRoute: (settings) {
-            // Handle dynamic routes with parameters
             if (settings.name == '/admin') {
               if (authService.isLoggedIn && authService.isAdmin) {
                 return MaterialPageRoute(
