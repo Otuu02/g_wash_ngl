@@ -1,9 +1,11 @@
 // FILE: lib/presentation/screens/washer/job_request_screen.dart
-// PURPOSE: Display and manage incoming job requests
-// FIXED: TabController error - wrapped with DefaultTabController
+// PURPOSE: Display and manage incoming job requests from Firestore
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/job_service.dart';
 import 'navigation_screen.dart';
 
 class JobRequestScreen extends StatefulWidget {
@@ -14,111 +16,72 @@ class JobRequestScreen extends StatefulWidget {
 }
 
 class _JobRequestScreenState extends State<JobRequestScreen> {
-  final List<Map<String, dynamic>> _pendingJobs = [
-    {
-      'id': 'JOB-001',
-      'service': 'Full Detailing',
-      'price': 10000,
-      'customerName': 'David O.',
-      'customerPhone': '+234 802 345 6789',
-      'address': '12, Lekki Phase 1, Lagos',
-      'distance': 2.5,
-      'time': '10:30 AM',
-      'date': 'Today',
-      'duration': '90 mins',
-    },
-    {
-      'id': 'JOB-002',
-      'service': 'Exterior Wash',
-      'price': 3000,
-      'customerName': 'Sarah A.',
-      'customerPhone': '+234 803 456 7890',
-      'address': '45, Victoria Island, Lagos',
-      'distance': 4.2,
-      'time': '2:00 PM',
-      'date': 'Today',
-      'duration': '30 mins',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _acceptedJobs = [
-    {
-      'id': 'JOB-003',
-      'service': 'Interior Cleaning',
-      'price': 5000,
-      'customerName': 'John M.',
-      'customerPhone': '+234 804 567 8901',
-      'address': '78, Ikoyi, Lagos',
-      'status': 'En Route',
-      'eta': '15 min',
-    },
-  ];
-
   int _selectedTab = 0;
 
-  void _acceptJob(Map<String, dynamic> job) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Accept Job',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text('Accept ${job['service']} for ₦${job['price']}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Decline',
-              style: TextStyle(color: AppColors.error),
+  Future<void> _acceptJob(Map<String, dynamic> job, String washerId) async {
+    final jobId = job['id'];
+    if (jobId == null) return;
+
+    try {
+      await JobService().assignProviderToJob(jobId: jobId, providerId: washerId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Job accepted! Opening navigation...'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NavigationScreen(
+              jobId: jobId,
+              destination: job['location'] ?? job['address'] ?? 'Customer Address',
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Add to accepted jobs
-              setState(() {
-                _acceptedJobs.add({
-                  'id': job['id'],
-                  'service': job['service'],
-                  'price': job['price'],
-                  'customerName': job['customerName'],
-                  'customerPhone': job['customerPhone'],
-                  'address': job['address'],
-                  'status': 'En Route',
-                  'eta': '15 min',
-                });
-                _pendingJobs.removeWhere((j) => j['id'] == job['id']);
-              });
-              
-              // Navigate to navigation screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => NavigationScreen(
-                    jobId: job['id'],
-                    destination: job['address'],
-                  ),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Accept'),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to accept job: $e'),
+            backgroundColor: AppColors.error,
           ),
-        ],
-      ),
-    );
+        );
+      }
+    }
+  }
+
+  Future<void> _declineJob(Map<String, dynamic> job) async {
+    final jobId = job['id'];
+    if (jobId == null) return;
+
+    try {
+      await JobService().cancelJob(jobId: jobId, reason: 'Declined by service provider');
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Job declined'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // ============================================================
-    // FIXED: Wrap with DefaultTabController to fix TabController error
-    // ============================================================
+    final authService = Provider.of<AuthService>(context);
+    final washerId = authService.userId ?? '';
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -131,36 +94,71 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
           foregroundColor: Colors.white,
           elevation: 0,
           bottom: TabBar(
-            tabs: [
-              Tab(text: 'Pending (${_pendingJobs.length})'),
-              Tab(text: 'Active (${_acceptedJobs.length})'),
-            ],
             onTap: (index) => setState(() => _selectedTab = index),
             indicatorColor: Colors.white,
             indicatorWeight: 3,
             labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            tabs: const [
+              Tab(text: 'Pending Requests'),
+              Tab(text: 'Active Jobs'),
+            ],
           ),
         ),
-        body: _selectedTab == 0
-            ? _pendingJobs.isEmpty
-                ? _buildEmptyState('No pending jobs', 'Check back later for new requests')
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _pendingJobs.length,
-                    itemBuilder: (context, index) => _buildJobCard(_pendingJobs[index]),
-                  )
-            : _acceptedJobs.isEmpty
-                ? _buildEmptyState('No active jobs', 'Your accepted jobs will appear here')
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _acceptedJobs.length,
-                    itemBuilder: (context, index) => _buildActiveJobCard(_acceptedJobs[index]),
-                  ),
+        body: FutureBuilder<List<List<Map<String, dynamic>>>>(
+          future: Future.wait([
+            JobService().getPendingJobs(category: authService.serviceCategory),
+            washerId.isNotEmpty
+                ? JobService().getWasherJobs(washerId)
+                : Future.value(<Map<String, dynamic>>[]),
+          ]),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final pendingJobs = snapshot.data?[0] ?? [];
+            final washerJobs = snapshot.data?[1] ?? [];
+            final activeJobs = washerJobs.where((j) =>
+                j['status'] == 'assigned' ||
+                j['status'] == 'enRoute' ||
+                j['status'] == 'in_progress').toList();
+
+            return TabBarView(
+              children: [
+                // Pending Tab
+                pendingJobs.isEmpty
+                    ? _buildEmptyState('No pending job requests', 'Check back later for new customer requests')
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: pendingJobs.length,
+                        itemBuilder: (context, index) =>
+                            _buildJobCard(pendingJobs[index], washerId),
+                      ),
+                // Active Tab
+                activeJobs.isEmpty
+                    ? _buildEmptyState('No active jobs', 'Accepted jobs will appear here for navigation')
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: activeJobs.length,
+                        itemBuilder: (context, index) =>
+                            _buildActiveJobCard(activeJobs[index]),
+                      ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _buildJobCard(Map<String, dynamic> job) {
+  Widget _buildJobCard(Map<String, dynamic> job, String washerId) {
+    final serviceName = job['serviceName'] ?? job['serviceCategory'] ?? 'Service';
+    final price = job['price'] ?? 0;
+    final customerName = job['customerName'] ?? 'Customer';
+    final customerPhone = job['customerPhone'] ?? job['phone'] ?? '';
+    final address = job['location'] ?? job['address'] ?? 'Customer Location';
+    final scheduledInfo = job['scheduledTime'] ?? job['scheduledDate'] ?? 'Immediate';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -180,8 +178,8 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    job['service'],
-                    style: TextStyle(
+                    serviceName,
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary,
@@ -189,7 +187,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                   ),
                 ),
                 Text(
-                  '₦${job['price']}',
+                  '₦$price',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -205,17 +203,19 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    job['customerName'],
+                    customerName,
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.phone, size: 14, color: AppColors.grey600),
-                const SizedBox(width: 4),
-                Text(
-                  job['customerPhone'],
-                  style: const TextStyle(fontSize: 12),
-                ),
+                if (customerPhone.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.phone, size: 14, color: AppColors.grey600),
+                  const SizedBox(width: 4),
+                  Text(
+                    customerPhone,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -225,7 +225,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    job['address'],
+                    address,
                     style: const TextStyle(fontSize: 13),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -239,27 +239,8 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 const Icon(Icons.timer, size: 16, color: AppColors.grey600),
                 const SizedBox(width: 8),
                 Text(
-                  '${job['date']} at ${job['time']} • ${job['duration']}',
+                  scheduledInfo,
                   style: const TextStyle(fontSize: 12),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.location_on, size: 12, color: Colors.blue),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${job['distance']} km',
-                        style: const TextStyle(color: Colors.blue, fontSize: 11),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -268,48 +249,10 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () {
-                      // Decline job
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          title: const Text('Decline Job'),
-                          content: Text('Are you sure you want to decline ${job['service']}?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancel'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                setState(() {
-                                  _pendingJobs.removeWhere((j) => j['id'] == job['id']);
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Job declined'),
-                                    backgroundColor: AppColors.error,
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.error,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Decline'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                    onPressed: () => _declineJob(job),
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.error),
                       foregroundColor: AppColors.error,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      side: const BorderSide(color: AppColors.error),
                     ),
                     child: const Text('Decline'),
                   ),
@@ -317,13 +260,10 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _acceptJob(job),
+                    onPressed: () => _acceptJob(job, washerId),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
                     ),
                     child: const Text('Accept'),
                   ),
@@ -337,24 +277,6 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
   }
 
   Widget _buildActiveJobCard(Map<String, dynamic> job) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
                   child: Text(
                     job['service'],
                     style: const TextStyle(
