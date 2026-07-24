@@ -57,48 +57,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   ];
 
   // ============================================================
-  // CAROUSEL DATA - YOUR REAL IMAGES
+  // CAROUSEL DATA - YOUR REAL IMAGES (NO TEXT OVERLAYS)
   // ============================================================
   final List<Map<String, dynamic>> _carouselItems = [
     {
-      'title': 'Professional Car Wash',
-      'subtitle': 'At Your Doorstep',
-      'icon': Icons.local_car_wash,
-      'color': 0xFF0CAF60,
-      'gradient': [Color(0xFF0CAF60), Color(0xFF087F4B)],
       'imagePath': 'assets/images/flyer_launch.jpg',
-      'features': ['Premium Service', 'Expert Washers', '100% Satisfaction'],
       'emoji': '🚗',
+      'category': 'Professional Car Wash',
     },
     {
-      'title': 'House Cleaning',
-      'subtitle': 'Expert Home Services',
-      'icon': Icons.cleaning_services,
-      'color': 0xFF2196F3,
-      'gradient': [Color(0xFF2196F3), Color(0xFF1565C0)],
       'imagePath': 'assets/images/flyer_services.jpg',
-      'features': ['Deep Cleaning', 'Eco-Friendly', 'Trusted Professionals'],
       'emoji': '🧹',
+      'category': 'House Cleaning',
     },
     {
-      'title': 'Laundry Service',
-      'subtitle': 'Fresh & Clean',
-      'icon': Icons.local_laundry_service,
-      'color': 0xFF9C27B0,
-      'gradient': [Color(0xFF9C27B0), Color(0xFF6A1B9A)],
       'imagePath': 'assets/images/flyer_whychoose.jpg',
-      'features': ['Wash & Fold', 'Premium Quality', 'Fast Delivery'],
       'emoji': '👕',
-    },
-    {
-      'title': 'Ride Service',
-      'subtitle': 'Safe & Reliable Rides',
-      'icon': Icons.car_rental,
-      'color': 0xFFFF6B00,
-      'gradient': [Color(0xFFFF6B00), Color(0xFFE65100)],
-      'imagePath': 'assets/images/ride_service.jpg',
-      'features': ['Safe Rides', 'Professional Drivers', '24/7 Service'],
-      'emoji': '🚘',
+      'category': 'Laundry Service',
     },
   ];
 
@@ -382,8 +357,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Rest of the methods remain the same...
-
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
@@ -493,7 +466,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // _buildHomeTab with updated service cards (no prices)
+  // ============================================================
+  // UPDATED: _buildHomeTab with NO TEXT OVERLAYS on Carousel
+  // ============================================================
   Widget _buildHomeTab(String userName) {
     final authService = Provider.of<AuthService>(context);
     final isLoggedIn = authService.isLoggedIn;
@@ -508,7 +483,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header - same as before
+          // ============================================================
+          // HEADER with Gradient
+          // ============================================================
           Container(
             padding: EdgeInsets.fromLTRB(20, 20, 20, isSmallScreen ? 20 : 30),
             decoration: const BoxDecoration(
@@ -621,9 +598,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           
           const SizedBox(height: 20),
 
-          // Carousel (same as before)
+          // ============================================================
+          // 3-SLIDE CAROUSEL - FULL IMAGES ONLY (NO TEXT OVERLAYS)
+          // ============================================================
           SizedBox(
-            height: isSmallScreen ? 150 : 180,
+            height: isSmallScreen ? 180 : 220,
             child: PageView.builder(
               controller: _carouselController,
               onPageChanged: (index) {
@@ -636,171 +615,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 final item = _carouselItems[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (Color(item['color']) as Color).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: Image.asset(
-                              item['imagePath'],
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Color(item['color']),
-                                        (Color(item['color']) as Color).withOpacity(0.7),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      item['emoji'],
-                                      style: const TextStyle(fontSize: 80),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BookingScreen(
+                            serviceCategory: item['category'],
                           ),
                         ),
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  Colors.black.withOpacity(0.5),
-                                  Colors.black.withOpacity(0.1),
-                                ],
-                              ),
-                            ),
+                      );
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      item['title'],
-                                      style: theme.textTheme.headlineSmall?.copyWith(
-                                        color: Colors.white,
-                                        shadows: const [
-                                          Shadow(blurRadius: 10, color: Colors.black38),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      item['subtitle'],
-                                      style: theme.textTheme.bodyLarge?.copyWith(
-                                        color: Colors.white.withOpacity(0.95),
-                                        shadows: const [
-                                          Shadow(blurRadius: 8, color: Colors.black38),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    if (item['features'] != null)
-                                      ...(item['features'] as List<String>).map((feature) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 2),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.check_circle,
-                                              color: Colors.white,
-                                              size: 14,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              feature,
-                                              style: theme.textTheme.bodyMedium?.copyWith(
-                                                color: Colors.white.withOpacity(0.9),
-                                                shadows: const [
-                                                  Shadow(blurRadius: 6, color: Colors.black38),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )),
-                                    const SizedBox(height: 12),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        final categoryIndex = _carouselItems.indexOf(item);
-                                        setState(() {
-                                          _selectedCategoryIndex = categoryIndex;
-                                        });
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => BookingScreen(
-                                              serviceCategory: _carouselItems[categoryIndex]['title'],
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: Color(item['color']),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 24,
-                                          vertical: 10,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        textStyle: theme.textTheme.labelLarge,
-                                      ),
-                                      child: const Text('Book Now'),
-                                    ),
-                                  ],
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          item['imagePath'],
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              height: 220,
+                              color: Colors.grey.shade300,
+                              child: Center(
+                                child: Text(
+                                  item['emoji'],
+                                  style: const TextStyle(fontSize: 80),
                                 ),
                               ),
-                              Container(
-                                width: 70,
-                                height: 70,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Icon(
-                                  item['icon'],
-                                  size: 40,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 );
@@ -833,7 +689,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
           const SizedBox(height: 8),
 
-          // Category Tabs
+          // ============================================================
+          // CATEGORY TABS
+          // ============================================================
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -879,7 +737,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           
           const SizedBox(height: 20),
 
-          // Services Section - Updated (No Prices)
+          // ============================================================
+          // SERVICES SECTION
+          // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -939,7 +799,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           
           const SizedBox(height: 24),
 
-          // Why Choose Us
+          // ============================================================
+          // WHY CHOOSE US
+          // ============================================================
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.all(20),
@@ -967,7 +829,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           
           const SizedBox(height: 16),
 
-          // Refer & Earn
+          // ============================================================
+          // REFER & EARN
+          // ============================================================
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
             padding: const EdgeInsets.all(16),
@@ -1021,7 +885,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Updated Service Card - No Price Display
+  // ============================================================
+  // SERVICE CARD - No Price Display
+  // ============================================================
   Widget _buildServiceCard(Map<String, dynamic> service, bool isSmall) {
     final theme = Theme.of(context);
     
@@ -1087,7 +953,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Remaining methods unchanged...
+  // ============================================================
+  // REMAINING METHODS (Unchanged)
+  // ============================================================
   void _changeLocation() async {
     showModalBottomSheet(
       context: context,
