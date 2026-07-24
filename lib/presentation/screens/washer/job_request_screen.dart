@@ -277,8 +277,32 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
   }
 
   Widget _buildActiveJobCard(Map<String, dynamic> job) {
+    final serviceName = job['serviceName'] ?? job['serviceCategory'] ?? 'Service';
+    final customerName = job['customerName'] ?? 'Customer';
+    final customerPhone = job['customerPhone'] ?? job['phone'] ?? '';
+    final address = job['location'] ?? job['address'] ?? 'Customer Location';
+    final eta = job['eta'] ?? '15 mins';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Text(
-                    job['service'],
+                    serviceName,
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -298,7 +322,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                       const Icon(Icons.timer, size: 14, color: Colors.orange),
                       const SizedBox(width: 4),
                       Text(
-                        'ETA: ${job['eta']}',
+                        'ETA: $eta',
                         style: const TextStyle(color: Colors.orange, fontSize: 12),
                       ),
                     ],
@@ -313,17 +337,19 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    job['customerName'],
+                    customerName,
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.phone, size: 14, color: AppColors.grey600),
-                const SizedBox(width: 4),
-                Text(
-                  job['customerPhone'],
-                  style: const TextStyle(fontSize: 12),
-                ),
+                if (customerPhone.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.phone, size: 14, color: AppColors.grey600),
+                  const SizedBox(width: 4),
+                  Text(
+                    customerPhone,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -333,7 +359,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    job['address'],
+                    address,
                     style: const TextStyle(fontSize: 13),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -353,24 +379,41 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                         builder: (context) => AlertDialog(
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           title: const Text('Cancel Job'),
-                          content: Text('Are you sure you want to cancel ${job['service']}?'),
+                          content: Text('Are you sure you want to cancel $serviceName?'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
                               child: const Text('No'),
                             ),
                             ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
                                 Navigator.pop(context);
-                                setState(() {
-                                  _acceptedJobs.removeWhere((j) => j['id'] == job['id']);
-                                });
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Job cancelled'),
-                                    backgroundColor: AppColors.error,
-                                  ),
-                                );
+                                final jobId = job['id'];
+                                if (jobId != null) {
+                                  try {
+                                    await JobService().cancelJob(
+                                      jobId: jobId,
+                                      reason: 'Cancelled by service provider',
+                                    );
+                                    if (mounted) {
+                                      setState(() {});
+                                    }
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Job cancelled'),
+                                        backgroundColor: AppColors.error,
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed to cancel job: $e'),
+                                        backgroundColor: AppColors.error,
+                                      ),
+                                    );
+                                  }
+                                }
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.error,
@@ -397,15 +440,18 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => NavigationScreen(
-                            jobId: job['id'],
-                            destination: job['address'],
+                      final jobId = job['id'];
+                      if (jobId != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NavigationScreen(
+                              jobId: jobId,
+                              destination: address,
+                            ),
                           ),
-                        ),
-                      );
+                        );
+                      }
                     },
                     icon: const Icon(Icons.navigation, size: 18),
                     label: const Text('Navigate'),
