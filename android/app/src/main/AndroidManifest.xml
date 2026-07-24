@@ -9,7 +9,9 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     
-    <!-- Google Maps API Key -->
+    <!-- ============================================================
+    FIX: Google Maps API Key with proper meta-data
+    ============================================================ -->
     <application
         android:label="G Wash NG"
         android:name="${applicationName}"
@@ -19,6 +21,10 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw" />
+        
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
         
         <activity
             android:name=".MainActivity"

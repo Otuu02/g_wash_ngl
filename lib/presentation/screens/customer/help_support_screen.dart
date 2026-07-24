@@ -9,20 +9,26 @@ import '../../../core/utils/helpers.dart';
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 
-  Future<void> _makePhoneCall(BuildContext context, String phoneNumber) async {
-    final Uri callUri = Uri(scheme: 'tel', path: phoneNumber);
+  // ============================================================
+  // SUPPORT CONTACT INFORMATION
+  // ============================================================
+  static const String supportPhone = '07065584504';
+  static const String supportEmail = 'giftotuuobinna1995@gmail.com';
+
+  Future<void> _makePhoneCall(BuildContext context) async {
+    final Uri callUri = Uri(scheme: 'tel', path: supportPhone);
     if (await canLaunchUrl(callUri)) {
       await launchUrl(callUri);
-      Helpers.showSnackBar(context, message: 'Calling $phoneNumber...', isSuccess: true);
+      Helpers.showSnackBar(context, message: 'Calling support...', isSuccess: true);
     } else {
       Helpers.showSnackBar(context, message: 'Could not make call', isError: true);
     }
   }
 
-  Future<void> _sendEmail(BuildContext context, String email) async {
+  Future<void> _sendEmail(BuildContext context) async {
     final Uri emailUri = Uri(
       scheme: 'mailto',
-      path: email,
+      path: supportEmail,
       query: 'subject=Support Request from G Wash NG User&body=Please describe your issue here:',
     );
     if (await canLaunchUrl(emailUri)) {
@@ -65,11 +71,11 @@ class HelpSupportScreen extends StatelessWidget {
             '1. Acceptance of Terms\n'
             'By using G Wash NG, you agree to these terms.\n\n'
             '2. Service Description\n'
-            'G Wash NG connects customers with professional car washers.\n\n'
+            'G Wash NG connects customers with professional service providers.\n\n'
             '3. User Responsibilities\n'
             'Users must provide accurate information.\n\n'
             '4. Payments\n'
-            'All payments are processed securely through Paystack.\n\n'
+            'All payments are processed securely.\n\n'
             '5. Cancellations\n'
             'Cancellations within 1 hour may incur a fee.\n\n'
             '6. Privacy\n'
@@ -78,7 +84,7 @@ class HelpSupportScreen extends StatelessWidget {
             'G Wash NG is not liable for damages beyond service value.\n\n'
             '8. Modifications\n'
             'We reserve the right to modify these terms.\n\n'
-            'Last updated: May 2024',
+            'Last updated: July 2024',
           ),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -103,22 +109,19 @@ class HelpSupportScreen extends StatelessWidget {
             'Information We Collect:\n'
             '- Phone number for account creation\n'
             '- Location data for service delivery\n'
-            '- Payment information (processed by Paystack)\n'
+            '- Payment information (processed securely)\n'
             '- Device information for app functionality\n\n'
             'How We Use Your Information:\n'
-            '- To provide car wash services\n'
+            '- To provide services\n'
             '- To process payments\n'
             '- To improve our services\n'
             '- To communicate with you\n\n'
             'Data Security:\n'
             'We use industry-standard encryption to protect your data.\n\n'
-            'Third-Party Services:\n'
-            'We use Paystack for payments and Google Maps for location.\n\n'
-            'Your Rights:\n'
-            'You can request deletion of your account and data.\n\n'
             'Contact Us:\n'
-            'Email: privacy@gwashng.com\n\n'
-            'Last updated: May 2024',
+            'Email: giftotuuobinna1995@gmail.com\n'
+            'Phone: 07065584504\n\n'
+            'Last updated: July 2024',
           ),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -133,7 +136,6 @@ class HelpSupportScreen extends StatelessWidget {
   }
 
   void _rateApp(BuildContext context) {
-    // Show app rating dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -202,14 +204,14 @@ class HelpSupportScreen extends StatelessWidget {
           _buildMenuItem(
             icon: Icons.phone,
             title: 'Call Support',
-            subtitle: '+234 801 234 5678',
-            onTap: () => _makePhoneCall(context, '+2348012345678'),
+            subtitle: supportPhone,
+            onTap: () => _makePhoneCall(context),
           ),
           _buildMenuItem(
             icon: Icons.email,
             title: 'Email Us',
-            subtitle: 'support@gwashng.com',
-            onTap: () => _sendEmail(context, 'support@gwashng.com'),
+            subtitle: supportEmail,
+            onTap: () => _sendEmail(context),
           ),
           _buildMenuItem(
             icon: Icons.chat,
@@ -254,7 +256,7 @@ class HelpSupportScreen extends StatelessWidget {
           const SizedBox(height: 30),
           Center(
             child: Text(
-              'Version 1.0.0',
+              'G Wash NG v1.0.0',
               style: TextStyle(color: AppColors.grey500, fontSize: 12),
             ),
           ),
@@ -322,7 +324,6 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
       _isTyping = true;
     });
     
-    // Simulate bot response
     Future.delayed(const Duration(seconds: 1), () {
       setState(() {
         _isTyping = false;
@@ -345,7 +346,6 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
       ),
       child: Column(
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -382,7 +382,6 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
               ],
             ),
           ),
-          // Messages
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -448,7 +447,6 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
               },
             ),
           ),
-          // Input
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -501,6 +499,7 @@ class FAQBottomSheet extends StatelessWidget {
     {'q': 'Can I cancel my booking?', 'a': 'Yes, cancel up to 1 hour before scheduled time for free.'},
     {'q': 'How do I track my washer?', 'a': 'Use the live tracking feature in your active booking.'},
     {'q': 'Is my payment secure?', 'a': 'Yes, all payments are processed securely through Paystack.'},
+    {'q': 'How do I contact support?', 'a': 'Call 07065584504 or email giftotuuobinna1995@gmail.com'},
   ];
 
   @override
@@ -612,7 +611,6 @@ class _FeedbackBottomSheetState extends State<FeedbackBottomSheet> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          // Rating Stars
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(5, (index) {

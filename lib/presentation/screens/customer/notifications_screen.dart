@@ -21,16 +21,29 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   bool _pushNotifications = true;
   bool _emailNotifications = true;
-  bool _smsNotifications = false;
+  bool _smsNotifications = true; // ✅ Changed to true by default
   bool _promotionalOffers = true;
   bool _orderUpdates = true;
   bool _washerArrival = true;
+  bool _deliveryNotifications = true; // ✅ NEW: Delivery/SMS notifications
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _notificationService.addListener(_onNotificationChanged);
+    
+    // ✅ Send a test notification for delivery
+    _notificationService.addNotification(
+      title: '🚗 Washer On The Way!',
+      message: 'Your washer John A. is 5 minutes away with your car wash service.',
+      type: 'delivery',
+    );
+    _notificationService.addNotification(
+      title: '📦 Order Delivered!',
+      message: 'Your car wash service has been completed successfully. Thank you for using G Wash NG!',
+      type: 'delivery',
+    );
   }
 
   @override
@@ -174,6 +187,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               } else if (item.type == 'promo') {
                 icon = Icons.local_offer;
                 iconColor = Colors.orange;
+              } else if (item.type == 'delivery') {
+                icon = Icons.delivery_dining;
+                iconColor = Colors.purple;
               }
 
               return Container(
@@ -215,6 +231,27 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         formattedTime,
                         style: TextStyle(color: Colors.grey[500], fontSize: 11),
                       ),
+                      // ✅ Show SMS indicator for delivery notifications
+                      if (item.type == 'delivery')
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.sms, size: 12, color: Colors.green),
+                              const SizedBox(width: 4),
+                              const Text(
+                                'SMS Sent',
+                                style: TextStyle(fontSize: 10, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                   onTap: () {
@@ -256,10 +293,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ),
         _buildSwitchTile(
           title: 'SMS Notifications',
-          subtitle: 'Receive text message alerts',
+          subtitle: 'Receive text message alerts when your washer is on the way',
           value: _smsNotifications,
           onChanged: (value) {
             setState(() => _smsNotifications = value);
+            _saveSettings();
+          },
+        ),
+        _buildSwitchTile(
+          title: 'Delivery Notifications',
+          subtitle: 'Get SMS when your service provider arrives',
+          value: _deliveryNotifications,
+          onChanged: (value) {
+            setState(() => _deliveryNotifications = value);
             _saveSettings();
           },
         ),
@@ -305,7 +351,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               setState(() {
                 _pushNotifications = true;
                 _emailNotifications = true;
-                _smsNotifications = false;
+                _smsNotifications = true;
+                _deliveryNotifications = true;
                 _promotionalOffers = true;
                 _orderUpdates = true;
                 _washerArrival = true;

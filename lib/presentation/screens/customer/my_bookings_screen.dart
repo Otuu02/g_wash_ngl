@@ -62,24 +62,31 @@ class MyBookingsScreen extends StatelessWidget {
                   }
 
                   final allJobs = snapshot.data ?? [];
+                  
+                  // ✅ Separate upcoming and completed/cancelled
                   final upcoming = allJobs.where((j) =>
                       j['status'] == 'searching' ||
                       j['status'] == 'assigned' ||
-                      j['status'] == 'in_progress').toList();
+                      j['status'] == 'in_progress' ||
+                      j['status'] == 'accepted' ||
+                      j['status'] == 'enRoute').toList();
+                      
                   final history = allJobs.where((j) =>
-                      j['status'] == 'completed' || j['status'] == 'cancelled').toList();
+                      j['status'] == 'completed' || 
+                      j['status'] == 'cancelled' ||
+                      j['status'] == 'delivered').toList(); // ✅ Added 'delivered'
 
                   return TabBarView(
                     children: [
                       // Upcoming Tab
                       upcoming.isEmpty
-                          ? _buildEmptyState('No upcoming bookings', 'Book a new wash to get started')
+                          ? _buildEmptyState('No upcoming bookings', 'Book a new service to get started')
                           : ListView.builder(
                               padding: const EdgeInsets.all(16),
                               itemCount: upcoming.length,
                               itemBuilder: (context, index) => _buildBookingCard(context, upcoming[index]),
                             ),
-                      // History Tab
+                      // History Tab - Shows completed and delivered orders
                       history.isEmpty
                           ? _buildEmptyState('No booking history', 'Your completed and cancelled orders will appear here')
                           : ListView.builder(
@@ -120,7 +127,17 @@ class MyBookingsScreen extends StatelessWidget {
     final scheduledDate = booking['scheduledTime'] ?? booking['scheduledDate'] ?? 'Scheduled';
     final washerName = booking['washerName'] ?? 'Provider';
 
-    final isCompleted = booking['status'] == 'completed';
+    final isCompleted = booking['status'] == 'completed' || booking['status'] == 'delivered';
+    final isCancelled = booking['status'] == 'cancelled';
+
+    Color statusColor;
+    if (isCompleted) {
+      statusColor = Colors.green;
+    } else if (isCancelled) {
+      statusColor = Colors.red;
+    } else {
+      statusColor = Colors.orange;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -145,15 +162,13 @@ class MyBookingsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isCompleted
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
+                    color: statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     status,
                     style: TextStyle(
-                      color: isCompleted ? Colors.green : Colors.orange,
+                      color: statusColor,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
@@ -196,6 +211,21 @@ class MyBookingsScreen extends StatelessWidget {
                 ),
               ],
             ),
+            // ✅ Show "Completed" badge for delivered orders
+            if (isCompleted)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Service Completed',
+                      style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
             if (isCompleted)
               Padding(
                 padding: const EdgeInsets.only(top: 12),

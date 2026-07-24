@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../welcome_screen.dart';
-import '../washer/washer_registration_screen.dart';  // ← CHANGED: Use registration screen
+import '../washer/washer_registration_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -54,31 +54,75 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           
+          // ✅ NEW: User Section Link
+          _buildSectionHeader('My Account'),
+          _buildMenuItem(
+            Icons.account_circle, 
+            'My Profile', 
+            'View and edit your profile details', 
+            () {
+              // Navigate to profile edit screen
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Profile editing coming soon!')),
+              );
+            }
+          ),
+          
           // Account Section
-          _buildSectionHeader('Account'),
-          _buildMenuItem(Icons.credit_card, 'Payment Methods', 'Add or remove payment methods', () => Navigator.pushNamed(context, '/payment-methods')),
-          _buildMenuItem(Icons.location_on, 'Saved Addresses', 'Manage your delivery addresses', () => Navigator.pushNamed(context, '/saved-addresses')),
-          _buildMenuItem(Icons.notifications, 'Notifications', 'Manage notification preferences', () => Navigator.pushNamed(context, '/notifications')),
+          _buildSectionHeader('Payments & Addresses'),
+          _buildMenuItem(
+            Icons.credit_card, 
+            'Payment Methods', 
+            'Add or remove payment methods', 
+            () => Navigator.pushNamed(context, '/payment-methods')
+          ),
+          _buildMenuItem(
+            Icons.location_on, 
+            'Saved Addresses', 
+            'Manage your delivery addresses', 
+            () => Navigator.pushNamed(context, '/saved-addresses')
+          ),
           
           // Security Section
           _buildSectionHeader('Security'),
-          _buildMenuItem(Icons.security, 'Privacy & Security', 'Manage your privacy settings', () => Navigator.pushNamed(context, '/privacy-security')),
+          _buildMenuItem(
+            Icons.security, 
+            'Privacy & Security', 
+            'Manage your privacy settings', 
+            () => Navigator.pushNamed(context, '/privacy-security')
+          ),
+          _buildMenuItem(
+            Icons.notifications, 
+            'Notifications', 
+            'Manage notification preferences', 
+            () => Navigator.pushNamed(context, '/notifications')
+          ),
           
           // Support Section
           _buildSectionHeader('Support'),
-          _buildMenuItem(Icons.help, 'Help & Support', 'Get help or contact support', () => Navigator.pushNamed(context, '/help-support')),
+          _buildMenuItem(
+            Icons.help, 
+            'Help & Support', 
+            'Get help or contact support', 
+            () => Navigator.pushNamed(context, '/help-support')
+          ),
           
           // Earnings Section
           _buildSectionHeader('Earnings'),
-          _buildMenuItem(Icons.money, 'My Earnings', 'Track your earnings and withdrawals', () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Earnings feature coming soon!')),
-            );
-          }),
+          _buildMenuItem(
+            Icons.money, 
+            'My Earnings', 
+            'Track your earnings and withdrawals', 
+            () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Earnings feature coming soon!')),
+              );
+            }
+          ),
           
           const Divider(),
           
-          // Become a Washer Button (Uber-style) - FIXED
+          // Become a Washer Button (Uber-style)
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -91,7 +135,6 @@ class ProfileScreen extends StatelessWidget {
               subtitle: const Text('Start earning by washing cars', style: TextStyle(color: Colors.white70)),
               trailing: const Icon(Icons.arrow_forward, color: Colors.white),
               onTap: () {
-                // FIXED: Navigate to Registration Screen, not directly to Dashboard
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const WasherRegistrationScreen()),
@@ -103,25 +146,39 @@ class ProfileScreen extends StatelessWidget {
           const Divider(),
           
           // Logout
-          _buildMenuItem(Icons.logout, 'Logout', 'Sign out of your account', () async {
-            final confirm = await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Logout'),
-                content: const Text('Are you sure you want to logout?'),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                  ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('Logout')),
-                ],
-              ),
-            );
-            if (confirm == true && context.mounted) {
-              await authService.logout();
-              if (context.mounted) {
-                Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const WelcomeScreen()), (route) => false);
+          _buildMenuItem(
+            Icons.logout, 
+            'Logout', 
+            'Sign out of your account', 
+            () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to logout?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true), 
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red), 
+                      child: const Text('Logout')
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true && context.mounted) {
+                await authService.logout();
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const WelcomeScreen()), 
+                    (route) => false
+                  );
+                }
               }
-            }
-          }, isDestructive: true),
+            }, 
+            isDestructive: true
+          ),
           
           const SizedBox(height: 20),
         ],
@@ -132,11 +189,24 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary)),
+      child: Text(
+        title, 
+        style: const TextStyle(
+          fontSize: 16, 
+          fontWeight: FontWeight.bold, 
+          color: AppColors.primary
+        ),
+      ),
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, String subtitle, VoidCallback onTap, {bool isDestructive = false}) {
+  Widget _buildMenuItem(
+    IconData icon, 
+    String title, 
+    String subtitle, 
+    VoidCallback onTap, {
+    bool isDestructive = false
+  }) {
     return ListTile(
       leading: Icon(icon, color: isDestructive ? Colors.red : AppColors.primary),
       title: Text(title, style: TextStyle(color: isDestructive ? Colors.red : Colors.black)),

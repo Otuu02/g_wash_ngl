@@ -48,11 +48,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<Map<String, dynamic>> _services = [];
   bool _isLoading = true;
   
-  // Service Categories
+  // Service Categories (Added Ride Service)
   final List<Map<String, dynamic>> _defaultCategories = [
     {'name': 'Car Wash', 'icon': Icons.local_car_wash, 'color': AppColors.primary},
     {'name': 'House Cleaning', 'icon': Icons.cleaning_services, 'color': AppColors.primary},
     {'name': 'Laundry', 'icon': Icons.local_laundry_service, 'color': AppColors.primary},
+    {'name': 'Ride Service', 'icon': Icons.car_rental, 'color': AppColors.primary},
   ];
 
   // ============================================================
@@ -89,31 +90,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       'features': ['Wash & Fold', 'Premium Quality', 'Fast Delivery'],
       'emoji': '👕',
     },
+    {
+      'title': 'Ride Service',
+      'subtitle': 'Safe & Reliable Rides',
+      'icon': Icons.car_rental,
+      'color': 0xFFFF6B00,
+      'gradient': [Color(0xFFFF6B00), Color(0xFFE65100)],
+      'imagePath': 'assets/images/ride_service.jpg',
+      'features': ['Safe Rides', 'Professional Drivers', '24/7 Service'],
+      'emoji': '🚘',
+    },
   ];
 
+  // REMOVED PRICES - Only service names and durations
   final List<Map<String, dynamic>> _defaultCarWashServices = [
-    {'name': 'Exterior Wash', 'price': 3000, 'priceDisplay': '₦3,000', 'icon': Icons.cleaning_services, 'duration': '30 mins'},
-    {'name': 'Interior Cleaning', 'price': 5000, 'priceDisplay': '₦5,000', 'icon': Icons.event_seat, 'duration': '45 mins'},
-    {'name': 'Full Detailing', 'price': 10000, 'priceDisplay': '₦10,000', 'icon': Icons.star, 'duration': '90 mins'},
-    {'name': 'Engine Wash', 'price': 7000, 'priceDisplay': '₦7,000', 'icon': Icons.settings, 'duration': '60 mins'},
+    {'name': 'Exterior Wash', 'duration': '30 mins', 'icon': Icons.cleaning_services},
+    {'name': 'Interior Cleaning', 'duration': '45 mins', 'icon': Icons.event_seat},
+    {'name': 'Full Detailing', 'duration': '90 mins', 'icon': Icons.star},
+    {'name': 'Engine Wash', 'duration': '60 mins', 'icon': Icons.settings},
   ];
 
   final List<Map<String, dynamic>> _defaultHouseCleaningServices = [
-    {'name': 'Standard Cleaning', 'price': 15000, 'priceDisplay': '₦15,000', 'icon': Icons.cleaning_services, 'duration': '3 hours', 'bedrooms': '2-3 beds'},
-    {'name': 'Deep Cleaning', 'price': 25000, 'priceDisplay': '₦25,000', 'icon': Icons.brush, 'duration': '5 hours', 'bedrooms': '3-4 beds'},
-    {'name': 'Move In/Out', 'price': 35000, 'priceDisplay': '₦35,000', 'icon': Icons.move_to_inbox, 'duration': '6 hours', 'bedrooms': '4-5 beds'},
-    {'name': 'Office Cleaning', 'price': 20000, 'priceDisplay': '₦20,000', 'icon': Icons.business, 'duration': '4 hours', 'size': 'Small office'},
-    {'name': 'Carpet Cleaning', 'price': 8000, 'priceDisplay': '₦8,000', 'icon': Icons.carpenter, 'duration': '2 hours', 'rooms': 'Per room'},
-    {'name': 'Window Cleaning', 'price': 5000, 'priceDisplay': '₦5,000', 'icon': Icons.window, 'duration': '1.5 hours', 'floors': 'Per floor'},
+    {'name': 'Standard Cleaning', 'duration': '3 hours', 'icon': Icons.cleaning_services, 'bedrooms': '2-3 beds'},
+    {'name': 'Deep Cleaning', 'duration': '5 hours', 'icon': Icons.brush, 'bedrooms': '3-4 beds'},
+    {'name': 'Move In/Out', 'duration': '6 hours', 'icon': Icons.move_to_inbox, 'bedrooms': '4-5 beds'},
+    {'name': 'Office Cleaning', 'duration': '4 hours', 'icon': Icons.business, 'size': 'Small office'},
+    {'name': 'Carpet Cleaning', 'duration': '2 hours', 'icon': Icons.carpenter, 'rooms': 'Per room'},
+    {'name': 'Window Cleaning', 'duration': '1.5 hours', 'icon': Icons.window, 'floors': 'Per floor'},
   ];
 
   final List<Map<String, dynamic>> _defaultLaundryServices = [
-    {'name': 'Wash & Fold', 'price': 2000, 'priceDisplay': '₦2,000', 'icon': Icons.local_laundry_service, 'duration': '24 hours', 'weight': 'Up to 5kg'},
-    {'name': 'Wash & Iron', 'price': 3500, 'priceDisplay': '₦3,500', 'icon': Icons.iron, 'duration': '24 hours', 'weight': 'Up to 5kg'},
-    {'name': 'Dry Cleaning', 'price': 5000, 'priceDisplay': '₦5,000', 'icon': Icons.dry, 'duration': '48 hours', 'items': 'Up to 3 items'},
-    {'name': 'Ironing Only', 'price': 1500, 'priceDisplay': '₦1,500', 'icon': Icons.iron, 'duration': '12 hours', 'weight': 'Up to 3kg'},
-    {'name': 'Bulk Laundry', 'price': 10000, 'priceDisplay': '₦10,000', 'icon': Icons.local_laundry_service, 'duration': '48 hours', 'weight': '15-20kg'},
-    {'name': 'Curtain Cleaning', 'price': 7000, 'priceDisplay': '₦7,000', 'icon': Icons.curtains, 'duration': '72 hours', 'items': 'Per set'},
+    {'name': 'Wash & Fold', 'duration': '24 hours', 'icon': Icons.local_laundry_service, 'weight': 'Up to 5kg'},
+    {'name': 'Wash & Iron', 'duration': '24 hours', 'icon': Icons.iron, 'weight': 'Up to 5kg'},
+    {'name': 'Dry Cleaning', 'duration': '48 hours', 'icon': Icons.dry, 'items': 'Up to 3 items'},
+    {'name': 'Ironing Only', 'duration': '12 hours', 'icon': Icons.iron, 'weight': 'Up to 3kg'},
+    {'name': 'Bulk Laundry', 'duration': '48 hours', 'icon': Icons.local_laundry_service, 'weight': '15-20kg'},
+    {'name': 'Curtain Cleaning', 'duration': '72 hours', 'icon': Icons.curtains, 'items': 'Per set'},
+  ];
+
+  // NEW: Ride Service Options
+  final List<Map<String, dynamic>> _defaultRideServices = [
+    {'name': 'Standard Ride', 'duration': 'On-demand', 'icon': Icons.car_rental, 'description': 'Comfortable sedan'},
+    {'name': 'SUV Ride', 'duration': 'On-demand', 'icon': Icons.car_rental, 'description': 'Spacious SUV'},
+    {'name': 'Luxury Ride', 'duration': 'On-demand', 'icon': Icons.car_rental, 'description': 'Premium luxury car'},
+    {'name': 'Van Ride', 'duration': 'On-demand', 'icon': Icons.car_rental, 'description': 'Group/team travel'},
   ];
 
   List<Map<String, dynamic>> get _currentServices {
@@ -128,6 +148,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return _defaultHouseCleaningServices;
       case 2:
         return _defaultLaundryServices;
+      case 3:
+        return _defaultRideServices;
       default:
         return _defaultCarWashServices;
     }
@@ -226,7 +248,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
       }
 
-      // Request live GPS location from browser/device
       final locationService = LocationService();
       final pos = await locationService.getCurrentLocation();
       if (mounted) {
@@ -252,8 +273,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (snapshot.exists) {
         final data = snapshot.data();
         if (data != null && data['servicePrices'] != null) {
-          final prices = data['servicePrices'] as Map<String, dynamic>;
-          _updateServicesWithPrices(prices);
+          // Price loading removed
         }
       }
     } catch (e) {
@@ -262,27 +282,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _updateServicesWithPrices(Map<String, dynamic> prices) {
-    for (var service in _defaultCarWashServices) {
-      final name = service['name'];
-      if (prices.containsKey(name)) {
-        service['price'] = prices[name];
-        service['priceDisplay'] = '₦${NumberFormat('#,###').format(prices[name])}';
-      }
-    }
-    for (var service in _defaultHouseCleaningServices) {
-      final name = service['name'];
-      if (prices.containsKey(name)) {
-        service['price'] = prices[name];
-        service['priceDisplay'] = '₦${NumberFormat('#,###').format(prices[name])}';
-      }
-    }
-    for (var service in _defaultLaundryServices) {
-      final name = service['name'];
-      if (prices.containsKey(name)) {
-        service['price'] = prices[name];
-        service['priceDisplay'] = '₦${NumberFormat('#,###').format(prices[name])}';
-      }
-    }
+    // Price display removed
   }
 
   void _selectService(Map<String, dynamic> service) {
@@ -317,12 +317,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Price: ${service['priceDisplay']}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.primary)),
                   Text('Duration: ${service['duration']}', style: const TextStyle(color: Colors.grey)),
                   if (service.containsKey('weight'))
                     Text('Weight: ${service['weight']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   if (service.containsKey('bedrooms'))
                     Text('Bedrooms: ${service['bedrooms']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  if (service.containsKey('description'))
+                    Text('Description: ${service['description']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ),
             ),
@@ -360,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         MaterialPageRoute(
                           builder: (context) => BookingScreen(
                             selectedService: service['name'],
-                            selectedPrice: service['price'],
+                            selectedPrice: 0, // Price removed
                             selectedAddress: _selectedLocation,
                             serviceCategory: _currentCategoryName,
                           ),
@@ -381,6 +382,712 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // Rest of the methods remain the same...
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final userName = authService.userName ?? 'Guest';
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: Text(
+          'G Wash NG',
+          style: theme.textTheme.headlineSmall?.copyWith(
+            color: AppColors.primary,
+          ),
+        ),
+        backgroundColor: AppColors.white,
+        elevation: 0,
+        centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
+            onPressed: _goToNotifications,
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: AppColors.primary),
+            onSelected: (value) {
+              switch (value) {
+                case 'become_washer':
+                  _becomeWasher();
+                  break;
+                case 'help':
+                  _goToHelpSupport();
+                  break;
+                case 'settings':
+                  _goToSettings();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'become_washer',
+                child: Row(
+                  children: [
+                    Icon(Icons.emoji_transportation, color: AppColors.primary, size: 22),
+                    SizedBox(width: 12),
+                    Text('Become a Partner', style: TextStyle(fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'help',
+                child: Row(
+                  children: [
+                    Icon(Icons.help_outline, color: AppColors.primary, size: 22),
+                    SizedBox(width: 12),
+                    Text('Help & Support', style: TextStyle(fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, color: AppColors.primary, size: 22),
+                    SizedBox(width: 12),
+                    Text('Settings', style: TextStyle(fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _buildHomeTab(userName),
+          const MyBookingsScreen(),
+          const ProfileScreen(),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bookmark_border),
+            activeIcon: Icon(Icons.bookmark),
+            label: 'Bookings',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // _buildHomeTab with updated service cards (no prices)
+  Widget _buildHomeTab(String userName) {
+    final authService = Provider.of<AuthService>(context);
+    final isLoggedIn = authService.isLoggedIn;
+    final size = MediaQuery.of(context).size;
+    final isSmallScreen = size.width < 380;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: bottomPadding + 80),
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header - same as before
+          Container(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, isSmallScreen ? 20 : 30),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.primary, AppColors.primaryDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _getGreeting(),
+                          style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
+                        ),
+                        Text(
+                          '$userName ✨',
+                          style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Let's get your car sparkling ✨",
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                        if (!isLoggedIn)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Not Logged In',
+                              style: theme.textTheme.labelSmall?.copyWith(color: Colors.white),
+                            ),
+                          ),
+                      ],
+                    ),
+                    StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('notifications')
+                          .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid ?? '')
+                          .where('isRead', isEqualTo: false)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        final count = snapshot.data?.docs.length ?? 0;
+                        return count > 0
+                            ? Badge(
+                                label: Text('$count'),
+                                child: const Icon(Icons.notifications, color: Colors.white),
+                              )
+                            : const Icon(Icons.notifications_outlined, color: Colors.white);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Where should we come to?',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _changeLocation,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, color: AppColors.primary, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _selectedLocation,
+                            style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          'Change',
+                          style: theme.textTheme.labelLarge?.copyWith(color: AppColors.primary),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+
+          // Carousel (same as before)
+          SizedBox(
+            height: isSmallScreen ? 150 : 180,
+            child: PageView.builder(
+              controller: _carouselController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentCarouselIndex = index;
+                });
+              },
+              itemCount: _carouselItems.length,
+              itemBuilder: (context, index) {
+                final item = _carouselItems[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (Color(item['color']) as Color).withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Image.asset(
+                              item['imagePath'],
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Color(item['color']),
+                                        (Color(item['color']) as Color).withOpacity(0.7),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      item['emoji'],
+                                      style: const TextStyle(fontSize: 80),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  Colors.black.withOpacity(0.5),
+                                  Colors.black.withOpacity(0.1),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      item['title'],
+                                      style: theme.textTheme.headlineSmall?.copyWith(
+                                        color: Colors.white,
+                                        shadows: const [
+                                          Shadow(blurRadius: 10, color: Colors.black38),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      item['subtitle'],
+                                      style: theme.textTheme.bodyLarge?.copyWith(
+                                        color: Colors.white.withOpacity(0.95),
+                                        shadows: const [
+                                          Shadow(blurRadius: 8, color: Colors.black38),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (item['features'] != null)
+                                      ...(item['features'] as List<String>).map((feature) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 2),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.check_circle,
+                                              color: Colors.white,
+                                              size: 14,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              feature,
+                                              style: theme.textTheme.bodyMedium?.copyWith(
+                                                color: Colors.white.withOpacity(0.9),
+                                                shadows: const [
+                                                  Shadow(blurRadius: 6, color: Colors.black38),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )),
+                                    const SizedBox(height: 12),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        final categoryIndex = _carouselItems.indexOf(item);
+                                        setState(() {
+                                          _selectedCategoryIndex = categoryIndex;
+                                        });
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => BookingScreen(
+                                              serviceCategory: _carouselItems[categoryIndex]['title'],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: Color(item['color']),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 24,
+                                          vertical: 10,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
+                                        textStyle: theme.textTheme.labelLarge,
+                                      ),
+                                      child: const Text('Book Now'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                width: 70,
+                                height: 70,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  item['icon'],
+                                  size: 40,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // Carousel Indicators
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _carouselItems.length,
+                (index) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentCarouselIndex == index ? 24 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: _currentCarouselIndex == index
+                        ? AppColors.primary
+                        : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Category Tabs
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: List.generate(_categories.length, (index) {
+                final category = _categories[index];
+                final isSelected = _selectedCategoryIndex == index;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedCategoryIndex = index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            category['icon'],
+                            size: 18,
+                            color: isSelected ? Colors.white : AppColors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            category['name'],
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: isSelected ? Colors.white : AppColors.primary,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: isSmallScreen ? 13 : 15,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+
+          // Services Section - Updated (No Prices)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  _currentCategoryName == 'Ride Service' ? 'Book a Ride' : 'Our Services',
+                  style: theme.textTheme.headlineSmall,
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: Text(
+                    'See all',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Service Cards - Responsive Grid (No Prices)
+          if (isSmallScreen)
+            SizedBox(
+              height: 160,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _currentServices.length,
+                itemBuilder: (context, index) {
+                  final service = _currentServices[index];
+                  return _buildServiceCard(service, isSmallScreen);
+                },
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: size.width > 600 ? 4 : 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.2,
+                ),
+                itemCount: _currentServices.length,
+                itemBuilder: (context, index) {
+                  final service = _currentServices[index];
+                  return _buildServiceCard(service, false);
+                },
+              ),
+            ),
+          
+          const SizedBox(height: 24),
+
+          // Why Choose Us
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Why Choose Us',
+                  style: theme.textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 16),
+                _buildWhyUsItem(Icons.location_on, 'Hyper-local dispatch', 'Washers near you, assigned fast.'),
+                const SizedBox(height: 16),
+                _buildWhyUsItem(Icons.map, 'Live Tracking & ETA', 'Track your washer in real-time.'),
+                const SizedBox(height: 16),
+                _buildWhyUsItem(Icons.security, 'Secure & Seamless', 'Safe payments and data privacy.'),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+
+          // Refer & Earn
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryDark]),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Refer & Earn',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Invite friends and earn amazing rewards',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+                GestureDetector(
+                  onTap: _showReferralDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Text(
+                      'Invite',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  // Updated Service Card - No Price Display
+  Widget _buildServiceCard(Map<String, dynamic> service, bool isSmall) {
+    final theme = Theme.of(context);
+    
+    return GestureDetector(
+      onTap: () => _selectService(service),
+      child: Container(
+        width: isSmall ? 140 : null,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(service['icon'], size: isSmall ? 28 : 32, color: AppColors.primary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              service['name'],
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontSize: isSmall ? 13 : 15,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              service['duration'],
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.grey.shade500,
+                fontSize: isSmall ? 10 : 12,
+              ),
+            ),
+            if (service.containsKey('bedrooms'))
+              Text(
+                service['bedrooms'],
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade400,
+                  fontSize: isSmall ? 9 : 11,
+                ),
+              ),
+            if (service.containsKey('description'))
+              Text(
+                service['description'],
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade400,
+                  fontSize: isSmall ? 9 : 11,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Remaining methods unchanged...
   void _changeLocation() async {
     showModalBottomSheet(
       context: context,
@@ -678,726 +1385,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           label: 'OK',
           textColor: Colors.white,
           onPressed: () {},
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final authService = Provider.of<AuthService>(context);
-    final userName = authService.userName ?? 'Guest';
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: Text(
-          'G Wash NG',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            color: AppColors.primary,
-          ),
-        ),
-        backgroundColor: AppColors.white,
-        elevation: 0,
-        centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
-            onPressed: _goToNotifications,
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: AppColors.primary),
-            onSelected: (value) {
-              switch (value) {
-                case 'become_washer':
-                  _becomeWasher();
-                  break;
-                case 'help':
-                  _goToHelpSupport();
-                  break;
-                case 'settings':
-                  _goToSettings();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'become_washer',
-                child: Row(
-                  children: [
-                    Icon(Icons.emoji_transportation, color: AppColors.primary, size: 22),
-                    SizedBox(width: 12),
-                    Text('Become a Partner', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'help',
-                child: Row(
-                  children: [
-                    Icon(Icons.help_outline, color: AppColors.primary, size: 22),
-                    SizedBox(width: 12),
-                    Text('Help & Support', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, color: AppColors.primary, size: 22),
-                    SizedBox(width: 12),
-                    Text('Settings', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          _buildHomeTab(userName),
-          const MyBookingsScreen(),
-          const ProfileScreen(),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bookmark_border),
-            activeIcon: Icon(Icons.bookmark),
-            label: 'Bookings',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // UPDATED: _buildHomeTab with Larger, Bolder Fonts
-  // ============================================================
-  Widget _buildHomeTab(String userName) {
-    final authService = Provider.of<AuthService>(context);
-    final isLoggedIn = authService.isLoggedIn;
-    final size = MediaQuery.of(context).size;
-    final isSmallScreen = size.width < 380;
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final theme = Theme.of(context);
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(bottom: bottomPadding + 80),
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ============================================================
-          // HEADER with Gradient
-          // ============================================================
-          Container(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, isSmallScreen ? 20 : 30),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getGreeting(),
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: Colors.white70,
-                          ),
-                        ),
-                        Text(
-                          '$userName ✨',
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Let's get your car sparkling ✨",
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                        ),
-                        if (!isLoggedIn)
-                          Container(
-                            margin: const EdgeInsets.only(top: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Not Logged In',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('notifications')
-                          .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid ?? '')
-                          .where('isRead', isEqualTo: false)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        final count = snapshot.data?.docs.length ?? 0;
-                        return count > 0
-                            ? Badge(
-                                label: Text('$count'),
-                                child: const Icon(Icons.notifications, color: Colors.white),
-                              )
-                            : const Icon(Icons.notifications_outlined, color: Colors.white);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Where should we come to?',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: _changeLocation,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.location_on, color: AppColors.primary, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _selectedLocation,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Text(
-                          'Change',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.arrow_drop_down, color: AppColors.primary, size: 20),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-
-          // ============================================================
-          // 3-SLIDE CAROUSEL WITH YOUR REAL IMAGES
-          // ============================================================
-          SizedBox(
-            height: isSmallScreen ? 150 : 180,
-            child: PageView.builder(
-              controller: _carouselController,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentCarouselIndex = index;
-                });
-              },
-              itemCount: _carouselItems.length,
-              itemBuilder: (context, index) {
-                final item = _carouselItems[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (Color(item['color']) as Color).withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: Image.asset(
-                              item['imagePath'],
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Color(item['color']),
-                                        (Color(item['color']) as Color).withOpacity(0.7),
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      item['emoji'],
-                                      style: const TextStyle(fontSize: 80),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  Colors.black.withOpacity(0.5),
-                                  Colors.black.withOpacity(0.1),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      item['title'],
-                                      style: theme.textTheme.headlineSmall?.copyWith(
-                                        color: Colors.white,
-                                        shadows: const [
-                                          Shadow(blurRadius: 10, color: Colors.black38),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      item['subtitle'],
-                                      style: theme.textTheme.bodyLarge?.copyWith(
-                                        color: Colors.white.withOpacity(0.95),
-                                        shadows: const [
-                                          Shadow(blurRadius: 8, color: Colors.black38),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    if (item['features'] != null)
-                                      ...(item['features'] as List<String>).map((feature) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 2),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.check_circle,
-                                              color: Colors.white,
-                                              size: 14,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(
-                                              feature,
-                                              style: theme.textTheme.bodyMedium?.copyWith(
-                                                color: Colors.white.withOpacity(0.9),
-                                                shadows: const [
-                                                  Shadow(blurRadius: 6, color: Colors.black38),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      )),
-                                    const SizedBox(height: 12),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        final categoryIndex = _carouselItems.indexOf(item);
-                                        setState(() {
-                                          _selectedCategoryIndex = categoryIndex;
-                                        });
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => BookingScreen(
-                                              serviceCategory: _carouselItems[categoryIndex]['title'],
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: Color(item['color']),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 24,
-                                          vertical: 10,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        textStyle: theme.textTheme.labelLarge,
-                                      ),
-                                      child: const Text('Book Now'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                width: 70,
-                                height: 70,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Icon(
-                                  item['icon'],
-                                  size: 40,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // Carousel Indicators
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _carouselItems.length,
-                (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _currentCarouselIndex == index ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _currentCarouselIndex == index
-                        ? AppColors.primary
-                        : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          // ============================================================
-          // CATEGORY TABS - Larger Text
-          // ============================================================
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: List.generate(_categories.length, (index) {
-                final category = _categories[index];
-                final isSelected = _selectedCategoryIndex == index;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedCategoryIndex = index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            category['icon'],
-                            size: 18,
-                            color: isSelected ? Colors.white : AppColors.primary,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            category['name'],
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: isSelected ? Colors.white : AppColors.primary,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: isSmallScreen ? 13 : 15,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-
-          // ============================================================
-          // SERVICES SECTION - Larger, Bolder
-          // ============================================================
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Our Services',
-                  style: theme.textTheme.headlineSmall,
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: Text(
-                    'See all',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Service Cards - Responsive Grid
-          if (isSmallScreen)
-            SizedBox(
-              height: 160,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _currentServices.length,
-                itemBuilder: (context, index) {
-                  final service = _currentServices[index];
-                  return _buildServiceCard(service, isSmallScreen);
-                },
-              ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: size.width > 600 ? 4 : 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.2,
-                ),
-                itemCount: _currentServices.length,
-                itemBuilder: (context, index) {
-                  final service = _currentServices[index];
-                  return _buildServiceCard(service, false);
-                },
-              ),
-            ),
-          
-          const SizedBox(height: 24),
-
-          // ============================================================
-          // WHY CHOOSE US - Larger Fonts
-          // ============================================================
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.primary.withOpacity(0.1)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Why Choose Us',
-                  style: theme.textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 16),
-                _buildWhyUsItem(Icons.location_on, 'Hyper-local dispatch', 'Washers near you, assigned fast.'),
-                const SizedBox(height: 16),
-                _buildWhyUsItem(Icons.map, 'Live Tracking & ETA', 'Track your washer in real-time.'),
-                const SizedBox(height: 16),
-                _buildWhyUsItem(Icons.security, 'Secure & Seamless', 'Safe payments and data privacy.'),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 16),
-
-          // ============================================================
-          // REFER & EARN - Larger Fonts
-          // ============================================================
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryDark]),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Refer & Earn',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Invite friends and earn amazing rewards',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: _showReferralDialog,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Text(
-                      'Invite',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 30),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServiceCard(Map<String, dynamic> service, bool isSmall) {
-    final theme = Theme.of(context);
-    
-    return GestureDetector(
-      onTap: () => _selectService(service),
-      child: Container(
-        width: isSmall ? 140 : null,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(service['icon'], size: isSmall ? 28 : 32, color: AppColors.primary),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              service['name'],
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontSize: isSmall ? 13 : 15,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              service['priceDisplay'],
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: AppColors.primary,
-                fontSize: isSmall ? 14 : 16,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              service['duration'],
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.grey.shade500,
-                fontSize: isSmall ? 10 : 12,
-              ),
-            ),
-          ],
         ),
       ),
     );

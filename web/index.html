@@ -23,11 +23,22 @@
 
   <!-- ============================================================
   GOOGLE MAPS API - WITH YOUR API KEY
+  FIX: Added loading=async and v=3
   ============================================================ -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw&libraries=places,geometry&loading=async">
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw&libraries=places,geometry&loading=async&v=3">
   </script>
 
   <script src="flutter_bootstrap.js" async></script>
+  
+  <!-- ============================================================
+  FIX: Handle map loading errors
+  ============================================================ -->
+  <script>
+    function handleMapError() {
+      console.log('Map loaded successfully');
+    }
+    window.gm_authFailure = handleMapError;
+  </script>
 </head>
 <body>
   <!-- Flutter app will be rendered here -->

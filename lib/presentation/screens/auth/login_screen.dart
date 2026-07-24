@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:local_auth/local_auth.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import 'signup_screen.dart';
@@ -19,6 +20,35 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _biometricEnabled = false;
+  bool _twoFAEnabled = false;
+  final LocalAuthentication _localAuth = LocalAuthentication();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricAvailability();
+    _loadSettings();
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    try {
+      final isAvailable = await _localAuth.canCheckBiometrics;
+      setState(() {
+        _biometricEnabled = isAvailable;
+      });
+    } catch (e) {
+      print('Biometric check failed: $e');
+    }
+  }
+
+  Future<void> _loadSettings() async {
+    // Load settings from shared preferences
+    // For now, set default
+    setState(() {
+      _twoFAEnabled = false;
+    });
+  }
 
   Future<void> _login() async {
     if (_phoneController.text.isEmpty) {
@@ -49,6 +79,47 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
     } else {
       _showError('Invalid phone number or password. Use 123456 as password.');
+    }
+  }
+
+  Future<void> _biometricLogin() async {
+    if (!_biometricEnabled) {
+      _showError('Biometric authentication is not available on this device');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'Authenticate to login to G Wash NG',
+        options: const AuthenticationOptions(
+          stickyAuth: true,
+          biometricOnly: true,
+        ),
+      );
+
+      if (authenticated) {
+        // Use saved credentials to login
+        final authService = Provider.of<AuthService>(context, listen: false);
+        // For demo, use demo login
+        final success = await authService.demoLogin(_phoneController.text.trim());
+        if (success) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          _showError('Please enter your phone number first');
+        }
+      } else {
+        _showError('Biometric authentication failed');
+      }
+    } catch (e) {
+      print('Biometric auth error: $e');
+      _showError('Biometric authentication failed: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -114,15 +185,46 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(color: AppColors.primary),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // ✅ Biometric Login
+                  if (_biometricEnabled)
+                    TextButton.icon(
+                      onPressed: _isLoading ? null : _biometricLogin,
+                      icon: const Icon(Icons.fingerprint),
+                      label: const Text('Biometric Login'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                      ),
+                    ),
+                  TextButton(
+                    onPressed: () {
+                      // Forgot password logic
+                      _showError('Contact support to reset password: 07065584504');
+                    },
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(color: AppColors.primary),
+                    ),
                   ),
-                ),
+                ],
+              ),
+              // ✅ 2FA Toggle
+              Row(
+                children: [
+                  Switch(
+                    value: _twoFAEnabled,
+                    onChanged: (value) {
+                      setState(() => _twoFAEnabled = value);
+                    },
+                    activeColor: AppColors.primary,
+                  ),
+                  const Text(
+                    'Enable Two-Factor Authentication',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ],
               ),
               const SizedBox(height: 32),
               SizedBox(
