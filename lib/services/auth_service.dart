@@ -530,6 +530,21 @@ class AuthService extends ChangeNotifier {
   }
 
   // ============================================================
+  // GOOGLE SIGN-IN - Set user after Google authentication
+  // ============================================================
+  void setGoogleUser(String name, String email) {
+    _isLoggedIn = true;
+    _userName = name.isNotEmpty ? name : 'Google User';
+    _userPhone = '';
+    _userId = FirebaseAuth.instance.currentUser?.uid ?? DateTime.now().millisecondsSinceEpoch.toString();
+    _userRole = 'customer';
+    _serviceCategory = null;
+    _saveUserState();
+    notifyListeners();
+    print('✅ Google user set: $name ($email)');
+  }
+
+  // ============================================================
   // LOGOUT - Clears Firebase Auth
   // ============================================================
   Future<void> logout() async {

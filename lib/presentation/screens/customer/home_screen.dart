@@ -145,6 +145,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return 'Good evening';
   }
 
+  // ============================================================
+  // UPDATED: Captivating tagline for ALL services
+  // ============================================================
+  String _getTagline() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Clean starts here ☀️';
+    if (hour < 17) return 'Fresh vibes, anytime 🌟';
+    return 'Your clean, your way 🌙';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -376,59 +386,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         elevation: 0,
         centerTitle: false,
         actions: [
+          // ============================================================
+          // KEPT: Notification Icon (1 bell)
+          // ============================================================
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
             onPressed: _goToNotifications,
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: AppColors.primary),
-            onSelected: (value) {
-              switch (value) {
-                case 'become_washer':
-                  _becomeWasher();
-                  break;
-                case 'help':
-                  _goToHelpSupport();
-                  break;
-                case 'settings':
-                  _goToSettings();
-                  break;
-              }
+          // ============================================================
+          // ADDED: Profile Picture in App Bar
+          // ============================================================
+          GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/profile');
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'become_washer',
-                child: Row(
-                  children: [
-                    Icon(Icons.emoji_transportation, color: AppColors.primary, size: 22),
-                    SizedBox(width: 12),
-                    Text('Become a Partner', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.primary.withOpacity(0.3),
+                    width: 2,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.person,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
                 ),
               ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'help',
-                child: Row(
-                  children: [
-                    Icon(Icons.help_outline, color: AppColors.primary, size: 22),
-                    SizedBox(width: 12),
-                    Text('Help & Support', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings, color: AppColors.primary, size: 22),
-                    SizedBox(width: 12),
-                    Text('Settings', style: TextStyle(fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
+          // ============================================================
+          // REMOVED: PopupMenuButton (moved to profile)
+          // ============================================================
         ],
       ),
       body: IndexedStack(
@@ -467,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // ============================================================
-  // UPDATED: _buildHomeTab with NO TEXT OVERLAYS on Carousel
+  // UPDATED: _buildHomeTab with ALL requested changes
   // ============================================================
   Widget _buildHomeTab(String userName) {
     final authService = Provider.of<AuthService>(context);
@@ -517,10 +514,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white),
                         ),
                         const SizedBox(height: 4),
+                        // ============================================================
+                        // UPDATED: New tagline for ALL services
+                        // ============================================================
                         Text(
-                          "Let's get your car sparkling ✨",
+                          _getTagline(),
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (!isLoggedIn)
@@ -538,22 +539,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                       ],
                     ),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('notifications')
-                          .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid ?? '')
-                          .where('isRead', isEqualTo: false)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        final count = snapshot.data?.docs.length ?? 0;
-                        return count > 0
-                            ? Badge(
-                                label: Text('$count'),
-                                child: const Icon(Icons.notifications, color: Colors.white),
-                              )
-                            : const Icon(Icons.notifications_outlined, color: Colors.white);
-                      },
-                    ),
+                    // ============================================================
+                    // REMOVED: Profile picture from header (moved to app bar)
+                    // ============================================================
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -602,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // 3-SLIDE CAROUSEL - FULL IMAGES ONLY (NO TEXT OVERLAYS)
           // ============================================================
           SizedBox(
-            height: isSmallScreen ? 180 : 220,
+            height: isSmallScreen ? 160 : 200,
             child: PageView.builder(
               controller: _carouselController,
               onPageChanged: (index) {
@@ -645,7 +633,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           width: double.infinity,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              height: 220,
+                              height: 200,
                               color: Colors.grey.shade300,
                               child: Center(
                                 child: Text(
@@ -664,70 +652,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // Carousel Indicators
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _carouselItems.length,
-                (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: _currentCarouselIndex == index ? 24 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: _currentCarouselIndex == index
-                        ? AppColors.primary
-                        : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // ============================================================
+          // REMOVED: Carousel Indicators (3 dotted lines)
+          // ============================================================
 
           const SizedBox(height: 8),
 
           // ============================================================
-          // CATEGORY TABS
+          // CATEGORY TABS - Responsive wrapping
           // ============================================================
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 4,
+              runSpacing: 8,
               children: List.generate(_categories.length, (index) {
                 final category = _categories[index];
                 final isSelected = _selectedCategoryIndex == index;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedCategoryIndex = index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            category['icon'],
-                            size: 18,
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedCategoryIndex = index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primary : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          category['icon'],
+                          size: 16,
+                          color: isSelected ? Colors.white : AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          category['name'],
+                          style: theme.textTheme.labelMedium?.copyWith(
                             color: isSelected ? Colors.white : AppColors.primary,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontSize: isSmallScreen ? 11 : 13,
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            category['name'],
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: isSelected ? Colors.white : AppColors.primary,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: isSmallScreen ? 13 : 15,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -738,7 +706,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 20),
 
           // ============================================================
-          // SERVICES SECTION
+          // SERVICES SECTION - Responsive grid
           // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -763,10 +731,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 12),
           
-          // Service Cards - Responsive Grid (No Prices)
+          // Service Cards - Responsive Grid with wrapping
           if (isSmallScreen)
             SizedBox(
-              height: 160,
+              height: 150,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -784,10 +752,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: size.width > 600 ? 4 : 2,
+                  crossAxisCount: size.width > 600 ? 4 : size.width > 400 ? 3 : 2,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 1.2,
+                  childAspectRatio: 1.1,
                 ),
                 itemCount: _currentServices.length,
                 itemBuilder: (context, index) {
@@ -818,11 +786,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   style: theme.textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 16),
-                _buildWhyUsItem(Icons.location_on, 'Hyper-local dispatch', 'Washers near you, assigned fast.'),
+                _buildWhyUsItem(Icons.location_on, 'Hyper-local dispatch', 'Service providers near you, assigned fast'),
                 const SizedBox(height: 16),
-                _buildWhyUsItem(Icons.map, 'Live Tracking & ETA', 'Track your washer in real-time.'),
+                _buildWhyUsItem(Icons.map, 'Live Tracking & ETA', 'Track your provider in real-time'),
                 const SizedBox(height: 16),
-                _buildWhyUsItem(Icons.security, 'Secure & Seamless', 'Safe payments and data privacy.'),
+                _buildWhyUsItem(Icons.security, 'Secure & Seamless', 'Safe payments and data privacy'),
               ],
             ),
           ),
@@ -886,7 +854,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // ============================================================
-  // SERVICE CARD - No Price Display
+  // SERVICE CARD - No Price Display, Better Wrapping
   // ============================================================
   Widget _buildServiceCard(Map<String, dynamic> service, bool isSmall) {
     final theme = Theme.of(context);
@@ -894,7 +862,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: () => _selectService(service),
       child: Container(
-        width: isSmall ? 140 : null,
+        width: isSmall ? 130 : null,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.primary.withOpacity(0.08),
@@ -905,18 +873,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(service['icon'], size: isSmall ? 28 : 32, color: AppColors.primary),
+              child: Icon(service['icon'], size: isSmall ? 24 : 28, color: AppColors.primary),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               service['name'],
               style: theme.textTheme.labelLarge?.copyWith(
-                fontSize: isSmall ? 13 : 15,
+                fontSize: isSmall ? 11 : 13,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
@@ -928,7 +896,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               service['duration'],
               style: theme.textTheme.bodySmall?.copyWith(
                 color: Colors.grey.shade500,
-                fontSize: isSmall ? 10 : 12,
+                fontSize: isSmall ? 9 : 11,
               ),
             ),
             if (service.containsKey('bedrooms'))
@@ -936,7 +904,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 service['bedrooms'],
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.grey.shade400,
-                  fontSize: isSmall ? 9 : 11,
+                  fontSize: isSmall ? 8 : 10,
                 ),
               ),
             if (service.containsKey('description'))
@@ -944,7 +912,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 service['description'],
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.grey.shade400,
-                  fontSize: isSmall ? 9 : 11,
+                  fontSize: isSmall ? 8 : 10,
                 ),
               ),
           ],

@@ -1,9 +1,13 @@
 // FILE: lib/presentation/screens/welcome_screen.dart
-// PURPOSE: Welcome/Onboarding screen with all services
+// PURPOSE: Welcome/Onboarding screen with all services and Google Sign-In
 
 import 'package:flutter/material.dart';
-// Removed page_view_dot_indicator import - using custom indicator
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../services/auth_service.dart';
 import 'auth/login_screen.dart';
 import 'auth/signup_screen.dart';
 
@@ -17,6 +21,7 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool _isLoading = false;
 
   final List<Map<String, dynamic>> _onboardingPages = [
     {
@@ -48,6 +53,86 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       'image': '🚘',
     },
   ];
+
+  // ============================================================
+  // GOOGLE SIGN-IN - WITH CLIENT ID
+  // ============================================================
+  Future<void> _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // ============================================================
+      // FIX: Pass client ID explicitly
+      // ============================================================
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: '304228050522-ttd627c29kt12d75sbe5um6145ellj05.apps.googleusercontent.com',
+      );
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return; // User cancelled
+      }
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the credential
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        // Save user to Firestore if needed
+        await _saveUserToFirestore(user);
+
+        // Update AuthService state
+        final authService = Provider.of<AuthService>(context, listen: false);
+        authService.setGoogleUser(user.displayName ?? 'User', user.email ?? user.uid);
+
+        // Navigate to home
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+    } catch (e) {
+      print('❌ Google Sign-In error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google Sign-In failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveUserToFirestore(User user) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'name': user.displayName ?? 'User',
+        'email': user.email ?? '',
+        'phone': user.phoneNumber ?? '',
+        'photoURL': user.photoURL ?? '',
+        'role': 'customer',
+        'isBlocked': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      print('✅ User saved to Firestore: ${user.displayName}');
+    } catch (e) {
+      print('❌ Error saving user to Firestore: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,11 +176,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 },
               ),
             ),
-            // ============================================================
-            // FIXED: Custom Dot Indicator (Replaced PageViewDotIndicator)
-            // ============================================================
+            // Custom Dot Indicator
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
@@ -113,26 +196,103 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
               ),
             ),
-            // Next/Get Started button
+            // ============================================================
+            // GOOGLE SIGN-IN BUTTON
+            // ============================================================
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox(
                 width: double.infinity,
-                height: 55,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _signInWithGoogle,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : Image.network(
+                          'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                          width: 24,
+                          height: 24,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.g_mobiledata, size: 24);
+                          },
+                        ),
+                  label: Text(
+                    _isLoading ? 'Signing in...' : 'Continue with Google',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Divider with "OR"
+            Row(
+              children: [
+                Expanded(
+                  child: Divider(
+                    color: Colors.grey.shade300,
+                    thickness: 1,
+                    indent: 20,
+                    endIndent: 10,
+                  ),
+                ),
+                Text(
+                  'OR',
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 12,
+                  ),
+                ),
+                Expanded(
+                  child: Divider(
+                    color: Colors.grey.shade300,
+                    thickness: 1,
+                    indent: 10,
+                    endIndent: 20,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Next/Get Started button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_currentPage == _onboardingPages.length - 1) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      );
-                    } else {
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    }
-                  },
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          if (_currentPage == _onboardingPages.length - 1) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            );
+                          } else {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
@@ -142,7 +302,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   child: Text(
                     _currentPage == _onboardingPages.length - 1 ? 'Get Started' : 'Next',
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -150,15 +310,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
             // Already have account?
             Padding(
-              padding: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.only(bottom: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
                     'Already have an account?',
-                    style: TextStyle(color: AppColors.grey600),
+                    style: TextStyle(color: AppColors.grey600, fontSize: 14),
                   ),
                   TextButton(
                     onPressed: () {
@@ -167,7 +328,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         MaterialPageRoute(builder: (context) => const LoginScreen()),
                       );
                     },
-                    child: Text(
+                    child: const Text(
                       'Login',
                       style: TextStyle(
                         color: AppColors.primary,
@@ -192,8 +353,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         children: [
           // Large icon/image
           Container(
-            width: 150,
-            height: 150,
+            width: 130,
+            height: 130,
             decoration: BoxDecoration(
               color: Color(page['color']).withOpacity(0.1),
               shape: BoxShape.circle,
@@ -201,25 +362,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             child: Center(
               child: Text(
                 page['image'],
-                style: const TextStyle(fontSize: 70),
+                style: const TextStyle(fontSize: 60),
               ),
             ),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 32),
           Text(
             page['title'],
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             page['subtitle'],
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 15,
               color: Colors.grey.shade600,
             ),
             textAlign: TextAlign.center,
