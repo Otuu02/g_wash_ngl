@@ -36,11 +36,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _checkBiometricAvailability() async {
     try {
       final isAvailable = await _localAuth.canCheckBiometrics;
+      print('🔐 Biometric available: $isAvailable');
       setState(() {
         _biometricEnabled = isAvailable;
       });
     } catch (e) {
-      print('Biometric check failed: $e');
+      print('❌ Biometric check failed: $e');
     }
   }
 
@@ -59,22 +60,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // If biometric is enabled and credentials exist, auto-login with biometric
       if (_biometricEnabled && phone != null && password != null) {
-        final authService = Provider.of<AuthService>(context, listen: false);
-        // Auto login with saved credentials
-        final success = await authService.login(phone, password);
-        if (success) {
-          if (mounted) {
-            final routeName = authService.isAdmin
-                ? '/admin'
-                : (authService.isServiceProvider || authService.isWasher)
-                    ? '/washer-dashboard'
-                    : '/home';
-            Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
-          }
-        }
+        // Don't auto-login, let user tap biometric button
+        print('🔐 Biometric ready for: $phone');
       }
     } catch (e) {
-      print('Error loading saved credentials: $e');
+      print('❌ Error loading saved credentials: $e');
     }
   }
 
@@ -85,13 +75,15 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('saved_phone', phone);
         await prefs.setString('saved_password', password);
         await prefs.setBool('remember_me', true);
+        print('✅ Credentials saved');
       } else {
         await prefs.remove('saved_phone');
         await prefs.remove('saved_password');
         await prefs.setBool('remember_me', false);
+        print('✅ Credentials cleared');
       }
     } catch (e) {
-      print('Error saving credentials: $e');
+      print('❌ Error saving credentials: $e');
     }
   }
 
@@ -115,7 +107,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      // Save credentials if remember me is checked
       await _saveCredentials(phone, password);
       
       final routeName = authService.isAdmin
@@ -125,13 +116,13 @@ class _LoginScreenState extends State<LoginScreen> {
               : '/home';
       Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
     } else {
-      _showError('Invalid phone number or password. Use 123456 as password.');
+      _showError('Invalid phone number or password.');
     }
   }
 
   Future<void> _biometricLogin() async {
     if (!_biometricEnabled) {
-      _showError('Biometric authentication is not available on this device');
+      _showError('Biometric authentication is not available');
       return;
     }
 
@@ -140,11 +131,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Authenticate to login to G Wash NG',
-        options: AuthenticationOptions(
+        options: const AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: true,
         ),
       );
+
+      print('🔐 Biometric result: $authenticated');
 
       if (authenticated) {
         final authService = Provider.of<AuthService>(context, listen: false);
@@ -175,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError('Biometric authentication failed');
       }
     } catch (e) {
-      print('Biometric auth error: $e');
+      print('❌ Biometric auth error: $e');
       _showError('Biometric authentication failed: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -254,19 +247,30 @@ class _LoginScreenState extends State<LoginScreen> {
                         value: _rememberMe,
                         onChanged: (value) {
                           setState(() => _rememberMe = value ?? false);
+                          print('🔐 Remember Me: $value');
                         },
                         activeColor: AppColors.primary,
                       ),
                       const Text('Remember Me', style: TextStyle(fontSize: 13)),
                     ],
                   ),
+                  // ============================================================
+                  // FIX: Biometric Login - Always visible when available
+                  // ============================================================
                   if (_biometricEnabled)
                     TextButton.icon(
                       onPressed: _isLoading ? null : _biometricLogin,
-                      icon: const Icon(Icons.fingerprint),
-                      label: const Text('Biometric Login'),
+                      icon: const Icon(Icons.fingerprint, color: AppColors.primary),
+                      label: const Text(
+                        'Biometric',
+                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                      ),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.primary,
+                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
                       ),
                     ),
                 ],
