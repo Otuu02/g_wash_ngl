@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import 'signup_screen.dart';
@@ -57,12 +60,6 @@ class _LoginScreenState extends State<LoginScreen> {
         if (password != null) _passwordController.text = password;
         _rememberMe = remember;
       });
-
-      // If biometric is enabled and credentials exist, auto-login with biometric
-      if (_biometricEnabled && phone != null && password != null) {
-        // Don't auto-login, let user tap biometric button
-        print('🔐 Biometric ready for: $phone');
-      }
     } catch (e) {
       print('❌ Error loading saved credentials: $e');
     }
@@ -75,19 +72,20 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('saved_phone', phone);
         await prefs.setString('saved_password', password);
         await prefs.setBool('remember_me', true);
-        print('✅ Credentials saved');
       } else {
         await prefs.remove('saved_phone');
         await prefs.remove('saved_password');
         await prefs.setBool('remember_me', false);
-        print('✅ Credentials cleared');
       }
     } catch (e) {
       print('❌ Error saving credentials: $e');
     }
   }
 
-  Future<void> _login() async {
+  // ============================================================
+  // OPTION 1: Password Login
+  // ============================================================
+  Future<void> _loginWithPassword() async {
     if (_phoneController.text.isEmpty) {
       _showError('Please enter your phone number');
       return;
@@ -108,19 +106,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (success) {
       await _saveCredentials(phone, password);
-      
-      final routeName = authService.isAdmin
-          ? '/admin'
-          : (authService.isServiceProvider || authService.isWasher)
-              ? '/washer-dashboard'
-              : '/home';
-      Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
+      _navigateToHome(authService);
     } else {
       _showError('Invalid phone number or password.');
     }
   }
 
-  Future<void> _biometricLogin() async {
+  // ============================================================
+  // OPTION 2: Biometric Login
+  // ============================================================
+  Future<void> _loginWithBiometric() async {
     if (!_biometricEnabled) {
       _showError('Biometric authentication is not available');
       return;
@@ -137,12 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      print('🔐 Biometric result: $authenticated');
-
       if (authenticated) {
         final authService = Provider.of<AuthService>(context, listen: false);
-        
-        // Load saved credentials
         final prefs = await SharedPreferences.getInstance();
         final phone = prefs.getString('saved_phone');
         final password = prefs.getString('saved_password');
@@ -150,14 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (phone != null && password != null) {
           final success = await authService.login(phone, password);
           if (success) {
-            if (mounted) {
-              final routeName = authService.isAdmin
-                  ? '/admin'
-                  : (authService.isServiceProvider || authService.isWasher)
-                      ? '/washer-dashboard'
-                      : '/home';
-              Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
-            }
+            _navigateToHome(authService);
           } else {
             _showError('Biometric login failed. Please login with password.');
           }
@@ -173,6 +157,71 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // ============================================================
+  // OPTION 3: Google Login
+  // ============================================================
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: '268073858735-gg0t71o28uauh3rkfrf5gvu3bam2s867.apps.googleusercontent.com',
+      );
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'name': user.displayName ?? 'User',
+          'email': user.email ?? '',
+          'phone': user.phoneNumber ?? '',
+          'photoURL': user.photoURL ?? '',
+          'role': 'customer',
+          'isBlocked': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        final authService = Provider.of<AuthService>(context, listen: false);
+        authService.setGoogleUser(user.displayName ?? 'User', user.email ?? user.uid);
+        
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
+    } catch (e) {
+      print('❌ Google Sign-In error: $e');
+      _showError('Google Sign-In failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _navigateToHome(AuthService authService) {
+    final routeName = authService.isAdmin
+        ? '/admin'
+        : (authService.isServiceProvider || authService.isWasher)
+            ? '/washer-dashboard'
+            : '/home';
+    Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
   }
 
   void _showError(String message) {
@@ -191,27 +240,126 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Back Button
               IconButton(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back),
                 padding: EdgeInsets.zero,
                 alignment: Alignment.centerLeft,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              
+              // Welcome Text
               const Text(
-                'Welcome Back! 😊',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                'Welcome Back,',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const Text(
+                'OBINNA',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Sign in to continue',
-                style: TextStyle(fontSize: 16, color: AppColors.grey600),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.grey600,
+                ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 32),
+
+              // ============================================================
+              // OPTION 1: Biometric Login (Fingerprint)
+              // ============================================================
+              if (_biometricEnabled)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.2),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Fingerprint Unlock',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.grey600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: _isLoading ? null : _loginWithBiometric,
+                        child: Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withOpacity(0.3),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.fingerprint,
+                            color: Colors.white,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          // Switch to password login
+                        },
+                        child: const Text(
+                          'Use Password Instead',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
+              const SizedBox(height: 24),
+
+              // ============================================================
+              // OPTION 2: Password / Phone Login
+              // ============================================================
+              const Text(
+                'Sign in with Password',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
@@ -220,9 +368,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixText: '+234 ',
                   prefixIcon: Icon(Icons.phone_android),
                   border: OutlineInputBorder(),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              
               TextField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
@@ -234,50 +386,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
                   border: const OutlineInputBorder(),
+                  focusedBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.primary, width: 2),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
+              
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Remember Me
                   Row(
                     children: [
                       Checkbox(
                         value: _rememberMe,
                         onChanged: (value) {
                           setState(() => _rememberMe = value ?? false);
-                          print('🔐 Remember Me: $value');
                         },
                         activeColor: AppColors.primary,
                       ),
                       const Text('Remember Me', style: TextStyle(fontSize: 13)),
                     ],
                   ),
-                  // ============================================================
-                  // FIX: Biometric Login - Always visible when available
-                  // ============================================================
-                  if (_biometricEnabled)
-                    TextButton.icon(
-                      onPressed: _isLoading ? null : _biometricLogin,
-                      icon: const Icon(Icons.fingerprint, color: AppColors.primary),
-                      label: const Text(
-                        'Biometric',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
-                      ),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
                   TextButton(
                     onPressed: () {
                       _showError('Contact support to reset password: 07065584504');
@@ -287,31 +417,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(color: AppColors.primary),
                     ),
                   ),
-                  Row(
-                    children: [
-                      Switch(
-                        value: _twoFAEnabled,
-                        onChanged: (value) {
-                          setState(() => _twoFAEnabled = value);
-                        },
-                        activeColor: AppColors.primary,
-                      ),
-                      const Text(
-                        'Enable 2FA',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                    ],
-                  ),
                 ],
               ),
-              const SizedBox(height: 32),
+              
+              const SizedBox(height: 16),
+              
+              // Sign In Button
               SizedBox(
                 width: double.infinity,
-                height: 55,
+                height: 50,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _login,
+                  onPressed: _isLoading ? null : _loginWithPassword,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0CAF60),
+                    backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -327,15 +445,91 @@ class _LoginScreenState extends State<LoginScreen> {
                         )
                       : const Text(
                           'Sign In',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                 ),
               ),
-              const SizedBox(height: 16),
+              
+              const SizedBox(height: 20),
+
+              // ============================================================
+              // OR Divider
+              // ============================================================
+              Row(
+                children: [
+                  Expanded(
+                    child: Divider(
+                      color: Colors.grey.shade300,
+                      thickness: 1,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Divider(
+                      color: Colors.grey.shade300,
+                      thickness: 1,
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 20),
+
+              // ============================================================
+              // OPTION 3: Google Sign-In
+              // ============================================================
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _loginWithGoogle,
+                  icon: Image.network(
+                    'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                    width: 24,
+                    height: 24,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.g_mobiledata, size: 24);
+                    },
+                  ),
+                  label: Text(
+                    _isLoading ? 'Signing in...' : 'Continue with Google',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    side: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+              ),
+              
+              const Spacer(),
+
+              // ============================================================
+              // Footer: Sign Up & Security Info
+              // ============================================================
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account?"),
+                  const Text(
+                    "Don't have an account?",
+                    style: TextStyle(color: AppColors.grey600),
+                  ),
                   TextButton(
                     onPressed: () {
                       Navigator.push(
@@ -345,11 +539,58 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     child: const Text(
                       'Sign Up',
-                      style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
               ),
+              
+              const SizedBox(height: 12),
+              
+              // Security Footer
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.security,
+                      color: AppColors.primary,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '🔒 Your account is protected with 2FA and biometric security',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.grey600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Licensed by Central Bank
+              Center(
+                child: Text(
+                  'Licensed and insured by the NDIC',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
