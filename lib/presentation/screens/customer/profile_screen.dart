@@ -34,41 +34,66 @@ class ProfileScreen extends StatelessWidget {
             color: Colors.green.shade50,
             child: Column(
               children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(color: Colors.grey.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5)),
-                    ],
+                GestureDetector(
+                  onTap: () => _showEditProfileDialog(context, authService),
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.grey.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5)),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        const Center(child: Icon(Icons.person, size: 50, color: Color(0xFF0CAF60))),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const Center(child: Icon(Icons.person, size: 50, color: Color(0xFF0CAF60))),
                 ),
                 const SizedBox(height: 16),
                 Text(authService.userName ?? 'G-Wash User', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Text(authService.userPhone ?? '', style: TextStyle(color: Colors.grey.shade600)),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () => _showEditProfileDialog(context, authService),
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Edit Profile'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                ),
               ],
             ),
           ),
           
-          // ✅ NEW: User Section Link
+          // My Account Section
           _buildSectionHeader('My Account'),
           _buildMenuItem(
             Icons.account_circle, 
             'My Profile', 
             'View and edit your profile details', 
-            () {
-              // Navigate to profile edit screen
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Profile editing coming soon!')),
-              );
-            }
+            () => _showEditProfileDialog(context, authService)
           ),
           
-          // Account Section
+          // Payments & Addresses
           _buildSectionHeader('Payments & Addresses'),
           _buildMenuItem(
             Icons.credit_card, 
@@ -83,7 +108,7 @@ class ProfileScreen extends StatelessWidget {
             () => Navigator.pushNamed(context, '/saved-addresses')
           ),
           
-          // Security Section
+          // Security
           _buildSectionHeader('Security'),
           _buildMenuItem(
             Icons.security, 
@@ -98,7 +123,7 @@ class ProfileScreen extends StatelessWidget {
             () => Navigator.pushNamed(context, '/notifications')
           ),
           
-          // Support Section
+          // Support
           _buildSectionHeader('Support'),
           _buildMenuItem(
             Icons.help, 
@@ -107,7 +132,7 @@ class ProfileScreen extends StatelessWidget {
             () => Navigator.pushNamed(context, '/help-support')
           ),
           
-          // Earnings Section
+          // Earnings
           _buildSectionHeader('Earnings'),
           _buildMenuItem(
             Icons.money, 
@@ -122,7 +147,7 @@ class ProfileScreen extends StatelessWidget {
           
           const Divider(),
           
-          // Become a Washer Button (Uber-style)
+          // Become a Washer Button
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -181,6 +206,78 @@ class ProfileScreen extends StatelessWidget {
           ),
           
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  void _showEditProfileDialog(BuildContext context, AuthService authService) {
+    final nameController = TextEditingController(text: authService.userName ?? '');
+    final phoneController = TextEditingController(text: authService.userPhone ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Full Name',
+                prefixIcon: Icon(Icons.person),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                prefixIcon: Icon(Icons.phone),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              final phone = phoneController.text.trim();
+              
+              if (name.isNotEmpty || phone.isNotEmpty) {
+                await authService.updateUserProfile(
+                  name: name.isNotEmpty ? name : null,
+                  phone: phone.isNotEmpty ? phone : null,
+                );
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ Profile updated successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Save'),
+          ),
         ],
       ),
     );

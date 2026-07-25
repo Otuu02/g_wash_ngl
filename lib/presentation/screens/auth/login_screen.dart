@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import 'signup_screen.dart';
@@ -22,13 +23,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _biometricEnabled = false;
   bool _twoFAEnabled = false;
+  bool _rememberMe = false;
   final LocalAuthentication _localAuth = LocalAuthentication();
 
   @override
   void initState() {
     super.initState();
     _checkBiometricAvailability();
-    _loadSettings();
+    _loadSavedCredentials();
   }
 
   Future<void> _checkBiometricAvailability() async {
@@ -42,10 +44,55 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loadSettings() async {
-    setState(() {
-      _twoFAEnabled = false;
-    });
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final phone = prefs.getString('saved_phone');
+      final password = prefs.getString('saved_password');
+      final remember = prefs.getBool('remember_me') ?? false;
+
+      setState(() {
+        if (phone != null) _phoneController.text = phone;
+        if (password != null) _passwordController.text = password;
+        _rememberMe = remember;
+      });
+
+      // If biometric is enabled and credentials exist, auto-login with biometric
+      if (_biometricEnabled && phone != null && password != null) {
+        final authService = Provider.of<AuthService>(context, listen: false);
+        // Auto login with saved credentials
+        final success = await authService.login(phone, password);
+        if (success) {
+          if (mounted) {
+            final routeName = authService.isAdmin
+                ? '/admin'
+                : (authService.isServiceProvider || authService.isWasher)
+                    ? '/washer-dashboard'
+                    : '/home';
+            Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
+          }
+        }
+      }
+    } catch (e) {
+      print('Error loading saved credentials: $e');
+    }
+  }
+
+  Future<void> _saveCredentials(String phone, String password) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString('saved_phone', phone);
+        await prefs.setString('saved_password', password);
+        await prefs.setBool('remember_me', true);
+      } else {
+        await prefs.remove('saved_phone');
+        await prefs.remove('saved_password');
+        await prefs.setBool('remember_me', false);
+      }
+    } catch (e) {
+      print('Error saving credentials: $e');
+    }
   }
 
   Future<void> _login() async {
@@ -61,14 +108,16 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final authService = Provider.of<AuthService>(context, listen: false);
-    final success = await authService.login(
-      _phoneController.text.trim(),
-      _passwordController.text.trim(),
-    );
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
+    final success = await authService.login(phone, password);
 
     setState(() => _isLoading = false);
 
     if (success) {
+      // Save credentials if remember me is checked
+      await _saveCredentials(phone, password);
+      
       final routeName = authService.isAdmin
           ? '/admin'
           : (authService.isServiceProvider || authService.isWasher)
@@ -91,7 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Authenticate to login to G Wash NG',
-        options: AuthenticationOptions( // REMOVED const
+        options: AuthenticationOptions(
           stickyAuth: true,
           biometricOnly: true,
         ),
@@ -99,14 +148,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (authenticated) {
         final authService = Provider.of<AuthService>(context, listen: false);
-        final success = await authService.demoLogin(_phoneController.text.trim());
-        if (success) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
+        
+        // Load saved credentials
+        final prefs = await SharedPreferences.getInstance();
+        final phone = prefs.getString('saved_phone');
+        final password = prefs.getString('saved_password');
+        
+        if (phone != null && password != null) {
+          final success = await authService.login(phone, password);
+          if (success) {
+            if (mounted) {
+              final routeName = authService.isAdmin
+                  ? '/admin'
+                  : (authService.isServiceProvider || authService.isWasher)
+                      ? '/washer-dashboard'
+                      : '/home';
+              Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
+            }
+          } else {
+            _showError('Biometric login failed. Please login with password.');
+          }
         } else {
-          _showError('Please enter your phone number first');
+          _showError('Please login with password first to enable biometric login');
         }
       } else {
         _showError('Biometric authentication failed');
@@ -115,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
       print('Biometric auth error: $e');
       _showError('Biometric authentication failed: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -124,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -147,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Welcome Back! 🥳',
+                'Welcome Back! 😊',
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -184,6 +247,19 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Remember Me
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _rememberMe,
+                        onChanged: (value) {
+                          setState(() => _rememberMe = value ?? false);
+                        },
+                        activeColor: AppColors.primary,
+                      ),
+                      const Text('Remember Me', style: TextStyle(fontSize: 13)),
+                    ],
+                  ),
                   if (_biometricEnabled)
                     TextButton.icon(
                       onPressed: _isLoading ? null : _biometricLogin,
@@ -193,6 +269,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         foregroundColor: AppColors.primary,
                       ),
                     ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   TextButton(
                     onPressed: () {
                       _showError('Contact support to reset password: 07065584504');
@@ -202,20 +283,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(color: AppColors.primary),
                     ),
                   ),
-                ],
-              ),
-              Row(
-                children: [
-                  Switch(
-                    value: _twoFAEnabled,
-                    onChanged: (value) {
-                      setState(() => _twoFAEnabled = value);
-                    },
-                    activeColor: AppColors.primary,
-                  ),
-                  const Text(
-                    'Enable Two-Factor Authentication',
-                    style: TextStyle(fontSize: 13),
+                  Row(
+                    children: [
+                      Switch(
+                        value: _twoFAEnabled,
+                        onChanged: (value) {
+                          setState(() => _twoFAEnabled = value);
+                        },
+                        activeColor: AppColors.primary,
+                      ),
+                      const Text(
+                        'Enable 2FA',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ],
                   ),
                 ],
               ),
