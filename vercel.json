@@ -1,18 +1,12 @@
 {
-  "version": 2,
-  "cleanUrls": true,
+  "name": "g-wash-ngl",
+  "buildCommand": "bash build.sh",
+  "outputDirectory": "build/web",
+  "installCommand": "",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
     {
       "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        }
-      ]
+      "destination": "/index.html"
     }
   ]
 }

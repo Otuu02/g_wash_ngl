@@ -2,16 +2,21 @@
 
 echo "🚀 Starting build process..."
 
-# Install Flutter using the official script
+# Install Flutter SDK
 if [ ! -d "flutter-sdk" ]; then
   echo "📦 Installing Flutter..."
   git clone https://github.com/flutter/flutter.git -b stable --depth 1 flutter-sdk
 fi
 
-export PATH="$PATH:$(pwd)/flutter-sdk/bin"
+# Set Flutter PATH correctly
+export PATH="$(pwd)/flutter-sdk/bin:$PATH"
 
+# Verify Flutter is available
 echo "📋 Flutter version:"
-flutter --version
+flutter --version || echo "❌ Flutter not found!"
+
+# Enable web
+flutter config --enable-web
 
 echo "📦 Getting packages..."
 flutter pub get
@@ -19,4 +24,11 @@ flutter pub get
 echo "🏗️ Building web..."
 flutter build web --release
 
-echo "✅ Build complete!"
+# Check if build succeeded
+if [ -d "build/web" ]; then
+  echo "✅ Build complete!"
+  ls -la build/web/
+else
+  echo "❌ Build failed - no output directory!"
+  exit 1
+fi
