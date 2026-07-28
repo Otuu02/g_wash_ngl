@@ -93,8 +93,6 @@ dependencies:
   local_auth: ^2.1.6
   flutter_map: ^7.0.1
   geoflutterfire2: ^2.3.15
-  image_picker_for_web: ^4.0.0
-  file_picker: ^8.0.0
 
 dev_dependencies:
   flutter_test:
