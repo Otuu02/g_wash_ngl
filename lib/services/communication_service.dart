@@ -1,180 +1,1069 @@
-// FILE: lib/services/communication_service.dart
-// PURPOSE: Send official G-Wash CRM System WhatsApp & Email notifications to service providers when a booking occurs
+// lib/services/communication_service.dart
+// PURPOSE: Handle SMS, Email, and Push notifications for the app
 
-import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'app_notification_service.dart';
 
 class CommunicationService {
-  CommunicationService._();
+  static final CommunicationService _instance = CommunicationService._internal();
+  factory CommunicationService() => _instance;
+  CommunicationService._internal();
 
-  /// Send WhatsApp message from G-Wash CRM System to service provider with booking details
-  static Future<bool> sendWhatsAppBookingNotification({
-    required String providerPhone,
-    required String providerName,
-    required String customerName,
-    required String serviceCategory,
-    required String serviceName,
-    required int price,
-    required String location,
-    required String scheduledDate,
-    required String scheduledTime,
-    required String jobId,
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AppNotificationService _notificationService = AppNotificationService();
+
+  // ============================================================
+  // SEND SMS NOTIFICATION
+  // ============================================================
+  Future<bool> sendSms({
+    required String phoneNumber,
+    required String message,
+    String? jobId,
   }) async {
     try {
-      // Format phone number
-      String cleanPhone = providerPhone.replaceAll(RegExp(r'[^0-9]'), '');
-      if (cleanPhone.startsWith('0')) {
-        cleanPhone = '234${cleanPhone.substring(1)}';
-      } else if (!cleanPhone.startsWith('234') && cleanPhone.length == 10) {
-        cleanPhone = '234$cleanPhone';
+      // Clean phone number
+      final cleanedPhone = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+      
+      print('📱 Sending SMS to: $cleanedPhone');
+      print('📱 Message: $message');
+
+      // For now, we'll store SMS in Firestore as a record
+      // You can integrate with Twilio, Africa's Talking, or other SMS providers
+      
+      await _firestore.collection('sms_logs').add({
+        'phoneNumber': cleanedPhone,
+        'message': message,
+        'jobId': jobId,
+        'status': 'sent',
+        'sentAt': FieldValue.serverTimestamp(),
+      });
+
+      // Add to app notifications
+      if (jobId != null) {
+        _notificationService.addNotification(
+          title: '📧 SMS Sent',
+          message: message.length > 100 ? '${message.substring(0, 100)}...' : message,
+          type: 'delivery',
+          jobId: jobId,
+        );
       }
 
-      final message = '''
-🤖 *G-WASH NG CRM DISPATCH SYSTEM* 🏢
-----------------------------------------
-Hello $providerName! 👋
-
-🚨 *NEW JOB ASSIGNED BY G-WASH CRM DISPATCH* ⚡
-
-📋 *Job Details:*
-• *Order ID:* #${jobId.substring(0, jobId.length > 8 ? 8 : jobId.length).toUpperCase()}
-• *Service:* $serviceName ($serviceCategory)
-• *Customer:* $customerName
-• *Location:* $location
-• *Date & Time:* $scheduledDate at $scheduledTime
-• *Earnings:* ₦${price.toString()}
-
-⚡ *CRM Notice:* This notification is automatically sent by the G-Wash NG CRM System number. Please open your G-Wash NG Provider App to view navigation and update job status.
-''';
-
-      final encodedMessage = Uri.encodeComponent(message);
-      final url = Uri.parse('https://wa.me/$cleanPhone?text=$encodedMessage');
-
-      if (await canLaunchUrl(url)) {
-        return await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        print('❌ Could not launch WhatsApp URL: $url');
-        return false;
-      }
+      print('✅ SMS logged successfully');
+      return true;
+      
     } catch (e) {
-      print('❌ Error launching WhatsApp: $e');
+      print('❌ Error sending SMS: $e');
       return false;
     }
   }
 
-  /// Send Email notification from G-Wash CRM to service provider with booking details
-  static Future<bool> sendEmailBookingNotification({
-    required String providerEmail,
-    required String providerName,
-    required String customerName,
-    required String serviceCategory,
-    required String serviceName,
-    required int price,
-    required String location,
-    required String scheduledDate,
-    required String scheduledTime,
-    required String jobId,
+  // ============================================================
+  // SEND EMAIL NOTIFICATION
+  // ============================================================
+  Future<bool> sendEmail({
+    required String email,
+    required String subject,
+    required String body,
+    String? jobId,
   }) async {
     try {
-      final subject = '🤖 G-Wash CRM Notice: NEW JOB ASSIGNED - $serviceName';
-      final body = '''
-Hello $providerName,
+      print('📧 Sending Email to: $email');
+      print('📧 Subject: $subject');
+      print('📧 Body: $body');
 
-This is an automated dispatch notification from the G-Wash NG CRM Platform.
+      // Store email in Firestore
+      await _firestore.collection('email_logs').add({
+        'email': email,
+        'subject': subject,
+        'body': body,
+        'jobId': jobId,
+        'status': 'sent',
+        'sentAt': FieldValue.serverTimestamp(),
+      });
 
-JOB DETAILS:
---------------------------------------------------
-Order ID: #${jobId.substring(0, jobId.length > 8 ? 8 : jobId.length).toUpperCase()}
-Category: $serviceCategory
+      // Add to app notifications
+      if (jobId != null) {
+        _notificationService.addNotification(
+          title: '📧 Email Sent',
+          message: subject,
+          type: 'delivery',
+          jobId: jobId,
+        );
+      }
+
+      print('✅ Email logged successfully');
+      return true;
+      
+    } catch (e) {
+      print('❌ Error sending email: $e');
+      return false;
+    }
+  }
+
+  // ============================================================
+  // SEND ORDER CONFIRMATION
+  // ============================================================
+  Future<void> sendOrderConfirmation({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String serviceName,
+    required String location,
+    required int price,
+    required DateTime scheduledDate,
+    required String scheduledTime,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+Your $serviceName booking has been confirmed! 🎉
+
+📍 Location: $location
+📅 Date: ${_formatDate(scheduledDate)}
+⏰ Time: $scheduledTime
+💰 Amount: ₦${price.toString()}
+
+You will receive updates when a provider is assigned.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    // Send SMS
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    // Send Email
+    await sendEmail(
+      email: customerEmail,
+      subject: '✅ Booking Confirmed - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    // Add to app notifications
+    _notificationService.addNotification(
+      title: '✅ Booking Confirmed!',
+      message: 'Your $serviceName booking has been confirmed.',
+      type: 'booking',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PROVIDER ASSIGNED NOTIFICATION
+  // ============================================================
+  Future<void> sendProviderAssigned({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String providerName,
+    required String serviceName,
+    required String eta,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+A provider has been assigned to your $serviceName! 🚚
+
+👤 Provider: $providerName
+⏰ ETA: $eta
+
+You can track your provider in the app.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '🚚 Provider Assigned - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '🚚 Provider Assigned!',
+      message: '$providerName is on the way for your $serviceName.',
+      type: 'booking',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PROVIDER EN ROUTE NOTIFICATION
+  // ============================================================
+  Future<void> sendProviderEnRoute({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String providerName,
+    required String serviceName,
+    required String eta,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+$providerName is on the way to you! 🚗
+
+📍 Service: $serviceName
+⏰ ETA: $eta
+
+Your provider will arrive shortly.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '🚗 Provider On The Way - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '🚗 Provider On The Way!',
+      message: '$providerName is $eta away with your $serviceName.',
+      type: 'delivery',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PROVIDER ARRIVED NOTIFICATION
+  // ============================================================
+  Future<void> sendProviderArrived({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String providerName,
+    required String serviceName,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+$providerName has arrived at your location! 📍
+
 Service: $serviceName
-Customer Name: $customerName
-Location: $location
-Scheduled Date & Time: $scheduledDate at $scheduledTime
-Total Amount: ₦$price
 
-CRM DISPATCH NOTICE:
-This notification was sent by the G-Wash NG CRM System.
-Please log into your G-Wash NG provider app to view customer navigation details and proceed.
+Please check your app to confirm.
 
-Best regards,
-G-Wash NG CRM & Operations Center
-''';
+Thank you for using G Wash NG! 🚗
+    ''';
 
-      final Uri emailUri = Uri(
-        scheme: 'mailto',
-        path: providerEmail,
-        queryParameters: {
-          'subject': subject,
-          'body': body,
-        },
-      );
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
 
-      if (await canLaunchUrl(emailUri)) {
-        return await launchUrl(emailUri, mode: LaunchMode.externalApplication);
-      } else {
-        print('❌ Could not launch Email client: $emailUri');
-        return false;
+    await sendEmail(
+      email: customerEmail,
+      subject: '📍 Provider Arrived - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '📍 Provider Arrived!',
+      message: '$providerName has arrived for your $serviceName.',
+      type: 'delivery',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND SERVICE COMPLETED NOTIFICATION
+  // ============================================================
+  Future<void> sendServiceCompleted({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String serviceName,
+    required int price,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+Your $serviceName has been completed! 🎉
+
+💰 Amount: ₦${price.toString()}
+💳 Please complete payment in the app.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '🎉 Service Completed - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '🎉 Service Completed!',
+      message: 'Your $serviceName has been completed. Please make payment.',
+      type: 'booking',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PAYMENT CONFIRMATION
+  // ============================================================
+  Future<void> sendPaymentConfirmation({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String serviceName,
+    required int amount,
+    required String reference,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+Payment confirmed! 💰
+
+Service: $serviceName
+Amount: ₦${amount.toString()}
+Reference: $reference
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '💰 Payment Confirmed - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '💰 Payment Successful!',
+      message: 'Your payment of ₦${amount.toString()} for $serviceName was successful.',
+      type: 'payment',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND ORDER CANCELLED NOTIFICATION
+  // ============================================================
+  Future<void> sendOrderCancelled({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String serviceName,
+    required String reason,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+Your $serviceName booking has been cancelled. ❌
+
+Reason: $reason
+
+If you have any questions, please contact support.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '❌ Booking Cancelled - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '❌ Booking Cancelled',
+      message: 'Your $serviceName booking has been cancelled.',
+      type: 'booking',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PROMOTIONAL OFFER
+  // ============================================================
+  Future<void> sendPromotionalOffer({
+    required String customerPhone,
+    required String customerEmail,
+    required String title,
+    required String message,
+  }) async {
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: '🎉 $title\n\n$message',
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '🎉 $title - G Wash NG',
+      body: message,
+    );
+
+    _notificationService.addNotification(
+      title: '🎉 $title',
+      message: message,
+      type: 'promo',
+    );
+  }
+
+  // ============================================================
+  // GET USER CONTACT DETAILS
+  // ============================================================
+  Future<Map<String, String>> getUserContactDetails(String userId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        return {
+          'name': data['name'] ?? 'Customer',
+          'phone': data['phone'] ?? '',
+          'email': data['email'] ?? '',
+        };
       }
+      return {
+        'name': 'Customer',
+        'phone': '',
+        'email': '',
+      };
     } catch (e) {
-      print('❌ Error launching Email: $e');
+      print('❌ Error getting user contact details: $e');
+      return {
+        'name': 'Customer',
+        'phone': '',
+        'email': '',
+      };
+    }
+  }
+
+  // ============================================================
+  // HELPER METHODS
+  // ============================================================
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  // ============================================================
+  // GET SMS LOGS
+  // ============================================================
+  Future<List<Map<String, dynamic>>> getSmsLogs({String? jobId}) async {
+    try {
+      Query query = _firestore.collection('sms_logs');
+      if (jobId != null) {
+        query = query.where('jobId', isEqualTo: jobId);
+      }
+      final snapshot = await query.orderBy('sentAt', descending: true).limit(50).get();
+      return snapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          ...doc.data(),
+        };
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting SMS logs: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
+  // GET EMAIL LOGS
+  // ============================================================
+  Future<List<Map<String, dynamic>>> getEmailLogs({String? jobId}) async {
+    try {
+      Query query = _firestore.collection('email_logs');
+      if (jobId != null) {
+        query = query.where('jobId', isEqualTo: jobId);
+      }
+      final snapshot = await query.orderBy('sentAt', descending: true).limit(50).get();
+      return snapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          ...doc.data(),
+        };
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting email logs: $e');
+      return [];
+    }
+  }
+}
+EOFcat > lib/services/communication_service.dart << 'EOF'
+// lib/services/communication_service.dart
+// PURPOSE: Handle SMS, Email, and Push notifications for the app
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'app_notification_service.dart';
+
+class CommunicationService {
+  static final CommunicationService _instance = CommunicationService._internal();
+  factory CommunicationService() => _instance;
+  CommunicationService._internal();
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AppNotificationService _notificationService = AppNotificationService();
+
+  // ============================================================
+  // SEND SMS NOTIFICATION
+  // ============================================================
+  Future<bool> sendSms({
+    required String phoneNumber,
+    required String message,
+    String? jobId,
+  }) async {
+    try {
+      // Clean phone number
+      final cleanedPhone = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+      
+      print('📱 Sending SMS to: $cleanedPhone');
+      print('📱 Message: $message');
+
+      // For now, we'll store SMS in Firestore as a record
+      // You can integrate with Twilio, Africa's Talking, or other SMS providers
+      
+      await _firestore.collection('sms_logs').add({
+        'phoneNumber': cleanedPhone,
+        'message': message,
+        'jobId': jobId,
+        'status': 'sent',
+        'sentAt': FieldValue.serverTimestamp(),
+      });
+
+      // Add to app notifications
+      if (jobId != null) {
+        _notificationService.addNotification(
+          title: '📧 SMS Sent',
+          message: message.length > 100 ? '${message.substring(0, 100)}...' : message,
+          type: 'delivery',
+          jobId: jobId,
+        );
+      }
+
+      print('✅ SMS logged successfully');
+      return true;
+      
+    } catch (e) {
+      print('❌ Error sending SMS: $e');
       return false;
     }
   }
 
-  /// Send CRM WhatsApp, Email, and In-App notifications to provider upon booking
-  static Future<void> sendBookingNotifications({
-    required String? providerPhone,
-    required String? providerEmail,
-    required String providerName,
+  // ============================================================
+  // SEND EMAIL NOTIFICATION
+  // ============================================================
+  Future<bool> sendEmail({
+    required String email,
+    required String subject,
+    required String body,
+    String? jobId,
+  }) async {
+    try {
+      print('📧 Sending Email to: $email');
+      print('📧 Subject: $subject');
+      print('📧 Body: $body');
+
+      // Store email in Firestore
+      await _firestore.collection('email_logs').add({
+        'email': email,
+        'subject': subject,
+        'body': body,
+        'jobId': jobId,
+        'status': 'sent',
+        'sentAt': FieldValue.serverTimestamp(),
+      });
+
+      // Add to app notifications
+      if (jobId != null) {
+        _notificationService.addNotification(
+          title: '📧 Email Sent',
+          message: subject,
+          type: 'delivery',
+          jobId: jobId,
+        );
+      }
+
+      print('✅ Email logged successfully');
+      return true;
+      
+    } catch (e) {
+      print('❌ Error sending email: $e');
+      return false;
+    }
+  }
+
+  // ============================================================
+  // SEND ORDER CONFIRMATION
+  // ============================================================
+  Future<void> sendOrderConfirmation({
+    required String jobId,
     required String customerName,
-    required String serviceCategory,
+    required String customerPhone,
+    required String customerEmail,
+    required String serviceName,
+    required String location,
+    required int price,
+    required DateTime scheduledDate,
+    required String scheduledTime,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+Your $serviceName booking has been confirmed! 🎉
+
+📍 Location: $location
+📅 Date: ${_formatDate(scheduledDate)}
+⏰ Time: $scheduledTime
+💰 Amount: ₦${price.toString()}
+
+You will receive updates when a provider is assigned.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    // Send SMS
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    // Send Email
+    await sendEmail(
+      email: customerEmail,
+      subject: '✅ Booking Confirmed - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    // Add to app notifications
+    _notificationService.addNotification(
+      title: '✅ Booking Confirmed!',
+      message: 'Your $serviceName booking has been confirmed.',
+      type: 'booking',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PROVIDER ASSIGNED NOTIFICATION
+  // ============================================================
+  Future<void> sendProviderAssigned({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String providerName,
+    required String serviceName,
+    required String eta,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+A provider has been assigned to your $serviceName! 🚚
+
+👤 Provider: $providerName
+⏰ ETA: $eta
+
+You can track your provider in the app.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '🚚 Provider Assigned - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '🚚 Provider Assigned!',
+      message: '$providerName is on the way for your $serviceName.',
+      type: 'booking',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PROVIDER EN ROUTE NOTIFICATION
+  // ============================================================
+  Future<void> sendProviderEnRoute({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String providerName,
+    required String serviceName,
+    required String eta,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+$providerName is on the way to you! 🚗
+
+📍 Service: $serviceName
+⏰ ETA: $eta
+
+Your provider will arrive shortly.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '🚗 Provider On The Way - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '🚗 Provider On The Way!',
+      message: '$providerName is $eta away with your $serviceName.',
+      type: 'delivery',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PROVIDER ARRIVED NOTIFICATION
+  // ============================================================
+  Future<void> sendProviderArrived({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String providerName,
+    required String serviceName,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+$providerName has arrived at your location! 📍
+
+Service: $serviceName
+
+Please check your app to confirm.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '📍 Provider Arrived - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '📍 Provider Arrived!',
+      message: '$providerName has arrived for your $serviceName.',
+      type: 'delivery',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND SERVICE COMPLETED NOTIFICATION
+  // ============================================================
+  Future<void> sendServiceCompleted({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
     required String serviceName,
     required int price,
-    required String location,
-    required String scheduledDate,
-    required String scheduledTime,
-    required String jobId,
-    BuildContext? context,
   }) async {
-    final defaultPhone = providerPhone ?? '+2348012345678';
-    final defaultEmail = providerEmail ?? 'provider@gwashng.com';
+    final message = '''
+Hello $customerName,
 
-    // Send CRM WhatsApp notification
-    await sendWhatsAppBookingNotification(
-      providerPhone: defaultPhone,
-      providerName: providerName,
-      customerName: customerName,
-      serviceCategory: serviceCategory,
-      serviceName: serviceName,
-      price: price,
-      location: location,
-      scheduledDate: scheduledDate,
-      scheduledTime: scheduledTime,
+Your $serviceName has been completed! 🎉
+
+💰 Amount: ₦${price.toString()}
+💳 Please complete payment in the app.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
       jobId: jobId,
     );
 
-    // Send CRM Email notification
-    await sendEmailBookingNotification(
-      providerEmail: defaultEmail,
-      providerName: providerName,
-      customerName: customerName,
-      serviceCategory: serviceCategory,
-      serviceName: serviceName,
-      price: price,
-      location: location,
-      scheduledDate: scheduledDate,
-      scheduledTime: scheduledTime,
+    await sendEmail(
+      email: customerEmail,
+      subject: '🎉 Service Completed - G Wash NG',
+      body: message,
       jobId: jobId,
     );
 
-    if (context != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('⚡ G-Wash CRM dispatch alert sent to $providerName via WhatsApp & Email.'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+    _notificationService.addNotification(
+      title: '🎉 Service Completed!',
+      message: 'Your $serviceName has been completed. Please make payment.',
+      type: 'booking',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PAYMENT CONFIRMATION
+  // ============================================================
+  Future<void> sendPaymentConfirmation({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String serviceName,
+    required int amount,
+    required String reference,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+Payment confirmed! 💰
+
+Service: $serviceName
+Amount: ₦${amount.toString()}
+Reference: $reference
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '💰 Payment Confirmed - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '💰 Payment Successful!',
+      message: 'Your payment of ₦${amount.toString()} for $serviceName was successful.',
+      type: 'payment',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND ORDER CANCELLED NOTIFICATION
+  // ============================================================
+  Future<void> sendOrderCancelled({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String serviceName,
+    required String reason,
+  }) async {
+    final message = '''
+Hello $customerName,
+
+Your $serviceName booking has been cancelled. ❌
+
+Reason: $reason
+
+If you have any questions, please contact support.
+
+Thank you for using G Wash NG! 🚗
+    ''';
+
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: message,
+      jobId: jobId,
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '❌ Booking Cancelled - G Wash NG',
+      body: message,
+      jobId: jobId,
+    );
+
+    _notificationService.addNotification(
+      title: '❌ Booking Cancelled',
+      message: 'Your $serviceName booking has been cancelled.',
+      type: 'booking',
+      jobId: jobId,
+    );
+  }
+
+  // ============================================================
+  // SEND PROMOTIONAL OFFER
+  // ============================================================
+  Future<void> sendPromotionalOffer({
+    required String customerPhone,
+    required String customerEmail,
+    required String title,
+    required String message,
+  }) async {
+    await sendSms(
+      phoneNumber: customerPhone,
+      message: '🎉 $title\n\n$message',
+    );
+
+    await sendEmail(
+      email: customerEmail,
+      subject: '🎉 $title - G Wash NG',
+      body: message,
+    );
+
+    _notificationService.addNotification(
+      title: '🎉 $title',
+      message: message,
+      type: 'promo',
+    );
+  }
+
+  // ============================================================
+  // GET USER CONTACT DETAILS
+  // ============================================================
+  Future<Map<String, String>> getUserContactDetails(String userId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(userId).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        return {
+          'name': data['name'] ?? 'Customer',
+          'phone': data['phone'] ?? '',
+          'email': data['email'] ?? '',
+        };
+      }
+      return {
+        'name': 'Customer',
+        'phone': '',
+        'email': '',
+      };
+    } catch (e) {
+      print('❌ Error getting user contact details: $e');
+      return {
+        'name': 'Customer',
+        'phone': '',
+        'email': '',
+      };
+    }
+  }
+
+  // ============================================================
+  // HELPER METHODS
+  // ============================================================
+  String _formatDate(DateTime date) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  // ============================================================
+  // GET SMS LOGS
+  // ============================================================
+  Future<List<Map<String, dynamic>>> getSmsLogs({String? jobId}) async {
+    try {
+      Query query = _firestore.collection('sms_logs');
+      if (jobId != null) {
+        query = query.where('jobId', isEqualTo: jobId);
+      }
+      final snapshot = await query.orderBy('sentAt', descending: true).limit(50).get();
+      return snapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          ...doc.data(),
+        };
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting SMS logs: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
+  // GET EMAIL LOGS
+  // ============================================================
+  Future<List<Map<String, dynamic>>> getEmailLogs({String? jobId}) async {
+    try {
+      Query query = _firestore.collection('email_logs');
+      if (jobId != null) {
+        query = query.where('jobId', isEqualTo: jobId);
+      }
+      final snapshot = await query.orderBy('sentAt', descending: true).limit(50).get();
+      return snapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          ...doc.data(),
+        };
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting email logs: $e');
+      return [];
     }
   }
 }

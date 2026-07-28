@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'app_notification_service.dart';
 
 class JobService extends ChangeNotifier {
   static final JobService _instance = JobService._internal();
@@ -8,9 +9,10 @@ class JobService extends ChangeNotifier {
   JobService._internal();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AppNotificationService _notificationService = AppNotificationService();
 
   // ============================================================
-  // FIND NEAREST PROVIDER (Washer/Cleaner/Laundry)
+  // FIND NEAREST PROVIDER
   // ============================================================
   Future<Map<String, dynamic>?> findNearestProvider({
     required double userLat,
@@ -19,7 +21,6 @@ class JobService extends ChangeNotifier {
     double radiusKm = 10.0,
   }) async {
     try {
-      // Query Firestore for approved and online providers
       final snapshot = await _firestore
           .collection('washers')
           .where('approved', isEqualTo: true)
@@ -31,7 +32,6 @@ class JobService extends ChangeNotifier {
         return null;
       }
 
-      // Calculate distances and sort
       List<Map<String, dynamic>> providers = [];
       for (var doc in snapshot.docs) {
         final data = doc.data();
@@ -111,7 +111,7 @@ class JobService extends ChangeNotifier {
         }
       }
 
-      // If no providers found in DB, provide realistic category-specific fallback demo providers
+      // If no providers found, provide fallback demo providers
       if (providers.isEmpty) {
         if (category == 'House Cleaning') {
           providers = [
@@ -307,6 +307,14 @@ class JobService extends ChangeNotifier {
         'lastJobAssigned': FieldValue.serverTimestamp(),
       });
 
+      // ✅ SEND NOTIFICATION: Provider Assigned
+      _notificationService.addNotification(
+        title: '✅ Provider Assigned!',
+        message: '${providerData['name'] ?? 'A provider'} has been assigned to your job.',
+        type: 'booking',
+        jobId: jobId,
+      );
+
       return {
         'jobId': jobId,
         'washerId': providerId,
@@ -322,11 +330,11 @@ class JobService extends ChangeNotifier {
   }
 
   // ============================================================
-  // COMPLETE JOB
+  // COMPLETE JOB - FIXED WITH NOTIFICATION
   // ============================================================
-  Future<Map<String, dynamic>> completeJob(String jobId) async {
+  Future<Map<String, dynamic>> completeJob(String jobId, {BuildContext? context}) async {
     try {
-      // Get job details to update provider stats
+      // Get job details
       final jobDoc = await _firestore.collection('jobs').doc(jobId).get();
       if (!jobDoc.exists) {
         throw Exception('Job not found');
@@ -335,6 +343,9 @@ class JobService extends ChangeNotifier {
       final jobData = jobDoc.data()!;
       final washerId = jobData['washerId'];
       final price = jobData['price'] ?? 0;
+      final customerId = jobData['customerId'];
+      final customerName = jobData['customerName'] ?? 'Customer';
+      final serviceName = jobData['serviceName'] ?? 'Service';
 
       // Update job
       await _firestore.collection('jobs').doc(jobId).update({
@@ -352,11 +363,33 @@ class JobService extends ChangeNotifier {
         });
       }
 
+      // ✅ SEND NOTIFICATION: Job Completed
+      _notificationService.addNotification(
+        title: '🎉 Order Delivered!',
+        message: 'Your $serviceName service has been completed successfully. Please make payment.',
+        type: 'booking',
+        jobId: jobId,
+      );
+
+      // Show overlay notification if context available
+      if (context != null) {
+        _notificationService.notify(
+          context: context,
+          title: '🎉 Order Completed!',
+          message: 'Please complete payment for your $serviceName service.',
+          type: 'booking',
+          icon: Icons.check_circle,
+          backgroundColor: Colors.green,
+          jobId: jobId,
+        );
+      }
+
       return {
         'success': true,
         'jobId': jobId,
         'status': 'completed',
         'completedAt': DateTime.now().toIso8601String(),
+        'price': price,
       };
     } catch (e) {
       print('❌ Error completing job: $e');
@@ -365,7 +398,7 @@ class JobService extends ChangeNotifier {
   }
 
   // ============================================================
-  // CANCEL JOB
+  // CANCEL JOB - FIXED WITH NOTIFICATION
   // ============================================================
   Future<Map<String, dynamic>> cancelJob({
     required String jobId,
@@ -380,6 +413,7 @@ class JobService extends ChangeNotifier {
 
       final jobData = jobDoc.data()!;
       final washerId = jobData['washerId'];
+      final serviceName = jobData['serviceName'] ?? 'Service';
 
       // Update job
       await _firestore.collection('jobs').doc(jobId).update({
@@ -395,6 +429,14 @@ class JobService extends ChangeNotifier {
         });
       }
 
+      // ✅ SEND NOTIFICATION: Job Cancelled
+      _notificationService.addNotification(
+        title: '❌ Order Cancelled',
+        message: 'Your $serviceName service has been cancelled. Reason: $reason',
+        type: 'booking',
+        jobId: jobId,
+      );
+
       return {
         'success': true,
         'jobId': jobId,
@@ -404,6 +446,70 @@ class JobService extends ChangeNotifier {
     } catch (e) {
       print('❌ Error cancelling job: $e');
       rethrow;
+    }
+  }
+
+  // ============================================================
+  // UPDATE JOB STATUS WITH NOTIFICATION
+  // ============================================================
+  Future<void> updateJobStatus({
+    required String jobId,
+    required String status,
+    String? note,
+  }) async {
+    try {
+      final jobDoc = await _firestore.collection('jobs').doc(jobId);
+      final snapshot = await jobDoc.get();
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data()!;
+      final serviceName = data['serviceName'] ?? 'Service';
+      final washerName = data['washerName'] ?? 'Provider';
+
+      await jobDoc.update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (note != null) 'statusNote': note,
+      });
+
+      // Send notifications based on status
+      String title, message;
+      IconData icon;
+      Color color;
+
+      switch (status) {
+        case 'accepted':
+          title = '✅ Request Accepted!';
+          message = '$washerName has accepted your $serviceName request.';
+          icon = Icons.thumb_up;
+          color = Colors.blue;
+          break;
+        case 'enRoute':
+          title = '🚚 Provider On The Way!';
+          message = '$washerName is heading to your location for $serviceName.';
+          icon = Icons.directions_car;
+          color = Colors.orange;
+          break;
+        case 'arrived':
+          title = '📍 Provider Has Arrived!';
+          message = '$washerName has arrived at your location for $serviceName.';
+          icon = Icons.location_on;
+          color = Colors.green;
+          break;
+        default:
+          return;
+      }
+
+      _notificationService.addNotification(
+        title: title,
+        message: message,
+        type: 'booking',
+        jobId: jobId,
+      );
+
+      print('📢 Status update notification sent: $status');
+    } catch (e) {
+      print('❌ Error updating job status: $e');
     }
   }
 
@@ -622,10 +728,35 @@ class JobService extends ChangeNotifier {
   }
 
   // ============================================================
+  // GET JOBS BY STATUS
+  // ============================================================
+  Future<List<Map<String, dynamic>>> getJobsByStatus({
+    required String userId,
+    required String status,
+  }) async {
+    try {
+      final snapshot = await _firestore
+          .collection('jobs')
+          .where('customerId', isEqualTo: userId)
+          .where('status', isEqualTo: status)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          ...doc.data(),
+        };
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting jobs by status: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
   // HELPER METHODS
   // ============================================================
 
-  // Calculate distance between two coordinates (in km)
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const double earthRadius = 6371;
     double dLat = _toRadians(lat2 - lat1);
@@ -641,7 +772,6 @@ class JobService extends ChangeNotifier {
     return degrees * pi / 180;
   }
 
-  // Calculate ETA based on distance and vehicle type
   String _calculateETA(double distanceKm, String vehicleType) {
     int minutes;
     if (vehicleType == 'Motorcycle' || vehicleType == 'Bicycle') {

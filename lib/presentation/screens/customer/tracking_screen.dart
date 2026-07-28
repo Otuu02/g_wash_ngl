@@ -248,7 +248,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   // ============================================================
-  // FIX: Customer confirms completion
+  // CUSTOMER CONFIRMS COMPLETION & PAYMENT
   // ============================================================
   Future<void> _customerConfirmCompletion() async {
     setState(() => _isProcessing = true);
@@ -286,7 +286,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   // ============================================================
-  // FIX: Payment dialog
+  // PAYMENT DIALOG
   // ============================================================
   void _showPaymentDialog() {
     showDialog(
@@ -340,7 +340,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Navigate to bookings if they skip payment
               _goToBookings();
             },
             child: const Text('Skip', style: TextStyle(color: Colors.grey)),
@@ -360,7 +359,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   // ============================================================
-  // FIX: Process payment
+  // PROCESS PAYMENT
   // ============================================================
   Future<void> _processPayment() async {
     Navigator.pop(context); // Close payment dialog
@@ -419,7 +418,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   // ============================================================
-  // FIX: Success dialog - Navigate to rating
+  // SUCCESS DIALOG - Navigate to rating
   // ============================================================
   void _showSuccessDialog() {
     showDialog(
@@ -447,7 +446,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context); // Close dialog
-              // Navigate to rating screen
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -475,38 +473,57 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   Future<void> _cancelOrder() async {
-    setState(() => _isProcessing = true);
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('jobs')
-          .doc(widget.jobId)
-          .update({
-        'status': 'cancelled',
-        'cancelledAt': FieldValue.serverTimestamp(),
-        'cancelledBy': 'customer',
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Order cancelled successfully'),
-            backgroundColor: AppColors.primary,
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Booking'),
+        content: const Text('Are you sure you want to cancel this booking?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('No'),
           ),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      print('❌ Error cancelling order: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error cancelling order: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      setState(() => _isProcessing = false);
-    }
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              setState(() => _isProcessing = true);
+              try {
+                await FirebaseFirestore.instance
+                    .collection('jobs')
+                    .doc(widget.jobId)
+                    .update({
+                  'status': 'cancelled',
+                  'cancelledAt': FieldValue.serverTimestamp(),
+                  'cancelledBy': 'customer',
+                });
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Order cancelled successfully'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                  Navigator.pop(context);
+                }
+              } catch (e) {
+                print('❌ Error cancelling order: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error cancelling order: $e'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              } finally {
+                setState(() => _isProcessing = false);
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Yes, Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _callWasher() {
@@ -1014,15 +1031,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
           const Spacer(),
           
           // ============================================================
-          // FIX: ACTION BUTTONS - Customer driven
+          // ACTION BUTTONS - Customer driven
           // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
-                // ============================================================
                 // CASE 1: Service Completed but NOT Paid → "Confirm & Pay"
-                // ============================================================
                 if (isCompleted && !isPaid)
                   SizedBox(
                     width: double.infinity,
@@ -1055,9 +1070,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     ),
                   ),
                 
-                // ============================================================
                 // CASE 2: Paid → "Rate Service"
-                // ============================================================
                 if (isPaid)
                   SizedBox(
                     width: double.infinity,
@@ -1093,9 +1106,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 
                 const SizedBox(height: 12),
                 
-                // ============================================================
                 // CASE 3: Active job (not completed) → "Cancel Booking"
-                // ============================================================
                 if (!isCompleted && !isPaid && !isCancelled)
                   SizedBox(
                     width: double.infinity,

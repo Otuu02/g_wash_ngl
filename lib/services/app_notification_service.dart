@@ -13,6 +13,7 @@ class AppNotificationItem {
   final DateTime timestamp;
   final String type; // 'booking', 'provider', 'promo', 'system'
   bool isRead;
+  final String? jobId; // Link to order
 
   AppNotificationItem({
     required this.id,
@@ -21,6 +22,7 @@ class AppNotificationItem {
     required this.timestamp,
     this.type = 'system',
     this.isRead = false,
+    this.jobId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -30,6 +32,7 @@ class AppNotificationItem {
         'timestamp': timestamp.toIso8601String(),
         'type': type,
         'isRead': isRead,
+        'jobId': jobId,
       };
 
   factory AppNotificationItem.fromJson(Map<String, dynamic> json) =>
@@ -42,6 +45,7 @@ class AppNotificationItem {
             : DateTime.now(),
         type: json['type'] ?? 'system',
         isRead: json['isRead'] ?? false,
+        jobId: json['jobId'],
       );
 }
 
@@ -67,19 +71,6 @@ class AppNotificationService extends ChangeNotifier {
         _notifications = list.map((item) => AppNotificationItem.fromJson(item)).toList();
         _notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
         notifyListeners();
-      } else if (_notifications.isEmpty) {
-        _notifications = [
-          AppNotificationItem(
-            id: 'welcome_1',
-            title: 'Welcome to G-Wash NG! 🚗✨',
-            message: 'Book on-demand car wash, house cleaning, and laundry services anytime!',
-            timestamp: DateTime.now(),
-            type: 'system',
-            isRead: false,
-          ),
-        ];
-        await _saveToStorage();
-        notifyListeners();
       }
     } catch (e) {
       print('❌ Error loading local notifications: $e');
@@ -97,12 +88,13 @@ class AppNotificationService extends ChangeNotifier {
   }
 
   // ============================================================
-  // FIXED: ADDED addNotification METHOD
+  // ADD NOTIFICATION
   // ============================================================
   void addNotification({
     required String title,
     required String message,
     required String type,
+    String? jobId,
   }) {
     final newItem = AppNotificationItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -111,6 +103,7 @@ class AppNotificationService extends ChangeNotifier {
       timestamp: DateTime.now(),
       type: type,
       isRead: false,
+      jobId: jobId,
     );
     
     _notifications.insert(0, newItem);
@@ -118,6 +111,9 @@ class AppNotificationService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ============================================================
+  // SHOW NOTIFICATION WITH OVERLAY
+  // ============================================================
   Future<void> notify({
     BuildContext? context,
     required String title,
@@ -125,7 +121,9 @@ class AppNotificationService extends ChangeNotifier {
     String type = 'system',
     IconData icon = Icons.notifications_active,
     Color backgroundColor = AppColors.primary,
+    String? jobId,
   }) async {
+    // Add to persistent storage
     final newItem = AppNotificationItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,
@@ -133,12 +131,14 @@ class AppNotificationService extends ChangeNotifier {
       timestamp: DateTime.now(),
       type: type,
       isRead: false,
+      jobId: jobId,
     );
 
     _notifications.insert(0, newItem);
     await _saveToStorage();
     notifyListeners();
 
+    // Show overlay if context available
     if (context != null && context.mounted) {
       showTopOverlayBanner(
         context,
@@ -148,8 +148,30 @@ class AppNotificationService extends ChangeNotifier {
         backgroundColor: backgroundColor,
       );
     }
+
+    // Log notification
+    print('📢 NOTIFICATION: $title - $message');
   }
 
+  // ============================================================
+  // GET NOTIFICATIONS BY JOB ID
+  // ============================================================
+  List<AppNotificationItem> getNotificationsByJobId(String jobId) {
+    return _notifications.where((n) => n.jobId == jobId).toList();
+  }
+
+  // ============================================================
+  // CLEAR NOTIFICATIONS FOR A JOB
+  // ============================================================
+  void clearNotificationsForJob(String jobId) {
+    _notifications.removeWhere((n) => n.jobId == jobId);
+    _saveToStorage();
+    notifyListeners();
+  }
+
+  // ============================================================
+  // MARK ALL AS READ
+  // ============================================================
   Future<void> markAllAsRead() async {
     for (var n in _notifications) {
       n.isRead = true;
@@ -158,12 +180,30 @@ class AppNotificationService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ============================================================
+  // MARK SINGLE AS READ
+  // ============================================================
+  Future<void> markAsRead(String id) async {
+    final index = _notifications.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _notifications[index].isRead = true;
+      await _saveToStorage();
+      notifyListeners();
+    }
+  }
+
+  // ============================================================
+  // CLEAR ALL NOTIFICATIONS
+  // ============================================================
   Future<void> clearAll() async {
     _notifications.clear();
     await _saveToStorage();
     notifyListeners();
   }
 
+  // ============================================================
+  // SHOW OVERLAY BANNER
+  // ============================================================
   static void showTopOverlayBanner(
     BuildContext context, {
     required String title,
@@ -191,6 +231,9 @@ class AppNotificationService extends ChangeNotifier {
   }
 }
 
+// ============================================================
+// TOP BANNER WIDGET
+// ============================================================
 class _TopBannerWidget extends StatefulWidget {
   final String title;
   final String message;
@@ -235,7 +278,7 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
 
     _controller.forward();
 
-    Future.delayed(const Duration(milliseconds: 3500), () {
+    Future.delayed(const Duration(milliseconds: 4000), () {
       if (mounted) {
         _dismiss();
       }

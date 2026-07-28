@@ -39,6 +39,7 @@ class _BookingScreenState extends State<BookingScreen> {
   DateTime _selectedDate = DateTime.now();
   String _selectedTime = '9:00 AM';
   bool _isBooking = false;
+  String? _bookingError;
 
   final List<String> _categories = ['Car Wash', 'House Cleaning', 'Laundry', 'Ride Service'];
 
@@ -76,6 +77,10 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeSelections();
+  }
+
+  void _initializeSelections() {
     if (widget.selectedService != null) {
       _selectedService = widget.selectedService!;
     }
@@ -87,6 +92,12 @@ class _BookingScreenState extends State<BookingScreen> {
     }
     if (widget.serviceCategory != null) {
       _selectedCategory = widget.serviceCategory!;
+      // Update service to match category
+      final services = _services[_selectedCategory] ?? _services['Car Wash']!;
+      if (services.isNotEmpty) {
+        _selectedService = services[0]['name'];
+        _selectedServicePrice = services[0]['price'];
+      }
     }
   }
 
@@ -169,70 +180,77 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _showLocationPicker() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Location'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.location_on, color: AppColors.primary),
-              title: const Text('Lekki Phase 1, Lagos'),
-              onTap: () {
-                setState(() => _selectedLocation = 'Lekki Phase 1, Lagos');
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.location_on, color: AppColors.primary),
-              title: const Text('Victoria Island, Lagos'),
-              onTap: () {
-                setState(() => _selectedLocation = 'Victoria Island, Lagos');
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.location_on, color: AppColors.primary),
-              title: const Text('Ikeja, Lagos'),
-              onTap: () {
-                setState(() => _selectedLocation = 'Ikeja, Lagos');
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.location_on, color: AppColors.primary),
-              title: const Text('Surulere, Lagos'),
-              onTap: () {
-                setState(() => _selectedLocation = 'Surulere, Lagos');
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.primary)),
-          ),
-        ],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Select Location',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              _buildLocationOption('Lekki Phase 1, Lagos', Icons.location_on),
+              _buildLocationOption('Victoria Island, Lagos', Icons.location_on),
+              _buildLocationOption('Ikeja, Lagos', Icons.location_on),
+              _buildLocationOption('Surulere, Lagos', Icons.location_on),
+              _buildLocationOption('Use Current Location', Icons.my_location),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  void _bookService() async {
-    setState(() => _isBooking = true);
+  Widget _buildLocationOption(String location, IconData icon) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.primary),
+      title: Text(location),
+      onTap: () {
+        setState(() => _selectedLocation = location);
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  // ============================================================
+  // BOOK SERVICE - FIXED WITH NOTIFICATIONS
+  // ============================================================
+  Future<void> _bookService() async {
+    setState(() {
+      _isBooking = true;
+      _bookingError = null;
+    });
 
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
+      
       if (!authService.isLoggedIn) {
         throw Exception('Please login to book a service');
       }
 
       final user = FirebaseAuth.instance.currentUser;
       final uid = user?.uid ?? authService.userId ?? '';
-      final customerName = authService.userName ?? 'Customer';
+      
+      if (uid.isEmpty) {
+        throw Exception('User ID not found. Please login again.');
+      }
 
+      final customerName = authService.userName ?? 'Customer';
+      final customerPhone = authService.userPhone ?? '';
+
+      print('📝 Creating job for: $customerName ($uid)');
+      print('📝 Service: $_selectedService - ₦$_selectedServicePrice');
+      print('📝 Location: $_selectedLocation');
+
+      // Create job
       final result = await JobService().createJob(
         customerId: uid,
         customerName: customerName,
@@ -247,7 +265,30 @@ class _BookingScreenState extends State<BookingScreen> {
       );
 
       final jobId = result['id'];
+      
+      print('✅ Job created with ID: $jobId');
 
+      // ✅ SEND NOTIFICATION: Booking Confirmed
+      final notificationService = AppNotificationService();
+      notificationService.addNotification(
+        title: '✅ Booking Confirmed!',
+        message: 'Your $_selectedService booking has been confirmed. We are finding a provider for you.',
+        type: 'booking',
+        jobId: jobId,
+      );
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Booking confirmed! Finding provider...'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Navigate to matching screen
       if (mounted) {
         Navigator.push(
           context,
@@ -262,18 +303,26 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
         );
       }
+      
     } catch (e) {
       print('❌ Error creating job: $e');
+      setState(() {
+        _bookingError = e.toString();
+      });
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error booking service: $e'),
+            content: Text('❌ ${e.toString()}'),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
     } finally {
-      if (mounted) setState(() => _isBooking = false);
+      if (mounted) {
+        setState(() => _isBooking = false);
+      }
     }
   }
 
@@ -334,6 +383,7 @@ class _BookingScreenState extends State<BookingScreen> {
       ),
       body: Column(
         children: [
+          // Category Tabs
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -344,8 +394,11 @@ class _BookingScreenState extends State<BookingScreen> {
                     onTap: () {
                       setState(() {
                         _selectedCategory = category;
-                        _selectedService = _services[category]![0]['name'];
-                        _selectedServicePrice = _services[category]![0]['price'];
+                        final services = _services[category]!;
+                        if (services.isNotEmpty) {
+                          _selectedService = services[0]['name'];
+                          _selectedServicePrice = services[0]['price'];
+                        }
                       });
                     },
                     child: Container(
@@ -372,6 +425,7 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           ),
 
+          // Login Warning
           if (!isLoggedIn)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -398,6 +452,30 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: const Text(
                       'Login',
                       style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Error message if any
+          if (_bookingError != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _bookingError!,
+                      style: const TextStyle(color: Colors.red, fontSize: 13),
                     ),
                   ),
                 ],
@@ -621,13 +699,14 @@ class _BookingScreenState extends State<BookingScreen> {
 
                   const SizedBox(height: 32),
 
+                  // Book Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _isBooking || !isLoggedIn ? null : _bookService,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isLoggedIn ? AppColors.primary : Colors.grey,
-                        foregroundColor: AppColors.white,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

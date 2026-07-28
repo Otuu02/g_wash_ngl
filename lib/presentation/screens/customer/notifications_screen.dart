@@ -21,11 +21,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   bool _pushNotifications = true;
   bool _emailNotifications = true;
-  bool _smsNotifications = true; // ✅ Changed to true by default
+  bool _smsNotifications = true;
   bool _promotionalOffers = true;
   bool _orderUpdates = true;
   bool _washerArrival = true;
-  bool _deliveryNotifications = true; // ✅ NEW: Delivery/SMS notifications
+  bool _deliveryNotifications = true;
 
   @override
   void initState() {
@@ -33,17 +33,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     _tabController = TabController(length: 2, vsync: this);
     _notificationService.addListener(_onNotificationChanged);
     
-    // ✅ Send a test notification for delivery
-    _notificationService.addNotification(
-      title: '🚗 Washer On The Way!',
-      message: 'Your washer John A. is 5 minutes away with your car wash service.',
-      type: 'delivery',
-    );
-    _notificationService.addNotification(
-      title: '📦 Order Delivered!',
-      message: 'Your car wash service has been completed successfully. Thank you for using G Wash NG!',
-      type: 'delivery',
-    );
+    // ✅ REMOVED: Test notifications - only show real notifications
+    // Notifications are now only added when real events happen
   }
 
   @override
@@ -231,7 +222,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         formattedTime,
                         style: TextStyle(color: Colors.grey[500], fontSize: 11),
                       ),
-                      // ✅ Show SMS indicator for delivery notifications
+                      // Show SMS indicator for delivery notifications
                       if (item.type == 'delivery')
                         Container(
                           margin: const EdgeInsets.only(top: 4),
@@ -387,11 +378,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   void _saveSettings() {
-    Helpers.showSnackBar(
-      context,
-      message: 'Settings saved',
-      isSuccess: true,
-      duration: const Duration(seconds: 1),
+    // Settings are saved locally - just show a brief message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Settings saved'),
+        backgroundColor: AppColors.primary,
+        duration: Duration(seconds: 1),
+      ),
     );
   }
 }

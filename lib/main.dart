@@ -38,6 +38,7 @@ import 'presentation/screens/auth/otp_screen.dart';
 
 // Services
 import 'services/auth_service.dart';
+import 'services/app_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +48,7 @@ void main() async {
   );
   
   final authService = AuthService();
+  final notificationService = AppNotificationService();
   
   try {
     await authService.migrateLocalUsersToFirestore();
@@ -55,10 +57,15 @@ void main() async {
     print('❌ User migration failed: $e');
   }
   
+  // ✅ Load saved notifications on startup
+  await notificationService.loadSavedNotifications();
+  print('✅ Notification service initialized with ${notificationService.notifications.length} notifications');
+  
   runApp(
     provider.MultiProvider(
       providers: [
         provider.ChangeNotifierProvider(create: (_) => authService),
+        provider.ChangeNotifierProvider(create: (_) => notificationService),
       ],
       child: const ProviderScope(
         child: GWashApp(),
@@ -117,9 +124,6 @@ class GWashApp extends StatelessWidget {
             primaryColor: const Color(0xFF0CAF60),
             scaffoldBackgroundColor: Colors.white,
             
-            // ============================================================
-            // FIX: Large, Bold Font Sizes (Like Your Screenshot)
-            // ============================================================
             textTheme: const TextTheme(
               displayLarge: TextStyle(
                 fontSize: 32, 
@@ -190,9 +194,6 @@ class GWashApp extends StatelessWidget {
               error: Colors.red,
             ),
             
-            // ============================================================
-            // FIX: Bold AppBar
-            // ============================================================
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.white,
               foregroundColor: Color(0xFF0CAF60),
@@ -205,9 +206,6 @@ class GWashApp extends StatelessWidget {
               ),
             ),
             
-            // ============================================================
-            // FIX: Bold Buttons
-            // ============================================================
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0CAF60),
@@ -223,9 +221,6 @@ class GWashApp extends StatelessWidget {
               ),
             ),
             
-            // ============================================================
-            // FIX: Bold List Tiles
-            // ============================================================
             listTileTheme: const ListTileThemeData(
               titleTextStyle: TextStyle(
                 fontSize: 16,
@@ -239,9 +234,6 @@ class GWashApp extends StatelessWidget {
               ),
             ),
             
-            // ============================================================
-            // FIX: Bold Input Text
-            // ============================================================
             inputDecorationTheme: const InputDecorationTheme(
               labelStyle: TextStyle(
                 fontSize: 16,
