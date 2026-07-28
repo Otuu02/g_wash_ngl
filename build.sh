@@ -6,21 +6,33 @@ echo "🚀 Starting build process..."
 if [ ! -d "flutter-sdk" ]; then
   echo "📦 Installing Flutter..."
   git clone https://github.com/flutter/flutter.git -b stable --depth 1 flutter-sdk
+else
+  echo "✅ Flutter SDK already exists"
 fi
 
-# Set Flutter PATH correctly
-export PATH="$(pwd)/flutter-sdk/bin:$PATH"
+# ADD FLUTTER TO PATH - THIS IS THE KEY FIX
+export PATH="$PATH:$(pwd)/flutter-sdk/bin"
 
 # Verify Flutter is available
-echo "📋 Flutter version:"
-flutter --version || echo "❌ Flutter not found!"
+echo "📋 Checking Flutter..."
+if command -v flutter &> /dev/null; then
+  echo "✅ Flutter found: $(which flutter)"
+  flutter --version
+else
+  echo "❌ Flutter not found in PATH!"
+  echo "Current PATH: $PATH"
+  exit 1
+fi
 
 # Enable web
+echo "🌐 Enabling web..."
 flutter config --enable-web
 
+# Get packages
 echo "📦 Getting packages..."
 flutter pub get
 
+# Build web
 echo "🏗️ Building web..."
 flutter build web --release
 
