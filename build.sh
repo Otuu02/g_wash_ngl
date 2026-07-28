@@ -2,19 +2,20 @@
 
 echo "🚀 Starting build process..."
 
-# Install Flutter SDK using direct download (more reliable)
+# Clone Flutter SDK using git (available on Vercel)
 if [ ! -d "flutter-sdk" ]; then
-  echo "📦 Downloading Flutter SDK..."
-  # Use wget to download Flutter
-  wget -q --show-progress https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.16.0-stable.tar.xz
-  echo "📦 Extracting Flutter..."
-  tar -xf flutter_linux_3.16.0-stable.tar.xz
-  mv flutter flutter-sdk
-  rm flutter_linux_3.16.0-stable.tar.xz
+  echo "📦 Cloning Flutter SDK..."
+  git clone https://github.com/flutter/flutter.git -b stable --depth 1 flutter-sdk
+fi
+
+# Verify Flutter SDK exists
+if [ ! -d "flutter-sdk/bin" ]; then
+  echo "❌ Flutter SDK not found!"
+  exit 1
 fi
 
 # Add Flutter to PATH
-export PATH="$(pwd)/flutter-sdk/bin:$PATH"
+export PATH="$PATH:$(pwd)/flutter-sdk/bin"
 
 # Verify Flutter is available
 echo "📋 Checking Flutter..."
