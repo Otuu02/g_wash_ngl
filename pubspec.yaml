@@ -12,87 +12,59 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  # ==========================================
-  # FIREBASE (Backend)
-  # ==========================================
+  # Firebase
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
   cloud_firestore: ^5.4.4
   firebase_storage: ^12.3.3
 
-  # ==========================================
-  # STATE MANAGEMENT
-  # ==========================================
+  # State Management
   provider: ^6.0.5
   flutter_riverpod: ^2.6.1
 
-  # ==========================================
-  # MAPS & LOCATION
-  # ==========================================
+  # Maps & Location
   google_maps_flutter: ^2.10.1
-  google_maps_flutter_web: ^0.5.7
   geolocator: ^13.0.2
   geocoding: ^4.0.0
 
-  # ==========================================
   # HTTP & API
-  # ==========================================
   http: ^1.2.2
 
-  # ==========================================
-  # STORAGE
-  # ==========================================
+  # Storage
   shared_preferences: ^2.3.2
   path_provider: ^2.1.3
 
-  # ==========================================
-  # UTILITIES
-  # ==========================================
+  # Utilities
   image_picker: ^1.1.2
-  intl: 0.19.0
+  intl: ^0.20.2
   connectivity_plus: ^6.0.3
   permission_handler: ^11.3.1
   url_launcher: ^6.3.0
 
-  # ==========================================
-  # UI COMPONENTS
-  # ==========================================
+  # UI Components
   flutter_svg: ^2.0.10+1
   cached_network_image: ^3.4.0
   shimmer: ^3.0.0
   carousel_slider: ^4.2.1
   lottie: ^3.1.0
 
-  # ==========================================
-  # FORMS
-  # ==========================================
+  # Forms
   flutter_form_builder: ^10.1.0
 
-  # ==========================================
-  # AUTHENTICATION - Google Sign-In
-  # ==========================================
+  # Authentication
   google_sign_in: ^6.1.5
 
-  # ==========================================
-  # NOTIFICATIONS
-  # ==========================================
+  # Notifications
   flutter_local_notifications: ^18.0.0
   firebase_messaging: ^15.1.2
 
-  # ==========================================
-  # PAYMENT
-  # ==========================================
+  # Payment
   flutter_credit_card: ^4.0.1
-  flutter_paystack: ^1.0.8
-  flutter_stripe: ^10.4.0
 
-  # ==========================================
-  # UTILITIES
-  # ==========================================
+  # Utilities
   page_view_dot_indicator: ^2.0.0
   local_auth: ^2.1.6
   flutter_map: ^7.0.1
-  geoflutterfire2: ^2.3.15
 
 dev_dependencies:
   flutter_test:
