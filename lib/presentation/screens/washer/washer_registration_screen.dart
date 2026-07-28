@@ -8,9 +8,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/cloudinary_service.dart';
 import 'washer_dashboard.dart';
 import '../auth/login_screen.dart';
 
@@ -36,7 +36,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   final _stateController = TextEditingController();
   
   // ============================================================
-  // File Uploads - Profile Picture & ID
+  // File Uploads - Profile Picture & ID (Cloudinary)
   // ============================================================
   File? _profileImage;
   File? _idImage;
@@ -186,7 +186,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize price controllers for all sub-services
     for (var category in _mainCategories) {
       final subServices = _getSubServices(category['id']);
       for (var sub in subServices) {
@@ -234,7 +233,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         list.remove(subServiceId);
       } else {
         list.add(subServiceId);
-        // Initialize price if not set
         final key = '${mainCategoryId}_$subServiceId';
         if (!_servicePriceControllers.containsKey(key)) {
           _servicePriceControllers[key] = TextEditingController(text: '');
@@ -244,7 +242,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   }
 
   // ============================================================
-  // Image Picker Methods - FIXED
+  // Image Picker Methods
   // ============================================================
   Future<void> _pickProfileImage() async {
     try {
@@ -292,6 +290,9 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
     }
   }
 
+  // ============================================================
+  // CLOUDINARY IMAGE UPLOAD
+  // ============================================================
   Future<String?> _uploadImage(File image, String path) async {
     try {
       setState(() {
@@ -306,44 +307,31 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         throw Exception('Image too large. Please select a smaller image (max 5MB).');
       }
       
-      final ref = FirebaseStorage.instance.ref().child(path);
-      print('📤 Uploading to: $path');
+      print('📤 Uploading to Cloudinary...');
       
-      // Upload with progress tracking
-      final uploadTask = ref.putFile(
-        image,
-        SettableMetadata(
-          contentType: 'image/jpeg',
-          customMetadata: {
-            'uploaded_at': DateTime.now().toIso8601String(),
-          },
-        ),
+      final cloudinary = CloudinaryService();
+      final url = await cloudinary.uploadImage(
+        image: image,
+        folder: 'washers',
+        fileName: DateTime.now().millisecondsSinceEpoch.toString(),
       );
       
-      // Track upload progress
-      uploadTask.snapshotEvents.listen((snapshot) {
-        final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        setState(() {
-          _uploadProgress = progress;
-        });
-        print('📤 Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
-      });
-      
-      await uploadTask.whenComplete(() => print('✅ Upload completed'));
-      
-      final downloadUrl = await ref.getDownloadURL();
-      print('✅ Upload successful: $downloadUrl');
-      
       setState(() {
-        _uploadProgress = 1.0;
         _isUploading = false;
+        _uploadProgress = 1.0;
       });
       
-      return downloadUrl;
+      if (url == null) {
+        throw Exception('Upload failed - no URL returned');
+      }
+      
+      print('✅ Upload successful: $url');
+      return url;
+      
     } catch (e) {
       print('❌ Upload error: $e');
       setState(() {
-        _uploadError = 'Upload failed: $e';
+        _uploadError = 'Upload failed: ${e.toString().substring(0, 80)}';
         _isUploading = false;
         _uploadProgress = 0.0;
       });
@@ -416,36 +404,28 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Upload images with retry
+      // Upload images
       String? profileUrl;
       String? idUrl;
       
-      try {
-        profileUrl = await _uploadImage(
-          _profileImage!, 
-          'washers/${DateTime.now().millisecondsSinceEpoch}_profile.jpg'
-        );
-      } catch (e) {
-        print('❌ Profile upload failed: $e');
+      profileUrl = await _uploadImage(
+        _profileImage!, 
+        'washers/${DateTime.now().millisecondsSinceEpoch}_profile.jpg'
+      );
+      
+      if (profileUrl == null) {
         _showError('Failed to upload profile picture. Please try again.');
         setState(() => _isLoading = false);
         return;
       }
       
-      try {
-        idUrl = await _uploadImage(
-          _idImage!, 
-          'washers/${DateTime.now().millisecondsSinceEpoch}_id.jpg'
-        );
-      } catch (e) {
-        print('❌ ID upload failed: $e');
-        _showError('Failed to upload ID. Please try again.');
-        setState(() => _isLoading = false);
-        return;
-      }
+      idUrl = await _uploadImage(
+        _idImage!, 
+        'washers/${DateTime.now().millisecondsSinceEpoch}_id.jpg'
+      );
       
-      if (profileUrl == null || idUrl == null) {
-        _showError('Failed to upload images. Please check your internet connection and try again.');
+      if (idUrl == null) {
+        _showError('Failed to upload ID. Please try again.');
         setState(() => _isLoading = false);
         return;
       }
@@ -718,7 +698,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Profile Picture Upload - FIXED
+                    // Profile Picture Upload
                     // ============================================================
                     const Text(
                       'Profile Picture',
@@ -777,7 +757,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Means of Identification Upload - FIXED
+                    // Means of Identification Upload
                     // ============================================================
                     const Text(
                       'Means of Identification',
@@ -847,9 +827,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                       ),
                     ),
                     
-                    // ============================================================
                     // Upload Error Display
-                    // ============================================================
                     if (_uploadError.isNotEmpty)
                       Container(
                         margin: const EdgeInsets.only(top: 12),

@@ -82,3 +82,5 @@ flutter:
     - assets/images/flyer_services.jpg
     - assets/images/flyer_whychoose.jpg
     - assets/images/flyer_rider.jpg
+  # Image Upload
+  cloudinary_public: ^2.2.0
