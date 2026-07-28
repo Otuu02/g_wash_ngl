@@ -44,7 +44,9 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   bool _isUploading = false;
   String _profileImageUrl = '';
   String _idImageUrl = '';
-  
+  String _uploadError = '';
+  double _uploadProgress = 0.0;
+
   // ============================================================
   // Service Price Controllers
   // ============================================================
@@ -61,7 +63,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   ];
   
   // ============================================================
-  // SUB-SERVICES FOR EACH MAIN CATEGORY (from home_screen.dart)
+  // SUB-SERVICES FOR EACH MAIN CATEGORY
   // ============================================================
   final List<Map<String, dynamic>> _carWashSubServices = [
     {'id': 'exterior_wash', 'name': 'Exterior Wash', 'duration': '30 mins', 'icon': Icons.cleaning_services},
@@ -99,8 +101,8 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   // SELECTED DATA
   // ============================================================
   List<String> _selectedMainCategories = [];
-  Map<String, List<String>> _selectedSubServices = {}; // mainCategoryId -> [subServiceIds]
-  Map<String, String> _subServicePrices = {}; // subServiceId -> price
+  Map<String, List<String>> _selectedSubServices = {};
+  Map<String, String> _subServicePrices = {};
   
   String _selectedVehicleType = 'Motorcycle';
   double _workingRadius = 10;
@@ -242,47 +244,109 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   }
 
   // ============================================================
-  // Image Picker Methods
+  // Image Picker Methods - FIXED
   // ============================================================
   Future<void> _pickProfileImage() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 500,
-      maxHeight: 500,
-      imageQuality: 80,
-    );
-    if (image != null) {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 70,
+      );
+      if (image != null) {
+        setState(() {
+          _profileImage = File(image.path);
+          _uploadError = '';
+        });
+        print('✅ Profile image selected: ${image.path}');
+      }
+    } catch (e) {
+      print('❌ Error picking profile image: $e');
       setState(() {
-        _profileImage = File(image.path);
+        _uploadError = 'Failed to pick image: $e';
       });
     }
   }
 
   Future<void> _pickIdImage() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 80,
-    );
-    if (image != null) {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 70,
+      );
+      if (image != null) {
+        setState(() {
+          _idImage = File(image.path);
+          _uploadError = '';
+        });
+        print('✅ ID image selected: ${image.path}');
+      }
+    } catch (e) {
+      print('❌ Error picking ID image: $e');
       setState(() {
-        _idImage = File(image.path);
+        _uploadError = 'Failed to pick image: $e';
       });
     }
   }
 
   Future<String?> _uploadImage(File image, String path) async {
     try {
-      setState(() => _isUploading = true);
+      setState(() {
+        _isUploading = true;
+        _uploadError = '';
+        _uploadProgress = 0.0;
+      });
+      
+      // Check file size
+      final bytes = await image.readAsBytes();
+      if (bytes.length > 5 * 1024 * 1024) {
+        throw Exception('Image too large. Please select a smaller image (max 5MB).');
+      }
+      
       final ref = FirebaseStorage.instance.ref().child(path);
-      await ref.putFile(image);
+      print('📤 Uploading to: $path');
+      
+      // Upload with progress tracking
+      final uploadTask = ref.putFile(
+        image,
+        SettableMetadata(
+          contentType: 'image/jpeg',
+          customMetadata: {
+            'uploaded_at': DateTime.now().toIso8601String(),
+          },
+        ),
+      );
+      
+      // Track upload progress
+      uploadTask.snapshotEvents.listen((snapshot) {
+        final progress = snapshot.bytesTransferred / snapshot.totalBytes;
+        setState(() {
+          _uploadProgress = progress;
+        });
+        print('📤 Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+      });
+      
+      await uploadTask.whenComplete(() => print('✅ Upload completed'));
+      
       final downloadUrl = await ref.getDownloadURL();
-      setState(() => _isUploading = false);
+      print('✅ Upload successful: $downloadUrl');
+      
+      setState(() {
+        _uploadProgress = 1.0;
+        _isUploading = false;
+      });
+      
       return downloadUrl;
     } catch (e) {
       print('❌ Upload error: $e');
-      setState(() => _isUploading = false);
+      setState(() {
+        _uploadError = 'Upload failed: $e';
+        _isUploading = false;
+        _uploadProgress = 0.0;
+      });
       return null;
     }
   }
@@ -296,13 +360,11 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       return;
     }
     
-    // Check if at least one main category is selected
     if (_selectedMainCategories.isEmpty) {
       _showError('Please select at least one service category');
       return;
     }
     
-    // Check if at least one sub-service is selected
     bool hasSubService = false;
     for (var entry in _selectedSubServices.entries) {
       if (entry.value.isNotEmpty) {
@@ -315,7 +377,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       return;
     }
     
-    // Check if all selected sub-services have prices
     for (var entry in _selectedSubServices.entries) {
       final mainCategoryId = entry.key;
       for (var subId in entry.value) {
@@ -355,17 +416,36 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final profileUrl = await _uploadImage(
-        _profileImage!, 
-        'washers/${DateTime.now().millisecondsSinceEpoch}_profile.jpg'
-      );
-      final idUrl = await _uploadImage(
-        _idImage!, 
-        'washers/${DateTime.now().millisecondsSinceEpoch}_id.jpg'
-      );
+      // Upload images with retry
+      String? profileUrl;
+      String? idUrl;
+      
+      try {
+        profileUrl = await _uploadImage(
+          _profileImage!, 
+          'washers/${DateTime.now().millisecondsSinceEpoch}_profile.jpg'
+        );
+      } catch (e) {
+        print('❌ Profile upload failed: $e');
+        _showError('Failed to upload profile picture. Please try again.');
+        setState(() => _isLoading = false);
+        return;
+      }
+      
+      try {
+        idUrl = await _uploadImage(
+          _idImage!, 
+          'washers/${DateTime.now().millisecondsSinceEpoch}_id.jpg'
+        );
+      } catch (e) {
+        print('❌ ID upload failed: $e');
+        _showError('Failed to upload ID. Please try again.');
+        setState(() => _isLoading = false);
+        return;
+      }
       
       if (profileUrl == null || idUrl == null) {
-        _showError('Failed to upload images. Please try again.');
+        _showError('Failed to upload images. Please check your internet connection and try again.');
         setState(() => _isLoading = false);
         return;
       }
@@ -468,7 +548,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
           const SnackBar(
             content: Text('✅ Washer account created! You are now online.'),
             backgroundColor: AppColors.success,
-            duration: Duration(seconds: 2),
+            duration: Duration(seconds: 3),
           ),
         );
         
@@ -479,7 +559,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       }
     } catch (e) {
       print('❌ Registration error: $e');
-      _showError(e.toString());
+      _showError('Registration failed: ${e.toString().substring(0, 100)}...');
       setState(() => _isLoading = false);
     }
   }
@@ -512,16 +592,28 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         ),
       ),
       body: _isLoading || _isUploading
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(color: AppColors.primary),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text(
-                    'Processing...',
+                    _isUploading 
+                        ? 'Uploading images... ${(_uploadProgress * 100).toStringAsFixed(0)}%'
+                        : 'Processing...',
                     style: TextStyle(color: AppColors.grey600),
                   ),
+                  if (_isUploading)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      width: 200,
+                      child: LinearProgressIndicator(
+                        value: _uploadProgress,
+                        color: AppColors.primary,
+                        backgroundColor: Colors.grey.shade200,
+                      ),
+                    ),
                 ],
               ),
             )
@@ -626,7 +718,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Profile Picture Upload
+                    // Profile Picture Upload - FIXED
                     // ============================================================
                     const Text(
                       'Profile Picture',
@@ -685,7 +777,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Means of Identification Upload
+                    // Means of Identification Upload - FIXED
                     // ============================================================
                     const Text(
                       'Means of Identification',
@@ -755,10 +847,40 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                       ),
                     ),
                     
+                    // ============================================================
+                    // Upload Error Display
+                    // ============================================================
+                    if (_uploadError.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _uploadError,
+                                style: const TextStyle(color: Colors.red, fontSize: 13),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() => _uploadError = ''),
+                              child: const Icon(Icons.close, color: Colors.red, size: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                    
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // SELECT SERVICES & SET PRICES - WITH SUB-SERVICES
+                    // SELECT SERVICES & SET PRICES
                     // ============================================================
                     const Text(
                       'Select Services & Set Prices',
@@ -771,7 +893,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    // Loop through main categories
                     ..._mainCategories.map((mainCategory) {
                       final mainId = mainCategory['id'];
                       final isMainSelected = _selectedMainCategories.contains(mainId);
