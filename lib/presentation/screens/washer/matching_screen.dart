@@ -72,9 +72,9 @@ class _MatchingScreenState extends State<MatchingScreen> {
           .limit(10)
           .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        List<Map<String, dynamic>> washers = [];
+      List<Map<String, dynamic>> washers = [];
 
+      if (snapshot.docs.isNotEmpty) {
         for (var doc in snapshot.docs) {
           final data = doc.data();
           final userId = data['userId'] ?? doc.id;
@@ -126,16 +126,18 @@ class _MatchingScreenState extends State<MatchingScreen> {
           _isSearching = false;
         });
       } else {
+        // No washers found - show message
         setState(() {
-          _nearbyWashers = _getDemoProviders();
+          _nearbyWashers = [];
           _isLoading = false;
           _isSearching = false;
         });
+        print('⚠️ No washers found in Firestore. Please add some washers to the database.');
       }
     } catch (e) {
       print('❌ Error searching for providers: $e');
       setState(() {
-        _nearbyWashers = _getDemoProviders();
+        _nearbyWashers = [];
         _isLoading = false;
         _isSearching = false;
       });
@@ -154,50 +156,6 @@ class _MatchingScreenState extends State<MatchingScreen> {
     return '10 mins';
   }
 
-  List<Map<String, dynamic>> _getDemoProviders() {
-    return [
-      {
-        'id': 'demo1',
-        'name': 'John Adebayo',
-        'rating': 4.8,
-        'vehicleType': 'Car',
-        'distance': 0.5,
-        'eta': '3 mins',
-        'isOnline': true,
-        'totalJobs': 150,
-        'totalEarnings': 450000,
-        'profileImage': null,
-        'bio': 'Professional car wash specialist with 5 years experience',
-      },
-      {
-        'id': 'demo2',
-        'name': 'Mary Okonkwo',
-        'rating': 4.9,
-        'vehicleType': 'SUV',
-        'distance': 1.2,
-        'eta': '5 mins',
-        'isOnline': true,
-        'totalJobs': 200,
-        'totalEarnings': 600000,
-        'profileImage': null,
-        'bio': 'Expert in house cleaning and laundry services',
-      },
-      {
-        'id': 'demo3',
-        'name': 'Peter Eze',
-        'rating': 4.7,
-        'vehicleType': 'Van',
-        'distance': 2.0,
-        'eta': '8 mins',
-        'isOnline': true,
-        'totalJobs': 120,
-        'totalEarnings': 360000,
-        'profileImage': null,
-        'bio': 'Reliable ride service and car wash provider',
-      },
-    ];
-  }
-
   String _getInitials(String name) {
     final parts = name.split(' ');
     if (parts.isEmpty) return '?';
@@ -205,13 +163,35 @@ class _MatchingScreenState extends State<MatchingScreen> {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
-  void _selectProvider(Map<String, dynamic> provider) async {
+  Future<void> _selectProvider(Map<String, dynamic> provider) async {
     setState(() {
       _selectedWasherId = provider['id'];
       _isAssigning = true;
     });
 
     try {
+      // Check if the provider exists in Firestore
+      final docExists = await FirebaseFirestore.instance
+          .collection('washers')
+          .doc(provider['id'])
+          .get();
+
+      if (!docExists.exists) {
+        print('❌ Provider ${provider['id']} does not exist in Firestore');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Provider not found. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isAssigning = false;
+          _selectedWasherId = null;
+        });
+        return;
+      }
+
+      // Update job with selected provider
       await FirebaseFirestore.instance
           .collection('jobs')
           .doc(widget.jobId)
@@ -225,6 +205,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
         'washerImage': provider['profileImage'] ?? '',
       });
 
+      // Update provider stats
       await FirebaseFirestore.instance
           .collection('washers')
           .doc(provider['id'])
@@ -258,7 +239,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text('Error assigning provider. Please try again.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -335,7 +316,9 @@ class _MatchingScreenState extends State<MatchingScreen> {
                       Text(
                         _isSearching 
                             ? 'Searching for providers...' 
-                            : '${_nearbyWashers.length} providers found nearby',
+                            : _nearbyWashers.isEmpty
+                                ? 'No providers available'
+                                : '${_nearbyWashers.length} providers found nearby',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -344,7 +327,9 @@ class _MatchingScreenState extends State<MatchingScreen> {
                       Text(
                         _isSearching 
                             ? 'Please wait while we find the best match' 
-                            : 'Select a provider to continue',
+                            : _nearbyWashers.isEmpty
+                                ? 'Please try again later or add providers to Firestore'
+                                : 'Select a provider to continue',
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 12,
@@ -385,7 +370,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Please try again later',
+                              'Please add washers to Firestore or try again later',
                               style: TextStyle(color: Colors.grey.shade600),
                             ),
                             const SizedBox(height: 16),
