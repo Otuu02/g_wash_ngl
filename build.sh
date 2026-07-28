@@ -2,41 +2,40 @@
 
 echo "🚀 Starting build process..."
 
-# Install Flutter SDK
+# Install Flutter SDK using direct download (more reliable)
 if [ ! -d "flutter-sdk" ]; then
-  echo "📦 Installing Flutter..."
-  git clone https://github.com/flutter/flutter.git -b stable --depth 1 flutter-sdk
-else
-  echo "✅ Flutter SDK already exists"
+  echo "📦 Downloading Flutter SDK..."
+  # Use wget to download Flutter
+  wget -q --show-progress https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.16.0-stable.tar.xz
+  echo "📦 Extracting Flutter..."
+  tar -xf flutter_linux_3.16.0-stable.tar.xz
+  mv flutter flutter-sdk
+  rm flutter_linux_3.16.0-stable.tar.xz
 fi
 
-# ADD FLUTTER TO PATH - THIS IS THE KEY FIX
-export PATH="$PATH:$(pwd)/flutter-sdk/bin"
+# Add Flutter to PATH
+export PATH="$(pwd)/flutter-sdk/bin:$PATH"
 
 # Verify Flutter is available
 echo "📋 Checking Flutter..."
-if command -v flutter &> /dev/null; then
-  echo "✅ Flutter found: $(which flutter)"
-  flutter --version
-else
-  echo "❌ Flutter not found in PATH!"
-  echo "Current PATH: $PATH"
+if ! command -v flutter &> /dev/null; then
+  echo "❌ Flutter not found! Checking directory..."
+  ls -la flutter-sdk/bin/ || echo "Directory not found!"
   exit 1
 fi
 
-# Enable web
+echo "✅ Flutter found!"
+flutter --version
+
 echo "🌐 Enabling web..."
 flutter config --enable-web
 
-# Get packages
 echo "📦 Getting packages..."
 flutter pub get
 
-# Build web
 echo "🏗️ Building web..."
 flutter build web --release
 
-# Check if build succeeded
 if [ -d "build/web" ]; then
   echo "✅ Build complete!"
   ls -la build/web/
