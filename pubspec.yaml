@@ -66,8 +66,8 @@ dependencies:
   local_auth: ^2.1.6
   flutter_map: ^7.0.1
 
-  # Image Upload
-  cloudinary_public: ^2.2.0
+  # Image Upload - Use correct version
+  cloudinary_public: ^0.23.1
 
 dev_dependencies:
   flutter_test:
