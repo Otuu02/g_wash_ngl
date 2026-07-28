@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   ];
 
   // ============================================================
-  // CAROUSEL DATA - YOUR REAL IMAGES (NO TEXT OVERLAYS)
+  // CAROUSEL DATA - ALL 4 SLIDES (Added Ride Service)
   // ============================================================
   final List<Map<String, dynamic>> _carouselItems = [
     {
@@ -74,6 +74,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       'imagePath': 'assets/images/flyer_whychoose.jpg',
       'emoji': '👕',
       'category': 'Laundry Service',
+    },
+    // ============================================================
+    // NEW: Ride Service Carousel Slide
+    // ============================================================
+    {
+      'imagePath': 'assets/images/flyer_rider.jpg',
+      'emoji': '🚘',
+      'category': 'Ride Service',
     },
   ];
 
@@ -386,16 +394,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         elevation: 0,
         centerTitle: false,
         actions: [
-          // ============================================================
-          // KEPT: Notification Icon (1 bell)
-          // ============================================================
           IconButton(
             icon: const Icon(Icons.notifications_outlined, color: AppColors.primary),
             onPressed: _goToNotifications,
           ),
-          // ============================================================
-          // ADDED: Profile Picture in App Bar
-          // ============================================================
           GestureDetector(
             onTap: () {
               Navigator.pushNamed(context, '/profile');
@@ -423,9 +425,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-          // ============================================================
-          // REMOVED: PopupMenuButton (moved to profile)
-          // ============================================================
         ],
       ),
       body: IndexedStack(
@@ -464,7 +463,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // ============================================================
-  // UPDATED: _buildHomeTab with ALL requested changes
+  // UPDATED: _buildHomeTab with 4 slides
   // ============================================================
   Widget _buildHomeTab(String userName) {
     final authService = Provider.of<AuthService>(context);
@@ -475,7 +474,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.only(bottom: bottomPadding + 80),
+      padding: EdgeInsets.only(bottom: bottomPadding + 160),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,9 +513,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white),
                         ),
                         const SizedBox(height: 4),
-                        // ============================================================
-                        // UPDATED: New tagline for ALL services
-                        // ============================================================
                         Text(
                           _getTagline(),
                           style: theme.textTheme.bodyMedium?.copyWith(
@@ -539,9 +535,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                       ],
                     ),
-                    // ============================================================
-                    // REMOVED: Profile picture from header (moved to app bar)
-                    // ============================================================
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -587,7 +580,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 20),
 
           // ============================================================
-          // 3-SLIDE CAROUSEL - FULL IMAGES ONLY (NO TEXT OVERLAYS)
+          // 4-SLIDE CAROUSEL - FULL IMAGES ONLY (NO TEXT OVERLAYS)
           // ============================================================
           SizedBox(
             height: isSmallScreen ? 160 : 200,
@@ -651,10 +644,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               },
             ),
           ),
-
-          // ============================================================
-          // REMOVED: Carousel Indicators (3 dotted lines)
-          // ============================================================
 
           const SizedBox(height: 8),
 
@@ -802,7 +791,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // ============================================================
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryDark]),
               borderRadius: BorderRadius.circular(16),
@@ -810,23 +799,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Refer & Earn',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Refer & Earn',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Invite friends and earn amazing rewards',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
+                      const SizedBox(height: 2),
+                      Text(
+                        'Invite friends & earn rewards',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white70,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 GestureDetector(
                   onTap: _showReferralDialog,
@@ -838,8 +831,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     child: Text(
                       'Invite',
-                      style: theme.textTheme.labelLarge?.copyWith(
+                      style: theme.textTheme.labelSmall?.copyWith(
                         color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),

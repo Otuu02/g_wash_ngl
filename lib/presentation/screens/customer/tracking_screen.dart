@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/location_service.dart';
 import '../../../services/app_notification_service.dart';
 import '../customer/rating_screen.dart';
+import 'payment_screen.dart';
 
 class TrackingScreen extends StatefulWidget {
   final String jobId;
@@ -16,6 +18,8 @@ class TrackingScreen extends StatefulWidget {
   final LatLng pickupLocation;
   final String serviceName;
   final int price;
+  final String? washerId;
+  final String? washerImage;
 
   const TrackingScreen({
     super.key,
@@ -25,6 +29,8 @@ class TrackingScreen extends StatefulWidget {
     required this.pickupLocation,
     this.serviceName = 'Car Wash',
     this.price = 0,
+    this.washerId,
+    this.washerImage,
   });
 
   @override
@@ -34,9 +40,11 @@ class TrackingScreen extends StatefulWidget {
 class _TrackingScreenState extends State<TrackingScreen> {
   bool _isLoading = true;
   bool _isServiceCompleted = false;
+  bool _isPaid = false;
   int _currentStep = 1;
   String _jobStatus = 'assigned';
   String? _washerId;
+  String? _washerImageUrl;
   String? _lastStatus;
   String _currentLocation = 'En route to your location';
   int _etaMinutes = 15;
@@ -57,7 +65,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
       widget.pickupLocation.latitude + 0.008,
       widget.pickupLocation.longitude + 0.008,
     );
+    _washerId = widget.washerId;
+    _washerImageUrl = widget.washerImage;
     _listenToJobUpdates();
+    _fetchWasherDetails();
   }
 
   @override
@@ -66,6 +77,27 @@ class _TrackingScreenState extends State<TrackingScreen> {
     _washerSubscription?.cancel();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  void _fetchWasherDetails() async {
+    if (_washerId != null && _washerId!.isNotEmpty) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('washers')
+            .doc(_washerId)
+            .get();
+        if (doc.exists) {
+          final data = doc.data();
+          if (data != null && data['profileImage'] != null) {
+            setState(() {
+              _washerImageUrl = data['profileImage'];
+            });
+          }
+        }
+      } catch (e) {
+        print('❌ Error fetching washer details: $e');
+      }
+    }
   }
 
   void _listenToJobUpdates() {
@@ -77,66 +109,25 @@ class _TrackingScreenState extends State<TrackingScreen> {
       if (snapshot.exists) {
         final data = snapshot.data()!;
         final status = data['status'] ?? 'assigned';
-        _washerId = data['washerId'] ?? data['assignedWasherId'];
+        final paymentStatus = data['paymentStatus'] ?? 'pending';
+        
+        _washerId = data['washerId'] ?? data['assignedWasherId'] ?? widget.washerId;
         
         if (_washerId != null && _washerId!.isNotEmpty && _washerSubscription == null) {
           _listenToWasherLocation(_washerId!);
+          _fetchWasherDetails();
         }
 
         // Trigger local notification/popup on status changes
         if (_lastStatus != null && _lastStatus != status) {
-          String notifTitle = 'Order Updated';
-          String notifMsg = 'Your booking status is now: $status.';
-          IconData notifIcon = Icons.info_outline;
-          Color notifColor = AppColors.primary;
-
-          switch (status) {
-            case 'accepted':
-              notifTitle = '✅ Request Accepted';
-              notifMsg = 'Your service request has been accepted by the provider.';
-              notifIcon = Icons.thumb_up_alt_outlined;
-              notifColor = Colors.blue;
-              break;
-            case 'enRoute':
-              notifTitle = '🚚 Provider En Route';
-              notifMsg = 'The service provider is now heading to your location.';
-              notifIcon = Icons.directions_car_outlined;
-              notifColor = Colors.orange;
-              break;
-            case 'arrived':
-              notifTitle = '📍 Provider Arrived';
-              notifMsg = 'The service provider has arrived at your location!';
-              notifIcon = Icons.location_on_outlined;
-              notifColor = Colors.green;
-              break;
-            case 'completed':
-              notifTitle = '🎉 Service Completed!';
-              notifMsg = 'Your booking has been completed successfully. Thank you!';
-              notifIcon = Icons.check_circle_outline;
-              notifColor = Colors.green;
-              break;
-            case 'cancelled':
-              notifTitle = '🚨 Service Cancelled';
-              notifMsg = 'Your booking has been cancelled.';
-              notifIcon = Icons.cancel_outlined;
-              notifColor = Colors.red;
-              break;
-          }
-
-          AppNotificationService().notify(
-            context: context,
-            title: notifTitle,
-            message: notifMsg,
-            type: 'booking',
-            icon: notifIcon,
-            backgroundColor: notifColor,
-          );
+          _showStatusNotification(status);
         }
         _lastStatus = status;
         
         setState(() {
           _jobStatus = status;
           _isLoading = false;
+          _isPaid = paymentStatus == 'paid';
           
           switch (status) {
             case 'assigned':
@@ -158,8 +149,14 @@ class _TrackingScreenState extends State<TrackingScreen> {
               break;
             case 'completed':
               _currentStep = 3;
-              _currentLocation = 'Service completed successfully!';
+              _currentLocation = 'Service completed! Please confirm and pay.';
               _isServiceCompleted = true;
+              break;
+            case 'paid':
+              _currentStep = 4;
+              _currentLocation = 'Payment successful! Thank you.';
+              _isServiceCompleted = true;
+              _isPaid = true;
               break;
             case 'cancelled':
               _currentLocation = 'This job has been cancelled';
@@ -168,6 +165,55 @@ class _TrackingScreenState extends State<TrackingScreen> {
         });
       }
     });
+  }
+
+  void _showStatusNotification(String status) {
+    String notifTitle = 'Order Updated';
+    String notifMsg = 'Your booking status is now: $status.';
+    IconData notifIcon = Icons.info_outline;
+    Color notifColor = AppColors.primary;
+
+    switch (status) {
+      case 'accepted':
+        notifTitle = '✅ Request Accepted';
+        notifMsg = 'Your service request has been accepted by the provider.';
+        notifIcon = Icons.thumb_up_alt_outlined;
+        notifColor = Colors.blue;
+        break;
+      case 'enRoute':
+        notifTitle = '🚚 Provider En Route';
+        notifMsg = 'The service provider is now heading to your location.';
+        notifIcon = Icons.directions_car_outlined;
+        notifColor = Colors.orange;
+        break;
+      case 'arrived':
+        notifTitle = '📍 Provider Arrived';
+        notifMsg = 'The service provider has arrived at your location!';
+        notifIcon = Icons.location_on_outlined;
+        notifColor = Colors.green;
+        break;
+      case 'completed':
+        notifTitle = '🎉 Service Completed!';
+        notifMsg = 'Your service has been completed. Please confirm and pay.';
+        notifIcon = Icons.check_circle_outline;
+        notifColor = Colors.green;
+        break;
+      case 'cancelled':
+        notifTitle = '🚨 Service Cancelled';
+        notifMsg = 'Your booking has been cancelled.';
+        notifIcon = Icons.cancel_outlined;
+        notifColor = Colors.red;
+        break;
+    }
+
+    AppNotificationService().notify(
+      context: context,
+      title: notifTitle,
+      message: notifMsg,
+      type: 'booking',
+      icon: notifIcon,
+      backgroundColor: notifColor,
+    );
   }
 
   void _listenToWasherLocation(String washerId) {
@@ -201,52 +247,21 @@ class _TrackingScreenState extends State<TrackingScreen> {
     return 12742 * asin(sqrt(a));
   }
 
-  Future<void> _cancelJob() async {
+  // ============================================================
+  // FIX: Customer confirms completion
+  // ============================================================
+  Future<void> _customerConfirmCompletion() async {
     setState(() => _isProcessing = true);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('jobs')
-          .doc(widget.jobId)
-          .update({
-        'status': 'cancelled',
-        'cancelledAt': FieldValue.serverTimestamp(),
-        'cancelledBy': 'customer',
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Job cancelled successfully'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      print('❌ Error cancelling job: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error cancelling job: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      setState(() => _isProcessing = false);
-    }
-  }
-
-  Future<void> _confirmCompletion() async {
-    setState(() => _isProcessing = true);
-
-    try {
+      // Update job status to completed (customer confirms)
       await FirebaseFirestore.instance
           .collection('jobs')
           .doc(widget.jobId)
           .update({
         'status': 'completed',
         'completedAt': FieldValue.serverTimestamp(),
-        'paymentStatus': 'paid',
+        'completedBy': 'customer',
       });
 
       setState(() {
@@ -255,20 +270,24 @@ class _TrackingScreenState extends State<TrackingScreen> {
         _isProcessing = false;
       });
 
+      // Show payment dialog
       _showPaymentDialog();
       
     } catch (e) {
-      print('❌ Error completing job: $e');
+      print('❌ Error confirming completion: $e');
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error completing job: $e'),
+          content: Text('Error: $e'),
           backgroundColor: AppColors.error,
         ),
       );
     }
   }
 
+  // ============================================================
+  // FIX: Payment dialog
+  // ============================================================
   void _showPaymentDialog() {
     showDialog(
       context: context,
@@ -276,7 +295,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
-          'Payment',
+          'Complete Payment',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         content: Column(
@@ -319,8 +338,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.primary)),
+            onPressed: () {
+              Navigator.pop(context);
+              // Navigate to bookings if they skip payment
+              _goToBookings();
+            },
+            child: const Text('Skip', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: _processPayment,
@@ -336,25 +359,56 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
+  // ============================================================
+  // FIX: Process payment
+  // ============================================================
   Future<void> _processPayment() async {
-    Navigator.pop(context);
+    Navigator.pop(context); // Close payment dialog
     
     try {
-      await Future.delayed(const Duration(seconds: 2));
+      setState(() => _isProcessing = true);
 
-      await FirebaseFirestore.instance
-          .collection('jobs')
-          .doc(widget.jobId)
-          .update({
-        'paymentStatus': 'paid',
-        'paidAt': FieldValue.serverTimestamp(),
-      });
-
+      // Navigate to Payment Screen for full payment processing
       if (mounted) {
-        _showSuccessDialog();
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentScreen(
+              jobId: widget.jobId,
+              amount: widget.price,
+              serviceName: widget.serviceName,
+              washerName: widget.washerName,
+              location: widget.pickupAddress,
+              washerId: _washerId,
+            ),
+          ),
+        );
+
+        setState(() => _isProcessing = false);
+
+        if (result == true) {
+          // Payment successful
+          setState(() {
+            _isPaid = true;
+            _currentStep = 4;
+          });
+          
+          // Update job status to paid
+          await FirebaseFirestore.instance
+              .collection('jobs')
+              .doc(widget.jobId)
+              .update({
+            'paymentStatus': 'paid',
+            'paidAt': FieldValue.serverTimestamp(),
+            'status': 'paid',
+          });
+
+          _showSuccessDialog();
+        }
       }
     } catch (e) {
-      print('❌ Payment failed: $e');
+      print('❌ Payment error: $e');
+      setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Payment failed: $e'),
@@ -364,6 +418,9 @@ class _TrackingScreenState extends State<TrackingScreen> {
     }
   }
 
+  // ============================================================
+  // FIX: Success dialog - Navigate to rating
+  // ============================================================
   void _showSuccessDialog() {
     showDialog(
       context: context,
@@ -389,7 +446,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(context); // Close dialog
+              // Navigate to rating screen
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -412,6 +470,45 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
+  void _goToBookings() {
+    Navigator.pushNamedAndRemoveUntil(context, '/my-bookings', (route) => false);
+  }
+
+  Future<void> _cancelOrder() async {
+    setState(() => _isProcessing = true);
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('jobs')
+          .doc(widget.jobId)
+          .update({
+        'status': 'cancelled',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'cancelledBy': 'customer',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Order cancelled successfully'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('❌ Error cancelling order: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error cancelling order: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
   void _callWasher() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -430,6 +527,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
     }
 
     final isCancelled = _jobStatus == 'cancelled';
+    final isCompleted = _jobStatus == 'completed' || _jobStatus == 'paid';
+    final isPaid = _jobStatus == 'paid';
 
     if (isCancelled) {
       return Scaffold(
@@ -453,12 +552,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
               const Icon(Icons.cancel, size: 60, color: Colors.red),
               const SizedBox(height: 16),
               const Text(
-                'Job Cancelled',
+                'Order Cancelled',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               const Text(
-                'This job has been cancelled',
+                'This order has been cancelled',
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 24),
@@ -493,6 +592,46 @@ class _TrackingScreenState extends State<TrackingScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          if (isPaid)
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'Paid',
+                    style: TextStyle(color: Colors.green, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          if (isCompleted && !isPaid)
+            Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.payment, color: Colors.orange, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'Pending Payment',
+                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -510,84 +649,88 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     Marker(
                       markerId: const MarkerId('client'),
                       position: _clientLocation,
-                      infoWindow: InfoWindow(title: 'Client Location', snippet: widget.pickupAddress),
+                      infoWindow: InfoWindow(title: 'Your Location', snippet: widget.pickupAddress),
                       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
                     ),
-                    Marker(
-                      markerId: const MarkerId('provider'),
-                      position: _providerLocation,
-                      infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm.toStringAsFixed(1)} km away'),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-                    ),
+                    if (!isPaid)
+                      Marker(
+                        markerId: const MarkerId('provider'),
+                        position: _providerLocation,
+                        infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm.toStringAsFixed(1)} km away'),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                      ),
                   },
-                  polylines: {
-                    Polyline(
-                      polylineId: const PolylineId('route'),
-                      points: [_providerLocation, _clientLocation],
-                      color: AppColors.primary,
-                      width: 4,
-                    ),
-                  },
+                  polylines: !isPaid
+                      ? {
+                          Polyline(
+                            polylineId: const PolylineId('route'),
+                            points: [_providerLocation, _clientLocation],
+                            color: AppColors.primary,
+                            width: 4,
+                          ),
+                        }
+                      : {},
                   onMapCreated: (controller) => _mapController = controller,
                   myLocationEnabled: true,
                   myLocationButtonEnabled: true,
                 ),
-                Positioned(
-                  top: 12,
-                  left: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
+                if (!isPaid)
+                  Positioned(
+                    top: 12,
+                    left: 16,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${_distanceKm.toStringAsFixed(1)} km away',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'ETA: $_etaMinutes mins',
+                              style: const TextStyle(
                                 color: AppColors.primary,
-                                shape: BoxShape.circle,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${_distanceKm.toStringAsFixed(1)} km away',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
-                            'ETA: $_etaMinutes mins',
-                            style: const TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -600,8 +743,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
             child: Row(
               children: [
                 Icon(
-                  _currentStep >= 3 ? Icons.check_circle : Icons.directions_car,
-                  color: _currentStep >= 3 ? Colors.green : AppColors.primary,
+                  isPaid ? Icons.check_circle : 
+                  isCompleted ? Icons.payment : 
+                  Icons.directions_car,
+                  size: 24,
+                  color: isPaid ? Colors.green : 
+                         isCompleted ? Colors.orange : 
+                         AppColors.primary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -609,13 +757,17 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _currentStep >= 3 ? 'Service Completed!' : 'Washer On The Way',
+                        isPaid ? 'Payment Successful!' :
+                        isCompleted ? 'Service Completed!' :
+                        'Washer On The Way',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
+                        isPaid ? 'Thank you for using G Wash NG' :
+                        isCompleted ? 'Please confirm and pay' :
                         _currentLocation,
                         style: TextStyle(
                           color: Colors.grey.shade600,
@@ -647,13 +799,42 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.primary,
+                          width: 2,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.person,
-                        size: 28,
-                        color: AppColors.primary,
+                      child: ClipOval(
+                        child: _washerImageUrl != null && _washerImageUrl!.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: _washerImageUrl!,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  child: const Icon(
+                                    Icons.person,
+                                    color: AppColors.primary,
+                                    size: 28,
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  child: const Icon(
+                                    Icons.person,
+                                    color: AppColors.primary,
+                                    size: 28,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: AppColors.primary.withOpacity(0.1),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: AppColors.primary,
+                                  size: 28,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -694,6 +875,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         ],
                       ),
                     ),
+                    IconButton(
+                      onPressed: _callWasher,
+                      icon: const Icon(
+                        Icons.phone,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -707,51 +895,52 @@ class _TrackingScreenState extends State<TrackingScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                Expanded(
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          const Text(
-                            'ETA',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 11,
+                if (!isPaid && !isCompleted)
+                  Expanded(
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'ETA',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 11,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                _etaMinutes.toString(),
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _etaMinutes.toString(),
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Text(
-                                'mins',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'mins',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                if (!isPaid && !isCompleted) const SizedBox(width: 12),
                 Expanded(
                   child: Card(
                     shape: RoundedRectangleBorder(
@@ -802,11 +991,15 @@ class _TrackingScreenState extends State<TrackingScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '₦${widget.price.toString()}',
+                            isPaid ? '✅ Paid' : 
+                            widget.price > 0 
+                                ? '₦${NumberFormat('#,###').format(widget.price)}'
+                                : '₦0',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                              color: isPaid ? Colors.green : 
+                                     widget.price > 0 ? AppColors.primary : Colors.grey,
                             ),
                           ),
                         ],
@@ -820,68 +1013,116 @@ class _TrackingScreenState extends State<TrackingScreen> {
           
           const Spacer(),
           
-          // Cancel Button
+          // ============================================================
+          // FIX: ACTION BUTTONS - Customer driven
+          // ============================================================
           Padding(
-            padding: const EdgeInsets.all(20),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: _jobStatus == 'on_the_way' || _jobStatus == 'assigned'
-                    ? () => _showCancelDialog()
-                    : null,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  side: const BorderSide(color: Colors.red),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              children: [
+                // ============================================================
+                // CASE 1: Service Completed but NOT Paid → "Confirm & Pay"
+                // ============================================================
+                if (isCompleted && !isPaid)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isProcessing ? null : _customerConfirmCompletion,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isProcessing
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text(
+                              '✅ Confirm & Pay',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Cancel Booking',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                
+                // ============================================================
+                // CASE 2: Paid → "Rate Service"
+                // ============================================================
+                if (isPaid)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RatingScreen(
+                              jobId: widget.jobId,
+                              washerId: _washerId ?? 'unknown',
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        '⭐ Rate Service',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                
+                const SizedBox(height: 12),
+                
+                // ============================================================
+                // CASE 3: Active job (not completed) → "Cancel Booking"
+                // ============================================================
+                if (!isCompleted && !isPaid && !isCancelled)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _isProcessing ? null : _cancelOrder,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancel Booking',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showCancelDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Booking'),
-        content: const Text('Are you sure you want to cancel this booking?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await FirebaseFirestore.instance
-                  .collection('jobs')
-                  .doc(widget.jobId)
-                  .update({
-                'status': 'cancelled',
-                'updatedAt': FieldValue.serverTimestamp(),
-              });
-              if (mounted) {
-                Navigator.pop(context);
-              }
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('Yes, Cancel'),
-          ),
+          
+          const SizedBox(height: 20),
         ],
       ),
     );

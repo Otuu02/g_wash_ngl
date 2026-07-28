@@ -82,9 +82,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ============================================================
-  // OPTION 1: Password Login
-  // ============================================================
   Future<void> _loginWithPassword() async {
     if (_phoneController.text.isEmpty) {
       _showError('Please enter your phone number');
@@ -112,9 +109,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ============================================================
-  // OPTION 2: Biometric Login
-  // ============================================================
   Future<void> _loginWithBiometric() async {
     if (!_biometricEnabled) {
       _showError('Biometric authentication is not available');
@@ -159,9 +153,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ============================================================
-  // OPTION 3: Google Login
-  // ============================================================
   Future<void> _loginWithGoogle() async {
     setState(() => _isLoading = true);
 
@@ -239,8 +230,11 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        // ============================================================
+        // FIX: Wrap with SingleChildScrollView and add extra bottom padding
+        // ============================================================
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -518,7 +512,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               
-              const Spacer(),
+              const SizedBox(height: 20),
 
               // ============================================================
               // Footer: Sign Up & Security Info

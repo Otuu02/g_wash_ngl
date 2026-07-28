@@ -6,12 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../welcome_screen.dart';
 
 class WasherProfileScreen extends StatefulWidget {
-  const WasherProfileScreen({super.key});
+  final String? washerId;
+
+  const WasherProfileScreen({
+    super.key,
+    this.washerId,
+  });
 
   @override
   State<WasherProfileScreen> createState() => _WasherProfileScreenState();
@@ -21,24 +27,51 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
   bool _isLoading = true;
   Map<String, dynamic> _washerData = {};
   String _washerId = '';
+  String _profileImageUrl = '';
 
   // Service names mapping
   final Map<String, String> _serviceNames = {
     'car_wash': 'Car Washer',
-    'cleaning': 'Cleaner',
-    'laundry': 'Laundry',
+    'house_cleaning': 'House Cleaner',
+    'cleaning': 'House Cleaner',
+    'laundry': 'Laundry Service',
+    'ride_service': 'Ride Service',
+    'car_wash_exterior_wash': 'Exterior Wash',
+    'car_wash_interior_cleaning': 'Interior Cleaning',
+    'car_wash_full_detailing': 'Full Detailing',
+    'car_wash_engine_wash': 'Engine Wash',
+    'house_cleaning_standard_cleaning': 'Standard Cleaning',
+    'house_cleaning_deep_cleaning': 'Deep Cleaning',
+    'house_cleaning_move_in_out': 'Move In/Out',
+    'house_cleaning_office_cleaning': 'Office Cleaning',
+    'house_cleaning_carpet_cleaning': 'Carpet Cleaning',
+    'house_cleaning_window_cleaning': 'Window Cleaning',
+    'laundry_wash_fold': 'Wash & Fold',
+    'laundry_wash_iron': 'Wash & Iron',
+    'laundry_dry_cleaning': 'Dry Cleaning',
+    'laundry_ironing_only': 'Ironing Only',
+    'laundry_bulk_laundry': 'Bulk Laundry',
+    'laundry_curtain_cleaning': 'Curtain Cleaning',
+    'ride_service_standard_ride': 'Standard Ride',
+    'ride_service_suv_ride': 'SUV Ride',
+    'ride_service_luxury_ride': 'Luxury Ride',
+    'ride_service_van_ride': 'Van Ride',
   };
 
   final Map<String, IconData> _serviceIcons = {
     'car_wash': Icons.local_car_wash,
     'cleaning': Icons.cleaning_services,
+    'house_cleaning': Icons.cleaning_services,
     'laundry': Icons.local_laundry_service,
+    'ride_service': Icons.car_rental,
   };
 
   final Map<String, Color> _serviceColors = {
     'car_wash': const Color(0xFF0CAF60),
     'cleaning': Colors.blue,
+    'house_cleaning': Colors.blue,
     'laundry': const Color(0xFF9C27B0),
+    'ride_service': Colors.orange,
   };
 
   @override
@@ -51,29 +84,52 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
-      final userId = authService.getCurrentUserId();
+      String? washerId = widget.washerId;
 
-      if (userId == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
+      // If no washerId provided, get from AuthService
+      if (washerId == null || washerId.isEmpty) {
+        final authService = Provider.of<AuthService>(context, listen: false);
+        final userId = authService.getCurrentUserId();
 
-      final query = await FirebaseFirestore.instance
-          .collection('washers')
-          .where('userId', isEqualTo: userId)
-          .limit(1)
-          .get();
+        if (userId == null) {
+          setState(() => _isLoading = false);
+          return;
+        }
 
-      if (query.docs.isNotEmpty) {
-        final doc = query.docs.first;
-        _washerId = doc.id;
-        setState(() {
-          _washerData = doc.data();
-          _isLoading = false;
-        });
+        final query = await FirebaseFirestore.instance
+            .collection('washers')
+            .where('userId', isEqualTo: userId)
+            .limit(1)
+            .get();
+
+        if (query.docs.isNotEmpty) {
+          final doc = query.docs.first;
+          _washerId = doc.id;
+          setState(() {
+            _washerData = doc.data();
+            _profileImageUrl = doc.data()['profileImage'] ?? '';
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+        }
       } else {
-        setState(() => _isLoading = false);
+        // Load by washerId
+        final doc = await FirebaseFirestore.instance
+            .collection('washers')
+            .doc(washerId)
+            .get();
+
+        if (doc.exists) {
+          _washerId = doc.id;
+          setState(() {
+            _washerData = doc.data()!;
+            _profileImageUrl = doc.data()!['profileImage'] ?? '';
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+        }
       }
     } catch (e) {
       print('❌ Error loading washer data: $e');
@@ -82,7 +138,26 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
   }
 
   String _getServiceDisplayName(String serviceId) {
-    return _serviceNames[serviceId] ?? serviceId;
+    return _serviceNames[serviceId] ?? serviceId.replaceAll('_', ' ').toUpperCase();
+  }
+
+  List<String> _getAllServices() {
+    List<String> services = [];
+    
+    // Get from selectedServices
+    final selectedServices = List<String>.from(_washerData['selectedServices'] ?? []);
+    services.addAll(selectedServices);
+    
+    // Get from serviceCategories
+    final serviceCategories = List<String>.from(_washerData['serviceCategories'] ?? []);
+    services.addAll(serviceCategories);
+    
+    // Get from selectedMainCategories
+    final mainCategories = List<String>.from(_washerData['selectedMainCategories'] ?? []);
+    services.addAll(mainCategories);
+    
+    // Remove duplicates
+    return services.toSet().toList();
   }
 
   void _showInfoDialog(String title, String content) {
@@ -94,7 +169,9 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
           title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        content: Text(content),
+        content: SingleChildScrollView(
+          child: Text(content),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -118,6 +195,39 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
       );
     }
 
+    if (_washerData.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Profile'),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 1,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_off, size: 60, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Washer not found',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'This washer profile could not be loaded',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     // Extract data from Firestore
     final name = _washerData['name'] ?? authService.userName ?? 'Washer Name';
     final phone = _washerData['phone'] ?? authService.userPhone ?? '+234 801 234 5678';
@@ -137,9 +247,9 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
     final specialization = _washerData['specialization'] ?? 'Not set';
     final turnaroundTime = _washerData['turnaroundTime'] ?? 'Not set';
     
-    // Get selected services
-    final selectedServices = List<String>.from(_washerData['selectedServices'] ?? []);
-    final serviceDisplayNames = selectedServices.map((id) => _serviceNames[id] ?? id).join(', ');
+    // Get all services
+    final allServices = _getAllServices();
+    final serviceDisplayNames = allServices.map((id) => _serviceNames[id] ?? id).join(', ');
 
     // Format date
     String createdAt = 'Not available';
@@ -174,18 +284,24 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Profile Header
+              // ============================================================
+              // PROFILE HEADER
+              // ============================================================
               Container(
                 padding: const EdgeInsets.all(24),
                 color: AppColors.primaryBackground,
                 child: Column(
                   children: [
+                    // Profile Image
                     Container(
                       width: 100,
                       height: 100,
                       decoration: BoxDecoration(
-                        color: Colors.white,
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.primary,
+                          width: 3,
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.grey.withOpacity(0.3),
@@ -194,15 +310,46 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : 'W',
-                          style: const TextStyle(
-                            fontSize: 40,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
+                      child: ClipOval(
+                        child: _profileImageUrl.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: _profileImageUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey.shade200,
+                                  child: Center(
+                                    child: Text(
+                                      name.isNotEmpty ? name[0].toUpperCase() : 'W',
+                                      style: const TextStyle(
+                                        fontSize: 40,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: Colors.grey.shade200,
+                                child: Center(
+                                  child: Text(
+                                    name.isNotEmpty ? name[0].toUpperCase() : 'W',
+                                    style: const TextStyle(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -216,8 +363,9 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                       style: TextStyle(color: AppColors.grey600),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 8,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -244,7 +392,6 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           decoration: BoxDecoration(
@@ -270,43 +417,44 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                             ],
                           ),
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, size: 14, color: Colors.amber),
+                              const SizedBox(width: 4),
+                              Text(
+                                rating > 0 ? '${rating.toStringAsFixed(1)} ★' : 'No ratings yet',
+                                style: const TextStyle(
+                                  color: Colors.amber,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star, size: 14, color: Colors.amber),
-                          const SizedBox(width: 4),
-                          Text(
-                            rating > 0 ? '${rating.toStringAsFixed(1)} ★' : 'No ratings yet',
-                            style: const TextStyle(
-                              color: Colors.amber,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                     // Service chips
-                    if (selectedServices.isNotEmpty) ...[
+                    if (allServices.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 4,
-                        children: selectedServices.map((serviceId) {
+                        runSpacing: 4,
+                        children: allServices.map((serviceId) {
+                          final color = _serviceColors[serviceId] ?? AppColors.primary;
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _serviceColors[serviceId]?.withOpacity(0.1) ?? AppColors.primary.withOpacity(0.1),
+                              color: color.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: _serviceColors[serviceId] ?? AppColors.primary,
+                                color: color,
                                 width: 1,
                               ),
                             ),
@@ -316,13 +464,13 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                                 Icon(
                                   _serviceIcons[serviceId] ?? Icons.work,
                                   size: 12,
-                                  color: _serviceColors[serviceId] ?? AppColors.primary,
+                                  color: color,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  _serviceNames[serviceId] ?? serviceId,
+                                  _serviceNames[serviceId] ?? serviceId.replaceAll('_', ' '),
                                   style: TextStyle(
-                                    color: _serviceColors[serviceId] ?? AppColors.primary,
+                                    color: color,
                                     fontSize: 10,
                                   ),
                                 ),
@@ -336,7 +484,9 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 ),
               ),
 
-              // Location Info
+              // ============================================================
+              // LOCATION INFO
+              // ============================================================
               Container(
                 padding: const EdgeInsets.all(16),
                 margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -374,7 +524,9 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 ),
               ),
 
-              // Stats
+              // ============================================================
+              // STATS
+              // ============================================================
               Container(
                 padding: const EdgeInsets.all(16),
                 margin: const EdgeInsets.all(16),
@@ -402,10 +554,10 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
               ),
 
               // ============================================================
-              // REAL DATA MENU ITEMS
+              // MENU ITEMS
               // ============================================================
 
-              // Personal Information - Shows real data
+              // Personal Information
               _buildMenuItem(
                 icon: Icons.person_outline,
                 title: 'Personal Information',
@@ -418,7 +570,7 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 },
               ),
 
-              // Services - Shows selected services
+              // Services
               _buildMenuItem(
                 icon: Icons.verified,
                 title: 'Services',
@@ -433,7 +585,7 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 },
               ),
 
-              // Vehicle Details - Shows real data
+              // Vehicle Details
               _buildMenuItem(
                 icon: Icons.directions_car,
                 title: 'Vehicle Details',
@@ -446,7 +598,7 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 },
               ),
 
-              // Bank Account - Shows real data
+              // Bank Account
               _buildMenuItem(
                 icon: Icons.credit_card,
                 title: 'Bank Account',
@@ -487,7 +639,7 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                   },
                 ),
 
-              // Working Radius - Shows real data
+              // Working Radius
               _buildMenuItem(
                 icon: Icons.speed,
                 title: 'Working Radius',
@@ -508,7 +660,6 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 title: 'Job History',
                 subtitle: 'View all completed jobs',
                 onTap: () {
-                  // Navigate to job history
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Job history coming soon')),
                   );

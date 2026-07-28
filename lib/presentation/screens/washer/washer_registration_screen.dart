@@ -4,6 +4,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import 'washer_dashboard.dart';
@@ -31,93 +36,309 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   final _stateController = TextEditingController();
   
   // ============================================================
-  // FIX: Added Ride Service to Available Services
+  // File Uploads - Profile Picture & ID
   // ============================================================
-  final List<Map<String, dynamic>> _availableServices = [
-    {'id': 'car_wash', 'name': 'Car Wash', 'icon': Icons.local_car_wash, 'category': 'Car Wash'},
-    {'id': 'cleaning', 'name': 'House Cleaning', 'icon': Icons.cleaning_services, 'category': 'House Cleaning'},
-    {'id': 'laundry', 'name': 'Laundry', 'icon': Icons.local_laundry_service, 'category': 'Laundry'},
-    {'id': 'ride', 'name': 'Ride Service', 'icon': Icons.car_rental, 'category': 'Ride Service'},
+  File? _profileImage;
+  File? _idImage;
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
+  String _profileImageUrl = '';
+  String _idImageUrl = '';
+  
+  // ============================================================
+  // Service Price Controllers
+  // ============================================================
+  final Map<String, TextEditingController> _servicePriceControllers = {};
+  
+  // ============================================================
+  // MAIN SERVICE CATEGORIES (4 Categories)
+  // ============================================================
+  final List<Map<String, dynamic>> _mainCategories = [
+    {'id': 'car_wash', 'name': 'Car Wash', 'icon': Icons.local_car_wash, 'color': AppColors.primary},
+    {'id': 'house_cleaning', 'name': 'House Cleaning', 'icon': Icons.cleaning_services, 'color': AppColors.primary},
+    {'id': 'laundry', 'name': 'Laundry', 'icon': Icons.local_laundry_service, 'color': AppColors.primary},
+    {'id': 'ride_service', 'name': 'Ride Service', 'icon': Icons.car_rental, 'color': AppColors.primary},
   ];
   
-  List<String> _selectedServices = [];
+  // ============================================================
+  // SUB-SERVICES FOR EACH MAIN CATEGORY (from home_screen.dart)
+  // ============================================================
+  final List<Map<String, dynamic>> _carWashSubServices = [
+    {'id': 'exterior_wash', 'name': 'Exterior Wash', 'duration': '30 mins', 'icon': Icons.cleaning_services},
+    {'id': 'interior_cleaning', 'name': 'Interior Cleaning', 'duration': '45 mins', 'icon': Icons.event_seat},
+    {'id': 'full_detailing', 'name': 'Full Detailing', 'duration': '90 mins', 'icon': Icons.star},
+    {'id': 'engine_wash', 'name': 'Engine Wash', 'duration': '60 mins', 'icon': Icons.settings},
+  ];
+
+  final List<Map<String, dynamic>> _houseCleaningSubServices = [
+    {'id': 'standard_cleaning', 'name': 'Standard Cleaning', 'duration': '3 hours', 'icon': Icons.cleaning_services, 'bedrooms': '2-3 beds'},
+    {'id': 'deep_cleaning', 'name': 'Deep Cleaning', 'duration': '5 hours', 'icon': Icons.brush, 'bedrooms': '3-4 beds'},
+    {'id': 'move_in_out', 'name': 'Move In/Out', 'duration': '6 hours', 'icon': Icons.move_to_inbox, 'bedrooms': '4-5 beds'},
+    {'id': 'office_cleaning', 'name': 'Office Cleaning', 'duration': '4 hours', 'icon': Icons.business, 'size': 'Small office'},
+    {'id': 'carpet_cleaning', 'name': 'Carpet Cleaning', 'duration': '2 hours', 'icon': Icons.carpenter, 'rooms': 'Per room'},
+    {'id': 'window_cleaning', 'name': 'Window Cleaning', 'duration': '1.5 hours', 'icon': Icons.window, 'floors': 'Per floor'},
+  ];
+
+  final List<Map<String, dynamic>> _laundrySubServices = [
+    {'id': 'wash_fold', 'name': 'Wash & Fold', 'duration': '24 hours', 'icon': Icons.local_laundry_service, 'weight': 'Up to 5kg'},
+    {'id': 'wash_iron', 'name': 'Wash & Iron', 'duration': '24 hours', 'icon': Icons.iron, 'weight': 'Up to 5kg'},
+    {'id': 'dry_cleaning', 'name': 'Dry Cleaning', 'duration': '48 hours', 'icon': Icons.dry, 'items': 'Up to 3 items'},
+    {'id': 'ironing_only', 'name': 'Ironing Only', 'duration': '12 hours', 'icon': Icons.iron, 'weight': 'Up to 3kg'},
+    {'id': 'bulk_laundry', 'name': 'Bulk Laundry', 'duration': '48 hours', 'icon': Icons.local_laundry_service, 'weight': '15-20kg'},
+    {'id': 'curtain_cleaning', 'name': 'Curtain Cleaning', 'duration': '72 hours', 'icon': Icons.curtains, 'items': 'Per set'},
+  ];
+
+  final List<Map<String, dynamic>> _rideSubServices = [
+    {'id': 'standard_ride', 'name': 'Standard Ride', 'duration': 'On-demand', 'icon': Icons.car_rental, 'description': 'Comfortable sedan'},
+    {'id': 'suv_ride', 'name': 'SUV Ride', 'duration': 'On-demand', 'icon': Icons.car_rental, 'description': 'Spacious SUV'},
+    {'id': 'luxury_ride', 'name': 'Luxury Ride', 'duration': 'On-demand', 'icon': Icons.car_rental, 'description': 'Premium luxury car'},
+    {'id': 'van_ride', 'name': 'Van Ride', 'duration': 'On-demand', 'icon': Icons.car_rental, 'description': 'Group/team travel'},
+  ];
+
+  // ============================================================
+  // SELECTED DATA
+  // ============================================================
+  List<String> _selectedMainCategories = [];
+  Map<String, List<String>> _selectedSubServices = {}; // mainCategoryId -> [subServiceIds]
+  Map<String, String> _subServicePrices = {}; // subServiceId -> price
+  
   String _selectedVehicleType = 'Motorcycle';
   double _workingRadius = 10;
   String _selectedBank = 'Access Bank';
-  
+  String _bankSearchQuery = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _agreeToTerms = false;
   
-  final List<String> _vehicleTypes = ['Motorcycle', 'Car', 'Van', 'Truck', 'SUV', 'Bicycle'];
-  final List<String> _banks = [
+  // ============================================================
+  // All Nigerian Banks
+  // ============================================================
+  final List<String> _allBanks = [
     'Access Bank', 'GTBank', 'First Bank', 'UBA', 'Zenith Bank',
     'Union Bank', 'Fidelity Bank', 'Ecobank', 'Stanbic IBTC', 'Polaris Bank',
     'Sterling Bank', 'Wema Bank', 'Heritage Bank', 'Keystone Bank',
-    'Providus Bank', 'Titan Trust Bank', 'Globus Bank'
+    'Providus Bank', 'Titan Trust Bank', 'Globus Bank', 'Parallex Bank',
+    'Premium Trust Bank', 'Signature Bank',
+    'Accion Microfinance Bank', 'AB Microfinance Bank', 'Afemai Microfinance Bank',
+    'Allianz Microfinance Bank', 'Alvana Microfinance Bank', 'Aso Savings & Loans',
+    'Baobab Microfinance Bank', 'BIPC Microfinance Bank', 'Bosak Microfinance Bank',
+    'Cedar Microfinance Bank', 'Covenant Microfinance Bank', 'Crown Microfinance Bank',
+    'DBN Microfinance Bank', 'E-Block Microfinance Bank', 'Ehiama Microfinance Bank',
+    'Empower Microfinance Bank', 'ESOP Microfinance Bank', 'FairMoney Microfinance Bank',
+    'Fina Microfinance Bank', 'Forte Microfinance Bank', 'Girei Microfinance Bank',
+    'Gombe Microfinance Bank', 'GreenBank Microfinance Bank', 'Haggai Microfinance Bank',
+    'Hasal Microfinance Bank', 'Infinity Microfinance Bank', 'Innovate Microfinance Bank',
+    'Kadpoly Microfinance Bank', 'Kano Microfinance Bank', 'Kasuwa Microfinance Bank',
+    'Kuda Microfinance Bank', 'Lasaco Microfinance Bank', 'Mainstreet Microfinance Bank',
+    'Mint Microfinance Bank', 'Mkobo Microfinance Bank', 'Mutual Microfinance Bank',
+    'New Prudent Microfinance Bank', 'NIRSAL Microfinance Bank', 'Noble Microfinance Bank',
+    'Nurture Microfinance Bank', 'Ojokoro Microfinance Bank', 'Omiye Microfinance Bank',
+    'Paga Microfinance Bank', 'Palmcoast Microfinance Bank', 'Partnership Microfinance Bank',
+    'Pepper Microfinance Bank', 'Personal Trust Microfinance Bank', 'Progressive Microfinance Bank',
+    'Rabobank Microfinance Bank', 'Rigo Microfinance Bank', 'Sabru Microfinance Bank',
+    'Sagamu Microfinance Bank', 'Seedvest Microfinance Bank', 'Smart Microfinance Bank',
+    'Sparkle Microfinance Bank', 'Splendid Microfinance Bank', 'Startup Microfinance Bank',
+    'Sunshine Microfinance Bank', 'Tangerine Microfinance Bank', 'TCF Microfinance Bank',
+    'Top Capital Microfinance Bank', 'Trustfund Microfinance Bank', 'Unibright Microfinance Bank',
+    'Victory Microfinance Bank', 'Vision Microfinance Bank', 'VFD Microfinance Bank',
+    'Vivid Microfinance Bank', 'Waya Microfinance Bank', 'Yobe Microfinance Bank',
+    'Kuda Bank', 'OPay', 'PalmPay', 'FairMoney', 'Carbon Bank',
+    'VBank', 'Sparkle Bank', 'ALAT by Wema', 'Rubies Bank', 'Eyowo',
+    'Zenith Bank (Eazy)', 'GTBank (GTWorld)', 'Access Bank (AccessMore)',
+    'Sterling Bank (OneBank)', 'UBA (UBAMobile)', 'Fidelity Bank (Fidelity Online)',
+    'Union Bank (UnionMobile)', 'Ecobank (Ecobank Mobile)', 'Stanbic IBTC (Stanbic Mobile)',
+    'Polaris Bank (Polaris Mobile)', 'Wema Bank (ALAT)', 'First Bank (FirstMobile)',
+    'Heritage Bank (Heritage Mobile)', 'Keystone Bank (Keystone Mobile)',
+    '9Mobile (9PSB)', 'MTN MoMo', 'Airtel SmartCash', 'Glo G-Wallet',
+    'eTranzact', 'Paga', 'Interswitch', 'Flutterwave (Barter)',
+    'Paystack (Paystack Business)', 'Moniepoint', 'Opay (Opay Business)',
+    'PalmPay (PalmPay Business)', 'Kuda (Kuda Business)',
   ];
+  
+  List<String> get _filteredBanks {
+    if (_bankSearchQuery.isEmpty) return _allBanks;
+    return _allBanks.where((bank) =>
+        bank.toLowerCase().contains(_bankSearchQuery.toLowerCase())).toList();
+  }
 
-  void _toggleService(String serviceId) {
+  final List<String> _vehicleTypes = ['Motorcycle', 'Car', 'Van', 'Truck', 'SUV', 'Bicycle', 'Keke (Tricycle)'];
+
+  // ============================================================
+  // GET SUB-SERVICES FOR A MAIN CATEGORY
+  // ============================================================
+  List<Map<String, dynamic>> _getSubServices(String mainCategoryId) {
+    switch (mainCategoryId) {
+      case 'car_wash':
+        return _carWashSubServices;
+      case 'house_cleaning':
+        return _houseCleaningSubServices;
+      case 'laundry':
+        return _laundrySubServices;
+      case 'ride_service':
+        return _rideSubServices;
+      default:
+        return [];
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize price controllers for all sub-services
+    for (var category in _mainCategories) {
+      final subServices = _getSubServices(category['id']);
+      for (var sub in subServices) {
+        final key = '${category['id']}_${sub['id']}';
+        _servicePriceControllers[key] = TextEditingController(text: '');
+        _subServicePrices[key] = '';
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var controller in _servicePriceControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  // ============================================================
+  // TOGGLE MAIN CATEGORY
+  // ============================================================
+  void _toggleMainCategory(String categoryId) {
     setState(() {
-      if (_selectedServices.contains(serviceId)) {
-        _selectedServices.remove(serviceId);
+      if (_selectedMainCategories.contains(categoryId)) {
+        _selectedMainCategories.remove(categoryId);
+        _selectedSubServices.remove(categoryId);
       } else {
-        _selectedServices.add(serviceId);
+        _selectedMainCategories.add(categoryId);
+        _selectedSubServices[categoryId] = [];
       }
     });
   }
 
   // ============================================================
-  // FIX: Account Name Detection
+  // TOGGLE SUB-SERVICE
   // ============================================================
-  Future<void> _validateAccount() async {
-    final accountNumber = _accountNumberController.text.trim();
-    
-    if (accountNumber.length < 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid 10-digit account number'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-    
-    setState(() => _isLoading = true);
-    
-    try {
-      await Future.delayed(const Duration(seconds: 1));
+  void _toggleSubService(String mainCategoryId, String subServiceId) {
+    setState(() {
+      if (!_selectedSubServices.containsKey(mainCategoryId)) {
+        _selectedSubServices[mainCategoryId] = [];
+      }
       
+      final list = _selectedSubServices[mainCategoryId]!;
+      if (list.contains(subServiceId)) {
+        list.remove(subServiceId);
+      } else {
+        list.add(subServiceId);
+        // Initialize price if not set
+        final key = '${mainCategoryId}_$subServiceId';
+        if (!_servicePriceControllers.containsKey(key)) {
+          _servicePriceControllers[key] = TextEditingController(text: '');
+        }
+      }
+    });
+  }
+
+  // ============================================================
+  // Image Picker Methods
+  // ============================================================
+  Future<void> _pickProfileImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 500,
+      maxHeight: 500,
+      imageQuality: 80,
+    );
+    if (image != null) {
       setState(() {
-        _accountNameController.text = 'John Doe';
-        _isLoading = false;
+        _profileImage = File(image.path);
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Account name verified: John Doe'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error verifying account: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
+  Future<void> _pickIdImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 80,
+    );
+    if (image != null) {
+      setState(() {
+        _idImage = File(image.path);
+      });
+    }
+  }
+
+  Future<String?> _uploadImage(File image, String path) async {
+    try {
+      setState(() => _isUploading = true);
+      final ref = FirebaseStorage.instance.ref().child(path);
+      await ref.putFile(image);
+      final downloadUrl = await ref.getDownloadURL();
+      setState(() => _isUploading = false);
+      return downloadUrl;
+    } catch (e) {
+      print('❌ Upload error: $e');
+      setState(() => _isUploading = false);
+      return null;
+    }
+  }
+
+  // ============================================================
+  // Register Washer
+  // ============================================================
   Future<void> _registerWasher() async {
     if (!_formKey.currentState!.validate()) {
       _showError('Please fill all required fields');
       return;
     }
     
-    if (_selectedServices.isEmpty) {
-      _showError('Please select at least one service type');
+    // Check if at least one main category is selected
+    if (_selectedMainCategories.isEmpty) {
+      _showError('Please select at least one service category');
+      return;
+    }
+    
+    // Check if at least one sub-service is selected
+    bool hasSubService = false;
+    for (var entry in _selectedSubServices.entries) {
+      if (entry.value.isNotEmpty) {
+        hasSubService = true;
+        break;
+      }
+    }
+    if (!hasSubService) {
+      _showError('Please select at least one sub-service');
+      return;
+    }
+    
+    // Check if all selected sub-services have prices
+    for (var entry in _selectedSubServices.entries) {
+      final mainCategoryId = entry.key;
+      for (var subId in entry.value) {
+        final key = '${mainCategoryId}_$subId';
+        final price = _servicePriceControllers[key]?.text.trim() ?? '';
+        if (price.isEmpty) {
+          _showError('Please set prices for all selected sub-services');
+          return;
+        }
+        if (int.tryParse(price) == null) {
+          _showError('Please enter valid numbers for prices');
+          return;
+        }
+      }
+    }
+    
+    if (_profileImage == null) {
+      _showError('Please upload a profile picture');
+      return;
+    }
+    
+    if (_idImage == null) {
+      _showError('Please upload a means of identification');
       return;
     }
     
@@ -126,9 +347,29 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       return;
     }
 
+    if (_accountNameController.text.trim().isEmpty) {
+      _showError('Please enter your account name');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
+      final profileUrl = await _uploadImage(
+        _profileImage!, 
+        'washers/${DateTime.now().millisecondsSinceEpoch}_profile.jpg'
+      );
+      final idUrl = await _uploadImage(
+        _idImage!, 
+        'washers/${DateTime.now().millisecondsSinceEpoch}_id.jpg'
+      );
+      
+      if (profileUrl == null || idUrl == null) {
+        _showError('Failed to upload images. Please try again.');
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final authService = Provider.of<AuthService>(context, listen: false);
       
       final signupSuccess = await authService.signup(
@@ -151,11 +392,25 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         return;
       }
 
-      List<String> serviceCategories = [];
-      for (var service in _availableServices) {
-        if (_selectedServices.contains(service['id'])) {
-          serviceCategories.add(service['category']);
+      // Build selected services data
+      List<String> selectedMainCategories = _selectedMainCategories;
+      Map<String, List<String>> selectedSubServices = _selectedSubServices;
+      Map<String, String> subServicePrices = {};
+      
+      for (var entry in selectedSubServices.entries) {
+        final mainCategoryId = entry.key;
+        for (var subId in entry.value) {
+          final key = '${mainCategoryId}_$subId';
+          final price = _servicePriceControllers[key]?.text.trim() ?? '0';
+          subServicePrices[key] = price;
         }
+      }
+
+      // Get main category names
+      List<String> mainCategoryNames = [];
+      for (var id in selectedMainCategories) {
+        final category = _mainCategories.firstWhere((c) => c['id'] == id);
+        mainCategoryNames.add(category['name']);
       }
 
       final washerData = {
@@ -165,13 +420,18 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'email': _emailController.text.trim(),
         'city': _cityController.text.trim(),
         'state': _stateController.text.trim(),
-        'selectedServices': _selectedServices,
-        'serviceCategories': serviceCategories,
+        'selectedMainCategories': selectedMainCategories,
+        'mainCategoryNames': mainCategoryNames,
+        'selectedSubServices': selectedSubServices,
+        'subServicePrices': subServicePrices,
         'vehicleType': _selectedVehicleType,
         'workingRadius': _workingRadius.toInt(),
         'bankName': _selectedBank,
         'accountNumber': _accountNumberController.text.trim(),
         'accountName': _accountNameController.text.trim(),
+        'profileImage': profileUrl,
+        'idImage': idUrl,
+        'isVerified': false,
         'isOnline': true,
         'approved': true,
         'rating': 0.0,
@@ -192,8 +452,9 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
           .update({
         'role': 'washer',
         'washerId': washerRef.id,
-        'serviceCategories': serviceCategories,
-        'selectedServices': _selectedServices,
+        'mainCategories': selectedMainCategories,
+        'subServices': selectedSubServices,
+        'profileImage': profileUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
@@ -250,7 +511,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading
+      body: _isLoading || _isUploading
           ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -290,9 +551,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     ),
                     const SizedBox(height: 32),
                     
-                    // ============================================================
                     // "Already a Service Provider? Login"
-                    // ============================================================
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
@@ -367,72 +626,328 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // FIX: Service Type Selection with Ride Service
+                    // Profile Picture Upload
                     // ============================================================
                     const Text(
-                      'Select Services',
+                      'Profile Picture',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Choose one or more services you want to provide',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
                     const SizedBox(height: 12),
-                    
-                    // 2x2 Grid for services
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 8,
-                        mainAxisSpacing: 8,
-                        childAspectRatio: 2.5,
-                      ),
-                      itemCount: _availableServices.length,
-                      itemBuilder: (context, index) {
-                        final service = _availableServices[index];
-                        final isSelected = _selectedServices.contains(service['id']);
-                        return GestureDetector(
-                          onTap: () => _toggleService(service['id']),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primary.withOpacity(0.15) : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected ? AppColors.primary : Colors.grey.shade300,
-                                width: isSelected ? 2 : 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(service['icon'], 
-                                    color: isSelected ? AppColors.primary : Colors.grey.shade600,
-                                    size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  service['name'],
-                                  style: TextStyle(
-                                    color: isSelected ? AppColors.primary : Colors.grey.shade600,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                if (isSelected)
-                                  const Icon(Icons.check_circle, size: 14, color: Colors.green),
-                              ],
-                            ),
+                    GestureDetector(
+                      onTap: _pickProfileImage,
+                      child: Container(
+                        height: 120,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(60),
+                          border: Border.all(
+                            color: _profileImage != null ? AppColors.primary : Colors.grey.shade300,
+                            width: 2,
                           ),
-                        );
-                      },
+                        ),
+                        child: _profileImage != null
+                            ? ClipOval(
+                                child: Image.file(
+                                  _profileImage!,
+                                  fit: BoxFit.cover,
+                                  width: 120,
+                                  height: 120,
+                                ),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.camera_alt, size: 30, color: Colors.grey.shade400),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Upload Photo',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        _profileImage != null ? '✅ Photo selected' : 'Tap to upload profile picture',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _profileImage != null ? Colors.green : Colors.grey.shade500,
+                        ),
+                      ),
                     ),
                     
                     const SizedBox(height: 24),
                     
+                    // ============================================================
+                    // Means of Identification Upload
+                    // ============================================================
+                    const Text(
+                      'Means of Identification',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Upload a valid ID (National ID, Driver\'s License, Voter\'s Card, or International Passport)',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: _pickIdImage,
+                      child: Container(
+                        height: 160,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _idImage != null ? AppColors.primary : Colors.grey.shade300,
+                            width: 2,
+                          ),
+                        ),
+                        child: _idImage != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.file(
+                                  _idImage!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: 160,
+                                ),
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.assignment, size: 40, color: Colors.grey.shade400),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Upload ID',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade400,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Text(
+                                    'National ID / Driver\'s License / Passport',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Text(
+                        _idImage != null ? '✅ ID uploaded' : 'Tap to upload means of identification',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _idImage != null ? Colors.green : Colors.grey.shade500,
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // ============================================================
+                    // SELECT SERVICES & SET PRICES - WITH SUB-SERVICES
+                    // ============================================================
+                    const Text(
+                      'Select Services & Set Prices',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Choose service categories, select sub-services, and set your own prices',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Loop through main categories
+                    ..._mainCategories.map((mainCategory) {
+                      final mainId = mainCategory['id'];
+                      final isMainSelected = _selectedMainCategories.contains(mainId);
+                      final subServices = _getSubServices(mainId);
+                      final selectedSubs = _selectedSubServices[mainId] ?? [];
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Main Category Tile
+                          Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: isMainSelected ? AppColors.primary : Colors.grey.shade300,
+                                width: isMainSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: InkWell(
+                              onTap: () => _toggleMainCategory(mainId),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isMainSelected ? Icons.check_circle : Icons.circle_outlined,
+                                      color: isMainSelected ? AppColors.primary : Colors.grey.shade400,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Icon(mainCategory['icon'], color: isMainSelected ? AppColors.primary : Colors.grey.shade600),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        mainCategory['name'],
+                                        style: TextStyle(
+                                          fontWeight: isMainSelected ? FontWeight.bold : FontWeight.normal,
+                                          color: isMainSelected ? AppColors.primary : Colors.black87,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isMainSelected)
+                                      Text(
+                                        '${selectedSubs.length} selected',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          // Sub-services (visible only if main category is selected)
+                          if (isMainSelected) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.04),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Sub-services for ${mainCategory['name']}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ...subServices.map((subService) {
+                                      final subId = subService['id'];
+                                      final isSelected = selectedSubs.contains(subId);
+                                      final key = '${mainId}_$subId';
+                                      final priceController = _servicePriceControllers[key];
+                                      
+                                      return Container(
+                                        margin: const EdgeInsets.only(bottom: 6),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? Colors.white : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: isSelected 
+                                              ? Border.all(color: AppColors.primary.withOpacity(0.3))
+                                              : null,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            GestureDetector(
+                                              onTap: () => _toggleSubService(mainId, subId),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    isSelected ? Icons.check_box : Icons.check_box_outline_blank,
+                                                    color: isSelected ? AppColors.primary : Colors.grey.shade400,
+                                                    size: 20,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Icon(
+                                                    subService['icon'],
+                                                    color: isSelected ? AppColors.primary : Colors.grey.shade500,
+                                                    size: 18,
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Text(
+                                                        subService['name'],
+                                                        style: TextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                                          color: isSelected ? AppColors.primary : Colors.black87,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        subService['duration'] ?? '',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: Colors.grey.shade500,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            if (isSelected)
+                                              SizedBox(
+                                                width: 80,
+                                                child: TextFormField(
+                                                  controller: priceController,
+                                                  keyboardType: TextInputType.number,
+                                                  decoration: const InputDecoration(
+                                                    prefixText: '₦',
+                                                    border: OutlineInputBorder(),
+                                                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                                    isDense: true,
+                                                    hintText: 'Price',
+                                                    hintStyle: TextStyle(fontSize: 10),
+                                                  ),
+                                                  style: const TextStyle(fontSize: 12),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    }).toList(),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // ============================================================
                     // Personal Information
+                    // ============================================================
                     const Text(
                       'Personal Information',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
@@ -560,7 +1075,9 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     ),
                     const SizedBox(height: 24),
                     
+                    // ============================================================
                     // Vehicle Information
+                    // ============================================================
                     const Text(
                       'Vehicle Information',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
@@ -609,82 +1126,176 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Bank Information
+                    // ============================================================
+                    // Bank Information - MANUAL ENTRY ONLY
+                    // ============================================================
                     const Text(
                       'Bank Information',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
                     ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Enter your bank details manually (no automatic verification)',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                     const SizedBox(height: 16),
                     
-                    DropdownButtonFormField(
-                      value: _selectedBank,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          onChanged: (value) {
+                            setState(() {
+                              _bankSearchQuery = value;
+                            });
+                          },
+                          decoration: const InputDecoration(
+                            labelText: 'Search Bank *',
+                            prefixIcon: Icon(Icons.search, color: AppColors.primary),
+                            border: OutlineInputBorder(),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: BorderSide(color: AppColors.primary, width: 2),
+                            ),
+                            suffixIcon: Icon(Icons.arrow_drop_down, color: AppColors.primary),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (_bankSearchQuery.isNotEmpty)
+                          Container(
+                            height: 150,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _filteredBanks.length > 20 ? 20 : _filteredBanks.length,
+                              itemBuilder: (context, index) {
+                                final bank = _filteredBanks[index];
+                                return ListTile(
+                                  dense: true,
+                                  title: Text(bank, style: const TextStyle(fontSize: 13)),
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedBank = bank;
+                                      _bankSearchQuery = '';
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                          ),
+                        if (_bankSearchQuery.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle, color: AppColors.primary, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _selectedBank,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '(selected)',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    TextFormField(
+                      controller: _accountNumberController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 10,
                       decoration: const InputDecoration(
-                        labelText: 'Select Bank *',
-                        prefixIcon: Icon(Icons.account_balance, color: AppColors.primary),
+                        labelText: 'Account Number *',
+                        prefixIcon: Icon(Icons.numbers, color: AppColors.primary),
                         border: OutlineInputBorder(),
                         focusedBorder: OutlineInputBorder(
                           borderSide: BorderSide(color: AppColors.primary, width: 2),
                         ),
+                        counterText: '',
+                        hintText: 'Enter your 10-digit account number',
                       ),
-                      items: _banks.map((bank) => DropdownMenuItem(
-                        value: bank,
-                        child: Text(bank),
-                      )).toList(),
-                      onChanged: (value) => setState(() => _selectedBank = value!),
-                      validator: (value) => value == null ? 'Select bank' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: TextFormField(
-                            controller: _accountNumberController,
-                            keyboardType: TextInputType.number,
-                            maxLength: 10,
-                            decoration: const InputDecoration(
-                              labelText: 'Account Number *',
-                              prefixIcon: Icon(Icons.numbers, color: AppColors.primary),
-                              border: OutlineInputBorder(),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: BorderSide(color: AppColors.primary, width: 2),
-                              ),
-                              counterText: '',
-                            ),
-                            onChanged: (value) {
-                              if (value.length == 10) {
-                                _validateAccount();
-                              }
-                            },
-                            validator: (value) => value == null || value.isEmpty ? 'Enter account number' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 1,
-                          child: IconButton(
-                            icon: const Icon(Icons.search, color: AppColors.primary),
-                            onPressed: _validateAccount,
-                            tooltip: 'Verify Account',
-                          ),
-                        ),
-                      ],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Enter account number';
+                        }
+                        if (value.length < 10) {
+                          return 'Enter 10-digit account number';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 4),
                     
                     TextFormField(
                       controller: _accountNameController,
-                      enabled: false,
                       decoration: InputDecoration(
-                        labelText: 'Account Name',
+                        labelText: 'Account Name *',
                         prefixIcon: const Icon(Icons.person_outline, color: AppColors.primary),
                         border: const OutlineInputBorder(),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                        hintText: 'Will auto-fill after verification',
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                        hintText: 'Enter the account holder\'s full name',
+                        helperText: 'Enter the name exactly as it appears on the bank account',
+                        helperStyle: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Enter account name';
+                        }
+                        if (value.length < 3) {
+                          return 'Enter a valid account name';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Please ensure the account name matches the bank records. '
+                              'This will be used for payments.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    
                     const SizedBox(height: 24),
                     
                     // Terms
@@ -723,7 +1334,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                           ),
                         ),
                         child: Text(
-                          _selectedServices.isEmpty 
+                          _selectedMainCategories.isEmpty 
                               ? 'Select a Service First'
                               : 'Create Account',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -733,7 +1344,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     
                     const SizedBox(height: 20),
                     
-                    // Info Box
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
@@ -746,11 +1356,11 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _selectedServices.isEmpty
-                                  ? 'Please select at least one service to get started'
+                              _selectedMainCategories.isEmpty
+                                  ? 'Please select at least one service category to get started'
                                   : 'Your account will be activated immediately',
                               style: TextStyle(
-                                color: _selectedServices.isEmpty ? Colors.orange.shade700 : Colors.green.shade700,
+                                color: _selectedMainCategories.isEmpty ? Colors.orange.shade700 : Colors.green.shade700,
                                 fontSize: 12,
                               ),
                             ),
@@ -787,10 +1397,10 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                 '1. You must be at least 18 years old\n'
                 '2. You must have a valid means of transport\n'
                 '3. You agree to a background check\n'
-                '4. 15% commission on each job\n'
+                '4. 20% commission on each job\n'
                 '5. You must maintain 4.0+ rating\n'
                 '6. Cancellation policy applies\n'
-                '7. Payments are processed weekly\n'
+                '7. You can withdraw your earnings at any time\n'
                 '8. You are an independent contractor\n'
                 '9. G Wash NG reserves the right to suspend accounts\n\n'
                 'By registering, you agree to all terms.',
