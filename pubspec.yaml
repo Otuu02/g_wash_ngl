@@ -27,7 +27,7 @@ dependencies:
   geolocator: ^13.0.2
   geocoding: ^4.0.0
 
-  # HTTP & API
+  # HTTP & API (Required for imgBB upload)
   http: ^1.2.2
 
   # Storage
