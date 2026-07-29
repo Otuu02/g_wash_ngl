@@ -10,11 +10,12 @@ class CloudinaryService {
   // Your Cloudinary credentials
   static const String cloudName = 'dijqk2arj';
   static const String apiKey = '862473269516361';
+  static const String apiSecret = '4JpMPFJbMlHE3qulwj0_oe_8lJI';
 
-  // ✅ CORRECT: Only cloudName and apiKey (no apiSecret)
   final CloudinaryPublic _cloudinary = CloudinaryPublic(
     cloudName,
     apiKey,
+    apiSecret,
   );
 
   Future<String?> uploadImage({
@@ -29,15 +30,16 @@ class CloudinaryService {
           image.path,
           resourceType: CloudinaryResourceType.Image,
           folder: folder,
+          // ✅ USE THE EXACT PRESET NAME FROM YOUR SCREENSHOT
+          uploadPreset: 'ML default',  // ← This is the key fix!
         ),
       );
 
-      // ✅ CORRECT: Check if secureUrl exists
-      if (response.secureUrl != null && response.secureUrl!.isNotEmpty) {
+      if (response.isSuccessful) {
         print('✅ Upload successful: ${response.secureUrl}');
         return response.secureUrl;
       } else {
-        print('❌ Upload failed');
+        print('❌ Upload failed: ${response.error?.message}');
         return null;
       }
     } catch (e) {
