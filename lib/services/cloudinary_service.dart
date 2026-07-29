@@ -4,10 +4,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class CloudinaryService {
-  static final CloudinaryService _instance = CloudinaryService._internal();
-  factory CloudinaryService() => _instance;
-  CloudinaryService._internal();
-
   // Your Cloudinary credentials
   static const String cloudName = 'dijqk2arj';
   static const String apiKey = '862473269516361';

@@ -289,7 +289,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   }
 
   // ============================================================
-  // CLOUDINARY IMAGE UPLOAD - FIXED
+  // CLOUDINARY IMAGE UPLOAD (HTTP version - works on web)
   // ============================================================
   Future<String?> _uploadImage(File image, String path) async {
     try {
@@ -301,14 +301,14 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       
       // Check file size
       final bytes = await image.readAsBytes();
-      if (bytes.length > 5 * 1024 * 1024) {
-        throw Exception('Image too large. Please select a smaller image (max 5MB).');
+      if (bytes.length > 10 * 1024 * 1024) {
+        throw Exception('Image too large. Max 10MB.');
       }
       
       print('📤 Uploading to Cloudinary...');
       
-      final cloudinary = CloudinaryService();
-      final url = await cloudinary.uploadImage(
+      // ✅ STATIC METHOD CALL - No instance needed
+      final url = await CloudinaryService.uploadImage(
         image: image,
         folder: 'washers',
       );
