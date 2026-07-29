@@ -10,12 +10,11 @@ class CloudinaryService {
   // Your Cloudinary credentials
   static const String cloudName = 'dijqk2arj';
   static const String apiKey = '862473269516361';
-  static const String apiSecret = '4JpMPFJbMlHE3qulwj0_oe_8lJI';
 
+  // ✅ CORRECT: Only 2 arguments for version 0.23.1
   final CloudinaryPublic _cloudinary = CloudinaryPublic(
     cloudName,
     apiKey,
-    apiSecret,
   );
 
   Future<String?> uploadImage({
@@ -30,21 +29,37 @@ class CloudinaryService {
           image.path,
           resourceType: CloudinaryResourceType.Image,
           folder: folder,
-          // ✅ USE THE EXACT PRESET NAME FROM YOUR SCREENSHOT
-          uploadPreset: 'ML default',  // ← This is the key fix!
         ),
       );
 
-      if (response.isSuccessful) {
+      // ✅ CORRECT: Check if upload was successful
+      if (response.secureUrl != null && response.secureUrl!.isNotEmpty) {
         print('✅ Upload successful: ${response.secureUrl}');
         return response.secureUrl;
       } else {
-        print('❌ Upload failed: ${response.error?.message}');
+        print('❌ Upload failed');
         return null;
       }
     } catch (e) {
       print('❌ Upload error: $e');
       return null;
     }
+  }
+
+  Future<List<String>> uploadMultipleImages({
+    required List<File> images,
+    required String folder,
+  }) async {
+    List<String> urls = [];
+    for (var image in images) {
+      final url = await uploadImage(
+        image: image,
+        folder: folder,
+      );
+      if (url != null) {
+        urls.add(url);
+      }
+    }
+    return urls;
   }
 }
