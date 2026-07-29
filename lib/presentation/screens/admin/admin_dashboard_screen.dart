@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/models/job_model.dart';
@@ -165,7 +166,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
-          width: double.infinity, // FIXED: Changed from double.maxWidth
+          width: double.infinity,
           height: MediaQuery.of(context).size.height * 0.8,
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -213,7 +214,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _buildSettingsTextField(
                         controller: _maxDistanceController,
                         label: 'Max Distance (km)',
-                        icon: Icons.straighten, // FIXED: Changed from Icons.distance
+                        icon: Icons.straighten,
                         helperText: 'Maximum distance a washer can travel',
                       ),
                       const SizedBox(height: 20),
@@ -1054,6 +1055,7 @@ class _AdminWashersScreenState extends State<AdminWashersScreen> {
   Widget _buildWasherCard(Map<String, dynamic> washer) {
     final isApproved = washer['approved'] ?? false;
     final isOnline = washer['isOnline'] ?? false;
+    final profileImage = washer['profileImage'] ?? '';
     
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1065,11 +1067,42 @@ class _AdminWashersScreenState extends State<AdminWashersScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  child: Text(
-                    (washer['name'] ?? 'W')[0].toUpperCase(),
-                    style: const TextStyle(color: AppColors.primary),
+                // ✅ PROFILE IMAGE - DISPLAY FROM CLOUDINARY
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primary, width: 2),
+                  ),
+                  child: ClipOval(
+                    child: profileImage.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: profileImage,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.primary.withOpacity(0.1),
+                              child: Icon(
+                                Icons.person,
+                                color: AppColors.primary,
+                                size: 30,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: AppColors.primary.withOpacity(0.1),
+                            child: Icon(
+                              Icons.person,
+                              color: AppColors.primary,
+                              size: 30,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 12),

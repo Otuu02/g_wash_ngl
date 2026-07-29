@@ -1,6 +1,7 @@
 // lib/services/cloudinary_service.dart
 import 'dart:io';
-import 'package:cloudinary_public/cloudinary_public.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class CloudinaryService {
   static final CloudinaryService _instance = CloudinaryService._internal();
@@ -10,34 +11,59 @@ class CloudinaryService {
   // Your Cloudinary credentials
   static const String cloudName = 'dijqk2arj';
   static const String apiKey = '862473269516361';
+  static const String apiSecret = '4JpMPFJbMlHE3qulwj0_oe_8lJI';
 
-  // ✅ CORRECT: Only 2 arguments for version 0.23.1
-  final CloudinaryPublic _cloudinary = CloudinaryPublic(
-    cloudName,
-    apiKey,
-  );
-
-  Future<String?> uploadImage({
+  /// Upload a single image to Cloudinary
+  /// Works on web, mobile, and desktop
+  static Future<String?> uploadImage({
     required File image,
     required String folder,
   }) async {
     try {
       print('📤 Uploading to Cloudinary...');
+      print('📁 Folder: $folder');
+      print('📄 File: ${image.path}');
 
-      final response = await _cloudinary.uploadFile(
-        CloudinaryFile.fromFile(
+      // Read file as bytes
+      final bytes = await image.readAsBytes();
+      
+      // Check file size (max 10MB for free tier)
+      if (bytes.length > 10 * 1024 * 1024) {
+        throw Exception('Image too large. Max 10MB.');
+      }
+
+      // Create multipart request - WORKS ON WEB!
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload'),
+      );
+
+      // Add fields
+      request.fields['upload_preset'] = 'ML default';  // Your preset name
+      request.fields['folder'] = folder;
+      request.fields['api_key'] = apiKey;
+      request.fields['public_id'] = '${DateTime.now().millisecondsSinceEpoch}';
+
+      // Add file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
           image.path,
-          resourceType: CloudinaryResourceType.Image,
-          folder: folder,
         ),
       );
 
-      // ✅ CORRECT: Check if upload was successful
-      if (response.secureUrl != null && response.secureUrl!.isNotEmpty) {
-        print('✅ Upload successful: ${response.secureUrl}');
-        return response.secureUrl;
+      // Send request
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+      var jsonResponse = jsonDecode(responseData);
+
+      if (jsonResponse['secure_url'] != null) {
+        final url = jsonResponse['secure_url'];
+        print('✅ Upload successful: $url');
+        return url;
       } else {
-        print('❌ Upload failed');
+        final errorMsg = jsonResponse['error']?['message'] ?? 'Unknown error';
+        print('❌ Upload failed: $errorMsg');
         return null;
       }
     } catch (e) {
@@ -46,7 +72,8 @@ class CloudinaryService {
     }
   }
 
-  Future<List<String>> uploadMultipleImages({
+  /// Upload multiple images to Cloudinary
+  static Future<List<String>> uploadMultipleImages({
     required List<File> images,
     required String folder,
   }) async {
