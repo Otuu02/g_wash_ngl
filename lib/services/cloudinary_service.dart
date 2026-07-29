@@ -10,9 +10,8 @@ class CloudinaryService {
   // Your Cloudinary credentials
   static const String cloudName = 'dijqk2arj';
   static const String apiKey = '862473269516361';
-  static const String apiSecret = '4JpMPFJbMlHE3qulwj0_oe_8lJI';
 
-  // ✅ CORRECT constructor for version 0.23.1 (only 2 arguments)
+  // ✅ CORRECT: Only cloudName and apiKey (no apiSecret)
   final CloudinaryPublic _cloudinary = CloudinaryPublic(
     cloudName,
     apiKey,
@@ -33,12 +32,12 @@ class CloudinaryService {
         ),
       );
 
-      // ✅ CORRECT way to check response for this version
+      // ✅ CORRECT: Check if secureUrl exists
       if (response.secureUrl != null && response.secureUrl!.isNotEmpty) {
         print('✅ Upload successful: ${response.secureUrl}');
         return response.secureUrl;
       } else {
-        print('❌ Upload failed: ${response.error ?? "Unknown error"}');
+        print('❌ Upload failed');
         return null;
       }
     } catch (e) {
