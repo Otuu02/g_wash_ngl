@@ -4,13 +4,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class CloudinaryService {
-  // Your Cloudinary credentials
   static const String cloudName = 'dijqk2arj';
   static const String apiKey = '862473269516361';
-  static const String apiSecret = '4JpMPFJbMlHE3qulwj0_oe_8lJI';
 
-  /// Upload a single image to Cloudinary
-  /// Works on web, mobile, and desktop
   static Future<String?> uploadImage({
     required File image,
     required String folder,
@@ -18,27 +14,18 @@ class CloudinaryService {
     try {
       print('📤 Uploading to Cloudinary...');
       print('📁 Folder: $folder');
-      print('📄 File: ${image.path}');
+      print('📄 File size: ${await image.length()} bytes');
 
-      // Read file as bytes
-      final bytes = await image.readAsBytes();
-      
-      // Check file size (max 10MB for free tier)
-      if (bytes.length > 10 * 1024 * 1024) {
-        throw Exception('Image too large. Max 10MB.');
-      }
-
-      // Create multipart request - WORKS ON WEB!
+      // Create multipart request
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload'),
       );
 
-      // Add fields
-      request.fields['upload_preset'] = 'ML default';  // Your preset name
+      // Add required fields
+      request.fields['upload_preset'] = 'ML default';
       request.fields['folder'] = folder;
       request.fields['api_key'] = apiKey;
-      request.fields['public_id'] = '${DateTime.now().millisecondsSinceEpoch}';
 
       // Add file
       request.files.add(
@@ -48,17 +35,20 @@ class CloudinaryService {
         ),
       );
 
-      // Send request
-      var response = await request.send();
+      // Send request with timeout
+      var response = await request.send().timeout(const Duration(seconds: 30));
       var responseData = await response.stream.bytesToString();
       var jsonResponse = jsonDecode(responseData);
 
-      if (jsonResponse['secure_url'] != null) {
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: $responseData');
+
+      if (response.statusCode == 200 && jsonResponse['secure_url'] != null) {
         final url = jsonResponse['secure_url'];
         print('✅ Upload successful: $url');
         return url;
       } else {
-        final errorMsg = jsonResponse['error']?['message'] ?? 'Unknown error';
+        final errorMsg = jsonResponse['error']?['message'] ?? 'Upload failed';
         print('❌ Upload failed: $errorMsg');
         return null;
       }
@@ -66,23 +56,5 @@ class CloudinaryService {
       print('❌ Upload error: $e');
       return null;
     }
-  }
-
-  /// Upload multiple images to Cloudinary
-  static Future<List<String>> uploadMultipleImages({
-    required List<File> images,
-    required String folder,
-  }) async {
-    List<String> urls = [];
-    for (var image in images) {
-      final url = await uploadImage(
-        image: image,
-        folder: folder,
-      );
-      if (url != null) {
-        urls.add(url);
-      }
-    }
-    return urls;
   }
 }

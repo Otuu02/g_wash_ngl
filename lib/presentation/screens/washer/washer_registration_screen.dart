@@ -244,7 +244,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   }
 
   // ============================================================
-  // Image Picker Methods - FIXED
+  // IMAGE PICKER - UPLOAD IMMEDIATELY
   // ============================================================
   Future<void> _pickProfileImage() async {
     try {
@@ -255,18 +255,42 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         imageQuality: 70,
       );
       if (image != null) {
+        final file = File(image.path);
         setState(() {
-          _profileImage = File(image.path);
-          _profileImageUrl = ''; // Reset URL until upload
-          _profileUploaded = false;
+          _profileImage = file;
+          _isUploading = true;
           _uploadError = '';
+          _uploadProgress = 0.0;
         });
-        print('✅ Profile image selected: ${image.path}');
+        
+        print('📤 Uploading profile image...');
+        
+        // ✅ UPLOAD IMMEDIATELY
+        final url = await CloudinaryService.uploadImage(
+          image: file,
+          folder: 'washers',
+        );
+        
+        if (url != null) {
+          setState(() {
+            _profileImageUrl = url;
+            _profileUploaded = true;
+            _isUploading = false;
+            _uploadProgress = 1.0;
+          });
+          print('✅ Profile image uploaded: $url');
+        } else {
+          setState(() {
+            _uploadError = 'Failed to upload profile image. Please try again.';
+            _isUploading = false;
+          });
+        }
       }
     } catch (e) {
       print('❌ Error picking profile image: $e');
       setState(() {
         _uploadError = 'Failed to pick image: $e';
+        _isUploading = false;
       });
     }
   }
@@ -280,75 +304,43 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         imageQuality: 70,
       );
       if (image != null) {
+        final file = File(image.path);
         setState(() {
-          _idImage = File(image.path);
-          _idImageUrl = ''; // Reset URL until upload
-          _idUploaded = false;
+          _idImage = file;
+          _isUploading = true;
           _uploadError = '';
+          _uploadProgress = 0.0;
         });
-        print('✅ ID image selected: ${image.path}');
+        
+        print('📤 Uploading ID image...');
+        
+        // ✅ UPLOAD IMMEDIATELY
+        final url = await CloudinaryService.uploadImage(
+          image: file,
+          folder: 'washers',
+        );
+        
+        if (url != null) {
+          setState(() {
+            _idImageUrl = url;
+            _idUploaded = true;
+            _isUploading = false;
+            _uploadProgress = 1.0;
+          });
+          print('✅ ID image uploaded: $url');
+        } else {
+          setState(() {
+            _uploadError = 'Failed to upload ID image. Please try again.';
+            _isUploading = false;
+          });
+        }
       }
     } catch (e) {
       print('❌ Error picking ID image: $e');
       setState(() {
         _uploadError = 'Failed to pick image: $e';
-      });
-    }
-  }
-
-  // ============================================================
-  // CLOUDINARY IMAGE UPLOAD - FIXED
-  // ============================================================
-  Future<String?> _uploadImage(File image, String path, bool isProfile) async {
-    try {
-      setState(() {
-        _isUploading = true;
-        _uploadError = '';
-        _uploadProgress = 0.0;
-      });
-      
-      // Check file size
-      final bytes = await image.readAsBytes();
-      if (bytes.length > 10 * 1024 * 1024) {
-        throw Exception('Image too large. Max 10MB.');
-      }
-      
-      print('📤 Uploading to Cloudinary...');
-      
-      // ✅ STATIC METHOD CALL
-      final url = await CloudinaryService.uploadImage(
-        image: image,
-        folder: 'washers',
-      );
-      
-      if (url == null) {
-        throw Exception('Upload failed - no URL returned');
-      }
-      
-      // ✅ Store the URL in the appropriate variable
-      setState(() {
         _isUploading = false;
-        _uploadProgress = 1.0;
-        if (isProfile) {
-          _profileImageUrl = url;
-          _profileUploaded = true;
-        } else {
-          _idImageUrl = url;
-          _idUploaded = true;
-        }
       });
-      
-      print('✅ Upload successful: $url');
-      return url;
-      
-    } catch (e) {
-      print('❌ Upload error: $e');
-      setState(() {
-        _uploadError = 'Upload failed: ${e.toString().substring(0, 80)}';
-        _isUploading = false;
-        _uploadProgress = 0.0;
-      });
-      return null;
     }
   }
 
@@ -394,13 +386,13 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       }
     }
     
-    if (_profileImage == null) {
-      _showError('Please upload a profile picture');
+    if (!_profileUploaded) {
+      _showError('Please wait for profile picture to upload');
       return;
     }
     
-    if (_idImage == null) {
-      _showError('Please upload a means of identification');
+    if (!_idUploaded) {
+      _showError('Please wait for ID image to upload');
       return;
     }
     
@@ -417,36 +409,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Upload images
-      String? profileUrl;
-      String? idUrl;
-      
-      // Upload profile image
-      profileUrl = await _uploadImage(
-        _profileImage!, 
-        'washers/${DateTime.now().millisecondsSinceEpoch}_profile.jpg',
-        true, // isProfile
-      );
-      
-      if (profileUrl == null) {
-        _showError('Failed to upload profile picture. Please try again.');
-        setState(() => _isLoading = false);
-        return;
-      }
-      
-      // Upload ID image
-      idUrl = await _uploadImage(
-        _idImage!, 
-        'washers/${DateTime.now().millisecondsSinceEpoch}_id.jpg',
-        false, // isProfile
-      );
-      
-      if (idUrl == null) {
-        _showError('Failed to upload ID. Please try again.');
-        setState(() => _isLoading = false);
-        return;
-      }
-
       final authService = Provider.of<AuthService>(context, listen: false);
       
       final signupSuccess = await authService.signup(
@@ -506,8 +468,8 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'bankName': _selectedBank,
         'accountNumber': _accountNumberController.text.trim(),
         'accountName': _accountNameController.text.trim(),
-        'profileImage': profileUrl,
-        'idImage': idUrl,
+        'profileImage': _profileImageUrl,
+        'idImage': _idImageUrl,
         'isVerified': false,
         'isOnline': true,
         'approved': true,
@@ -531,7 +493,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'washerId': washerRef.id,
         'mainCategories': selectedMainCategories,
         'subServices': selectedSubServices,
-        'profileImage': profileUrl,
+        'profileImage': _profileImageUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
@@ -715,7 +677,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Profile Picture Upload - SHOWS IMAGE PREVIEW
+                    // Profile Picture Upload - IMMEDIATE UPLOAD
                     // ============================================================
                     const Text(
                       'Profile Picture',
@@ -731,48 +693,67 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                           color: Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(60),
                           border: Border.all(
-                            color: _profileImage != null ? AppColors.primary : Colors.grey.shade300,
+                            color: _profileUploaded ? AppColors.primary : Colors.grey.shade300,
                             width: 2,
                           ),
                         ),
-                        child: _profileImage != null
+                        child: _profileImage != null && _profileImageUrl.isNotEmpty
                             ? ClipOval(
-                                child: Image.file(
-                                  _profileImage!,
+                                child: Image.network(
+                                  _profileImageUrl,
                                   fit: BoxFit.cover,
                                   width: 120,
                                   height: 120,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.file(
+                                      _profileImage!,
+                                      fit: BoxFit.cover,
+                                      width: 120,
+                                      height: 120,
+                                    );
+                                  },
                                 ),
                               )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.camera_alt, size: 30, color: Colors.grey.shade400),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Upload Photo',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade400,
+                            : _profileImage != null
+                                ? ClipOval(
+                                    child: Image.file(
+                                      _profileImage!,
+                                      fit: BoxFit.cover,
+                                      width: 120,
+                                      height: 120,
                                     ),
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.camera_alt, size: 30, color: Colors.grey.shade400),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Upload Photo',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Center(
                       child: Text(
-                        _profileImage != null 
-                            ? _profileUploaded 
-                                ? '✅ Photo uploaded successfully!' 
-                                : '✅ Photo selected (uploading on save)' 
-                            : 'Tap to upload profile picture',
+                        _profileUploaded 
+                            ? '✅ Photo uploaded successfully!' 
+                            : _profileImage != null
+                                ? '⏳ Uploading photo...' 
+                                : 'Tap to upload profile picture',
                         style: TextStyle(
                           fontSize: 12,
-                          color: _profileImage != null 
-                              ? _profileUploaded ? Colors.green : Colors.orange 
-                              : Colors.grey.shade500,
+                          color: _profileUploaded 
+                              ? Colors.green 
+                              : _profileImage != null
+                                  ? Colors.orange 
+                                  : Colors.grey.shade500,
                         ),
                       ),
                     ),
@@ -780,7 +761,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Means of Identification Upload - SHOWS IMAGE PREVIEW
+                    // Means of Identification Upload - IMMEDIATE UPLOAD
                     // ============================================================
                     const Text(
                       'Means of Identification',
@@ -801,57 +782,77 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                           color: Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: _idImage != null ? AppColors.primary : Colors.grey.shade300,
+                            color: _idUploaded ? AppColors.primary : Colors.grey.shade300,
                             width: 2,
                           ),
                         ),
-                        child: _idImage != null
+                        child: _idImage != null && _idImageUrl.isNotEmpty
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: Image.file(
-                                  _idImage!,
+                                child: Image.network(
+                                  _idImageUrl,
                                   fit: BoxFit.cover,
                                   width: double.infinity,
                                   height: 160,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.file(
+                                      _idImage!,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: 160,
+                                    );
+                                  },
                                 ),
                               )
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.assignment, size: 40, color: Colors.grey.shade400),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Upload ID',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade400,
-                                      fontWeight: FontWeight.w500,
+                            : _idImage != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
+                                      _idImage!,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: 160,
                                     ),
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.assignment, size: 40, color: Colors.grey.shade400),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Upload ID',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey.shade400,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Text(
+                                        'National ID / Driver\'s License / Passport',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    'National ID / Driver\'s License / Passport',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey.shade400,
-                                    ),
-                                  ),
-                                ],
-                              ),
                       ),
                     ),
                     const SizedBox(height: 8),
                     Center(
                       child: Text(
-                        _idImage != null 
-                            ? _idUploaded 
-                                ? '✅ ID uploaded successfully!' 
-                                : '✅ ID selected (uploading on save)' 
-                            : 'Tap to upload means of identification',
+                        _idUploaded 
+                            ? '✅ ID uploaded successfully!' 
+                            : _idImage != null
+                                ? '⏳ Uploading ID...' 
+                                : 'Tap to upload means of identification',
                         style: TextStyle(
                           fontSize: 12,
-                          color: _idImage != null 
-                              ? _idUploaded ? Colors.green : Colors.orange 
-                              : Colors.grey.shade500,
+                          color: _idUploaded 
+                              ? Colors.green 
+                              : _idImage != null
+                                  ? Colors.orange 
+                                  : Colors.grey.shade500,
                         ),
                       ),
                     ),
