@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
 import '../../../services/app_notification_service.dart';
+import '../../../services/communication_service.dart';
 import '../washer/matching_screen.dart';
 import 'tracking_screen.dart';
 
@@ -32,8 +33,8 @@ class BookingScreen extends StatefulWidget {
 
 class _BookingScreenState extends State<BookingScreen> {
   String _selectedCategory = 'Car Wash';
-  String _selectedService = 'Standard Cleaning';
-  int _selectedServicePrice = 15000;
+  String _selectedService = 'Exterior Wash';
+  int _selectedServicePrice = 3000;
   String _selectedLocation = 'Lekki Phase 1, Lagos';
   DateTime _selectedDate = DateTime.now();
   String _selectedTime = '9:00 AM';
@@ -91,7 +92,6 @@ class _BookingScreenState extends State<BookingScreen> {
     }
     if (widget.serviceCategory != null) {
       _selectedCategory = widget.serviceCategory!;
-      // Update service to match category
       final services = _services[_selectedCategory] ?? _services['Car Wash']!;
       if (services.isNotEmpty) {
         _selectedService = services[0]['name'];
@@ -220,7 +220,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   // ============================================================
-  // BOOK SERVICE - FIXED WITH NOTIFICATIONS
+  // BOOK SERVICE - WITH REAL-TIME NOTIFICATIONS
   // ============================================================
   Future<void> _bookService() async {
     setState(() {
@@ -244,6 +244,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
       final customerName = authService.userName ?? 'Customer';
       final customerPhone = authService.userPhone ?? '';
+      final customerEmail = authService.userEmail ?? '';
 
       print('📝 Creating job for: $customerName ($uid)');
       print('📝 Service: $_selectedService - ₦$_selectedServicePrice');
@@ -267,22 +268,25 @@ class _BookingScreenState extends State<BookingScreen> {
       
       print('✅ Job created with ID: $jobId');
 
-      // ✅ SEND NOTIFICATION: Booking Confirmed
-      final notificationService = AppNotificationService();
-      notificationService.addNotification(
-        title: '✅ Booking Confirmed!',
-        message: 'Your $_selectedService booking has been confirmed. We are finding a provider for you.',
-        type: 'booking',
+      // ✅ SEND COMMUNICATION NOTIFICATIONS (SMS, Email, Push)
+      final commService = CommunicationService();
+      await commService.sendBookingNotifications(
         jobId: jobId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        customerEmail: customerEmail,
+        serviceName: _selectedService,
+        location: _selectedLocation,
+        price: _selectedServicePrice,
       );
 
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('✅ Booking confirmed! Finding provider...'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
       }

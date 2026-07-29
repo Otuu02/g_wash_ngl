@@ -2,12 +2,15 @@
 // PURPOSE: Display and manage incoming job requests from Firestore
 
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
 import '../../../services/app_notification_service.dart';
-import 'navigation_screen.dart';
+import '../../../services/communication_service.dart';
+import '../../customer/tracking_screen.dart';
 
 class JobRequestScreen extends StatefulWidget {
   const JobRequestScreen({super.key});
@@ -23,28 +26,67 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
     final jobId = job['id'];
     if (jobId == null) return;
 
+    setState(() {});
+
     try {
-      await JobService().assignProviderToJob(jobId: jobId, providerId: washerId);
+      // 1. Assign provider to job
+      final result = await JobService().assignProviderToJob(
+        jobId: jobId, 
+        providerId: washerId,
+      );
+
+      // 2. Get washer details for notifications
+      final washerDoc = await FirebaseFirestore.instance
+          .collection('washers')
+          .doc(washerId)
+          .get();
+      final washerData = washerDoc.data() ?? {};
+      final washerName = washerData['name'] ?? 'Provider';
+      final washerPhone = washerData['phone'] ?? '';
+
+      // 3. Send notifications
+      final commService = CommunicationService();
+      await commService.sendProviderAssignedNotifications(
+        jobId: jobId,
+        customerName: job['customerName'] ?? 'Customer',
+        customerPhone: job['customerPhone'] ?? '',
+        customerEmail: job['customerEmail'] ?? '',
+        providerName: washerName,
+        serviceName: job['serviceName'] ?? 'Service',
+        eta: '15 mins',
+      );
+
       if (mounted) {
-        AppNotificationService().notify(
-          context: context,
-          title: '✅ Job Accepted!',
-          message: 'Opening navigation for the customer request.',
-          type: 'booking',
-          icon: Icons.check_circle_outline,
-          backgroundColor: Colors.green,
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Job Accepted Successfully!'),
+            backgroundColor: Colors.green,
+          ),
         );
+
+        // Navigate to Tracking Screen (customer view)
+        final lat = job['latitude'] ?? 6.5244;
+        final lng = job['longitude'] ?? 3.3792;
+        final location = job['location'] ?? 'Customer Location';
+
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => NavigationScreen(
+            builder: (context) => TrackingScreen(
               jobId: jobId,
-              destination: job['location'] ?? job['address'] ?? 'Customer Address',
+              washerName: washerName,
+              pickupAddress: location,
+              pickupLocation: LatLng(lat, lng),
+              serviceName: job['serviceName'] ?? 'Service',
+              price: job['price'] ?? 0,
+              washerId: washerId,
+              washerImage: washerData['profileImage'],
             ),
           ),
         );
       }
     } catch (e) {
+      print('❌ Error accepting job: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -64,13 +106,11 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
       await JobService().cancelJob(jobId: jobId, reason: 'Declined by service provider');
       if (mounted) {
         setState(() {});
-        AppNotificationService().notify(
-          context: context,
-          title: '🚨 Job Declined',
-          message: 'The customer request has been declined.',
-          type: 'booking',
-          icon: Icons.cancel_outlined,
-          backgroundColor: Colors.red,
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Job declined'),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
     } catch (e) {
@@ -126,7 +166,8 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
             final activeJobs = washerJobs.where((j) =>
                 j['status'] == 'assigned' ||
                 j['status'] == 'enRoute' ||
-                j['status'] == 'in_progress').toList();
+                j['status'] == 'in_progress' ||
+                j['status'] == 'arrived').toList();
 
             return TabBarView(
               children: [
@@ -141,7 +182,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                       ),
                 // Active Tab
                 activeJobs.isEmpty
-                    ? _buildEmptyState('No active jobs', 'Accepted jobs will appear here for navigation')
+                    ? _buildEmptyState('No active jobs', 'Accepted jobs will appear here')
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: activeJobs.length,
@@ -284,7 +325,6 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
   Widget _buildActiveJobCard(Map<String, dynamic> job) {
     final serviceName = job['serviceName'] ?? job['serviceCategory'] ?? 'Service';
     final customerName = job['customerName'] ?? 'Customer';
-    final customerPhone = job['customerPhone'] ?? job['phone'] ?? '';
     final address = job['location'] ?? job['address'] ?? 'Customer Location';
     final eta = job['eta'] ?? '15 mins';
 
@@ -346,15 +386,6 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
                 ),
-                if (customerPhone.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  const Icon(Icons.phone, size: 14, color: AppColors.grey600),
-                  const SizedBox(width: 4),
-                  Text(
-                    customerPhone,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -377,67 +408,12 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Cancel job
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          title: const Text('Cancel Job'),
-                          content: Text('Are you sure you want to cancel $serviceName?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('No'),
-                            ),
-                            ElevatedButton(
-                              onPressed: () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                Navigator.pop(context);
-                                final jobId = job['id'];
-                                if (jobId != null) {
-                                  try {
-                                    await JobService().cancelJob(
-                                      jobId: jobId,
-                                      reason: 'Cancelled by service provider',
-                                    );
-                                    if (mounted) {
-                                      setState(() {});
-                                    }
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Job cancelled'),
-                                        backgroundColor: AppColors.error,
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text('Failed to cancel job: $e'),
-                                        backgroundColor: AppColors.error,
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.error,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Yes, Cancel'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                    onPressed: () => _cancelActiveJob(job),
                     icon: const Icon(Icons.close, size: 18),
                     label: const Text('Cancel'),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppColors.error),
                       foregroundColor: AppColors.error,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
                     ),
                   ),
                 ),
@@ -447,12 +423,21 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                     onPressed: () {
                       final jobId = job['id'];
                       if (jobId != null) {
+                        final lat = job['latitude'] ?? 6.5244;
+                        final lng = job['longitude'] ?? 3.3792;
+                        final location = job['location'] ?? 'Customer Location';
+                        
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => NavigationScreen(
+                            builder: (context) => TrackingScreen(
                               jobId: jobId,
-                              destination: address,
+                              washerName: job['washerName'] ?? 'Provider',
+                              pickupAddress: location,
+                              pickupLocation: LatLng(lat, lng),
+                              serviceName: job['serviceName'] ?? 'Service',
+                              price: job['price'] ?? 0,
+                              washerId: job['washerId'],
                             ),
                           ),
                         );
@@ -463,15 +448,11 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
                     ),
                   ),
                 ),
               ],
             ),
-            // Status indicator
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -480,21 +461,23 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.blue.withOpacity(0.1)),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 14, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(Icons.info_outline, size: 14, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text(
                     'You are en route to customer location',
                     style: TextStyle(fontSize: 12),
                   ),
-                  const Spacer(),
-                  Container(
+                  Spacer(),
+                  SizedBox(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
                 ],
@@ -502,6 +485,58 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _cancelActiveJob(Map<String, dynamic> job) async {
+    final jobId = job['id'];
+    if (jobId == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Cancel Job'),
+        content: Text('Are you sure you want to cancel ${job['serviceName'] ?? 'this job'}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await JobService().cancelJob(
+                  jobId: jobId,
+                  reason: 'Cancelled by service provider',
+                );
+                if (mounted) {
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Job cancelled'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to cancel job: $e'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Yes, Cancel'),
+          ),
+        ],
       ),
     );
   }
@@ -536,7 +571,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            if (title == 'No pending jobs')
+            if (title == 'No pending job requests')
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
