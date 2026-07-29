@@ -1,51 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base href="$FLUTTER_BASE_HREF">
-
+  <base href="/">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  
-  <!-- ============================================================
-  GOOGLE SIGN-IN CLIENT ID - CORRECT FIREBASE WEB CLIENT ID
-  ============================================================ -->
-  <meta name="google-signin-client_id" content="268073858735-gg0t71o28uauh3rkfrf5gvu3bam2s867.apps.googleusercontent.com">
-  
-  <meta name="description" content="G Wash NG - On-demand car wash, house cleaning, and laundry services in Nigeria">
-  <meta name="keywords" content="car wash, house cleaning, laundry, on-demand services, Nigeria">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="G Wash NG">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
-
   <title>G Wash NG</title>
   <link rel="manifest" href="manifest.json">
-
-  <!-- ============================================================
-  GOOGLE MAPS API - WITH YOUR API KEY
-  ============================================================ -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw&libraries=places,geometry&loading=async&v=3">
-  </script>
-
-  <script src="flutter_bootstrap.js" async></script>
   
-  <!-- ============================================================
-  FIX: Handle map loading errors
-  ============================================================ -->
+  <!-- ✅ CORRECT Google Maps API Key -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDVZmeFAuWz47ovO7AJesNevZ7fdH1Y3Bo&libraries=places,geometry&v=3.53">
+  </script>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  
   <script>
-    function handleMapError() {
-      console.log('Map loaded successfully');
-    }
-    window.gm_authFailure = handleMapError;
+    window.flutterWebRenderer = "canvaskit";
   </script>
 </head>
 <body>
-  <!-- Flutter app will be rendered here -->
+  <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>
