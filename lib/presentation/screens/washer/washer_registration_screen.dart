@@ -8,7 +8,6 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
-import '../../../services/cloudinary_service.dart';
 import 'washer_dashboard.dart';
 import '../auth/login_screen.dart';
 
@@ -32,23 +31,8 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   final _accountNameController = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
+  final _ninController = TextEditingController(); // ✅ NEW: NIN field
   
-  // ============================================================
-  // File Uploads - Profile Picture & ID (Cloudinary)
-  // ============================================================
-  File? _profileImage;
-  File? _idImage;
-  String _profileImageUrl = '';
-  String _idImageUrl = '';
-  final ImagePicker _picker = ImagePicker();
-  bool _isUploading = false;
-  String _uploadError = '';
-  double _uploadProgress = 0.0;
-  
-  // Track if images are uploaded successfully
-  bool _profileUploaded = false;
-  bool _idUploaded = false;
-
   // ============================================================
   // Service Price Controllers
   // ============================================================
@@ -244,107 +228,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   }
 
   // ============================================================
-  // IMAGE PICKER - UPLOAD IMMEDIATELY
-  // ============================================================
-  Future<void> _pickProfileImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 500,
-        maxHeight: 500,
-        imageQuality: 70,
-      );
-      if (image != null) {
-        final file = File(image.path);
-        setState(() {
-          _profileImage = file;
-          _isUploading = true;
-          _uploadError = '';
-          _uploadProgress = 0.0;
-        });
-        
-        print('📤 Uploading profile image...');
-        
-        // ✅ UPLOAD IMMEDIATELY
-        final url = await CloudinaryService.uploadImage(
-          image: file,
-          folder: 'washers',
-        );
-        
-        if (url != null) {
-          setState(() {
-            _profileImageUrl = url;
-            _profileUploaded = true;
-            _isUploading = false;
-            _uploadProgress = 1.0;
-          });
-          print('✅ Profile image uploaded: $url');
-        } else {
-          setState(() {
-            _uploadError = 'Failed to upload profile image. Please try again.';
-            _isUploading = false;
-          });
-        }
-      }
-    } catch (e) {
-      print('❌ Error picking profile image: $e');
-      setState(() {
-        _uploadError = 'Failed to pick image: $e';
-        _isUploading = false;
-      });
-    }
-  }
-
-  Future<void> _pickIdImage() async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 70,
-      );
-      if (image != null) {
-        final file = File(image.path);
-        setState(() {
-          _idImage = file;
-          _isUploading = true;
-          _uploadError = '';
-          _uploadProgress = 0.0;
-        });
-        
-        print('📤 Uploading ID image...');
-        
-        // ✅ UPLOAD IMMEDIATELY
-        final url = await CloudinaryService.uploadImage(
-          image: file,
-          folder: 'washers',
-        );
-        
-        if (url != null) {
-          setState(() {
-            _idImageUrl = url;
-            _idUploaded = true;
-            _isUploading = false;
-            _uploadProgress = 1.0;
-          });
-          print('✅ ID image uploaded: $url');
-        } else {
-          setState(() {
-            _uploadError = 'Failed to upload ID image. Please try again.';
-            _isUploading = false;
-          });
-        }
-      }
-    } catch (e) {
-      print('❌ Error picking ID image: $e');
-      setState(() {
-        _uploadError = 'Failed to pick image: $e';
-        _isUploading = false;
-      });
-    }
-  }
-
-  // ============================================================
   // Register Washer
   // ============================================================
   Future<void> _registerWasher() async {
@@ -384,16 +267,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
           return;
         }
       }
-    }
-    
-    if (!_profileUploaded) {
-      _showError('Please wait for profile picture to upload');
-      return;
-    }
-    
-    if (!_idUploaded) {
-      _showError('Please wait for ID image to upload');
-      return;
     }
     
     if (!_agreeToTerms) {
@@ -459,6 +332,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'email': _emailController.text.trim(),
         'city': _cityController.text.trim(),
         'state': _stateController.text.trim(),
+        'ninNumber': _ninController.text.trim(), // ✅ NIN field added
         'selectedMainCategories': selectedMainCategories,
         'mainCategoryNames': mainCategoryNames,
         'selectedSubServices': selectedSubServices,
@@ -468,8 +342,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'bankName': _selectedBank,
         'accountNumber': _accountNumberController.text.trim(),
         'accountName': _accountNameController.text.trim(),
-        'profileImage': _profileImageUrl,
-        'idImage': _idImageUrl,
         'isVerified': false,
         'isOnline': true,
         'approved': true,
@@ -493,7 +365,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'washerId': washerRef.id,
         'mainCategories': selectedMainCategories,
         'subServices': selectedSubServices,
-        'profileImage': _profileImageUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
@@ -550,29 +421,17 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading || _isUploading
-          ? Center(
+      body: _isLoading
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   CircularProgressIndicator(color: AppColors.primary),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   Text(
-                    _isUploading 
-                        ? 'Uploading images... ${(_uploadProgress * 100).toStringAsFixed(0)}%'
-                        : 'Processing...',
+                    'Processing...',
                     style: TextStyle(color: AppColors.grey600),
                   ),
-                  if (_isUploading)
-                    Container(
-                      margin: const EdgeInsets.only(top: 8),
-                      width: 200,
-                      child: LinearProgressIndicator(
-                        value: _uploadProgress,
-                        color: AppColors.primary,
-                        backgroundColor: Colors.grey.shade200,
-                      ),
-                    ),
                 ],
               ),
             )
@@ -673,217 +532,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                         ],
                       ),
                     ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // ============================================================
-                    // Profile Picture Upload - IMMEDIATE UPLOAD
-                    // ============================================================
-                    const Text(
-                      'Profile Picture',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: _pickProfileImage,
-                      child: Container(
-                        height: 120,
-                        width: 120,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(60),
-                          border: Border.all(
-                            color: _profileUploaded ? AppColors.primary : Colors.grey.shade300,
-                            width: 2,
-                          ),
-                        ),
-                        child: _profileImage != null && _profileImageUrl.isNotEmpty
-                            ? ClipOval(
-                                child: Image.network(
-                                  _profileImageUrl,
-                                  fit: BoxFit.cover,
-                                  width: 120,
-                                  height: 120,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.file(
-                                      _profileImage!,
-                                      fit: BoxFit.cover,
-                                      width: 120,
-                                      height: 120,
-                                    );
-                                  },
-                                ),
-                              )
-                            : _profileImage != null
-                                ? ClipOval(
-                                    child: Image.file(
-                                      _profileImage!,
-                                      fit: BoxFit.cover,
-                                      width: 120,
-                                      height: 120,
-                                    ),
-                                  )
-                                : Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.camera_alt, size: 30, color: Colors.grey.shade400),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Upload Photo',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Text(
-                        _profileUploaded 
-                            ? '✅ Photo uploaded successfully!' 
-                            : _profileImage != null
-                                ? '⏳ Uploading photo...' 
-                                : 'Tap to upload profile picture',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _profileUploaded 
-                              ? Colors.green 
-                              : _profileImage != null
-                                  ? Colors.orange 
-                                  : Colors.grey.shade500,
-                        ),
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // ============================================================
-                    // Means of Identification Upload - IMMEDIATE UPLOAD
-                    // ============================================================
-                    const Text(
-                      'Means of Identification',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Upload a valid ID (National ID, Driver\'s License, Voter\'s Card, or International Passport)',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: _pickIdImage,
-                      child: Container(
-                        height: 160,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _idUploaded ? AppColors.primary : Colors.grey.shade300,
-                            width: 2,
-                          ),
-                        ),
-                        child: _idImage != null && _idImageUrl.isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  _idImageUrl,
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: 160,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Image.file(
-                                      _idImage!,
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: 160,
-                                    );
-                                  },
-                                ),
-                              )
-                            : _idImage != null
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(
-                                      _idImage!,
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: 160,
-                                    ),
-                                  )
-                                : Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.assignment, size: 40, color: Colors.grey.shade400),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Upload ID',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey.shade400,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                      Text(
-                                        'National ID / Driver\'s License / Passport',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Text(
-                        _idUploaded 
-                            ? '✅ ID uploaded successfully!' 
-                            : _idImage != null
-                                ? '⏳ Uploading ID...' 
-                                : 'Tap to upload means of identification',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _idUploaded 
-                              ? Colors.green 
-                              : _idImage != null
-                                  ? Colors.orange 
-                                  : Colors.grey.shade500,
-                        ),
-                      ),
-                    ),
-                    
-                    // Upload Error Display
-                    if (_uploadError.isNotEmpty)
-                      Container(
-                        margin: const EdgeInsets.only(top: 12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.withOpacity(0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline, color: Colors.red),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _uploadError,
-                                style: const TextStyle(color: Colors.red, fontSize: 13),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () => setState(() => _uploadError = ''),
-                              child: const Icon(Icons.close, color: Colors.red, size: 16),
-                            ),
-                          ],
-                        ),
-                      ),
                     
                     const SizedBox(height: 24),
                     
@@ -1125,6 +773,38 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                         ),
                       ),
                       validator: (value) => value == null || value.isEmpty ? 'Enter email' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // ✅ NEW: NIN Number Field
+                    TextFormField(
+                      controller: _ninController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 11,
+                      decoration: const InputDecoration(
+                        labelText: 'NIN Number *',
+                        prefixIcon: Icon(Icons.verified, color: AppColors.primary),
+                        border: OutlineInputBorder(),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                        counterText: '',
+                        hintText: 'Enter your 11-digit NIN',
+                        helperText: 'National Identification Number (NIN)',
+                        helperStyle: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Enter your NIN number';
+                        }
+                        if (value.length != 11) {
+                          return 'NIN must be 11 digits';
+                        }
+                        if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                          return 'NIN must contain only numbers';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 12),
                     
