@@ -4,8 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
@@ -291,7 +289,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   }
 
   // ============================================================
-  // CLOUDINARY IMAGE UPLOAD
+  // CLOUDINARY IMAGE UPLOAD - FIXED
   // ============================================================
   Future<String?> _uploadImage(File image, String path) async {
     try {
@@ -313,7 +311,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       final url = await cloudinary.uploadImage(
         image: image,
         folder: 'washers',
-        fileName: DateTime.now().millisecondsSinceEpoch.toString(),
       );
       
       setState(() {

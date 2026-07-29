@@ -36,7 +36,7 @@ dependencies:
 
   # Utilities
   image_picker: ^1.1.2
-  intl: 0.19.0
+  intl: ^0.20.2
   connectivity_plus: ^6.0.3
   permission_handler: ^11.3.1
   url_launcher: ^6.3.0
@@ -66,7 +66,7 @@ dependencies:
   local_auth: ^2.1.6
   flutter_map: ^7.0.1
 
-  # Image Upload - Use correct version
+  # Cloudinary
   cloudinary_public: ^0.23.1
 
 dev_dependencies:
