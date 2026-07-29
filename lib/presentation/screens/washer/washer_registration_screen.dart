@@ -38,12 +38,16 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   // ============================================================
   File? _profileImage;
   File? _idImage;
-  final ImagePicker _picker = ImagePicker();
-  bool _isUploading = false;
   String _profileImageUrl = '';
   String _idImageUrl = '';
+  final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
   String _uploadError = '';
   double _uploadProgress = 0.0;
+  
+  // Track if images are uploaded successfully
+  bool _profileUploaded = false;
+  bool _idUploaded = false;
 
   // ============================================================
   // Service Price Controllers
@@ -240,7 +244,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   }
 
   // ============================================================
-  // Image Picker Methods
+  // Image Picker Methods - FIXED
   // ============================================================
   Future<void> _pickProfileImage() async {
     try {
@@ -253,6 +257,8 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       if (image != null) {
         setState(() {
           _profileImage = File(image.path);
+          _profileImageUrl = ''; // Reset URL until upload
+          _profileUploaded = false;
           _uploadError = '';
         });
         print('✅ Profile image selected: ${image.path}');
@@ -276,6 +282,8 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       if (image != null) {
         setState(() {
           _idImage = File(image.path);
+          _idImageUrl = ''; // Reset URL until upload
+          _idUploaded = false;
           _uploadError = '';
         });
         print('✅ ID image selected: ${image.path}');
@@ -289,9 +297,9 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   }
 
   // ============================================================
-  // CLOUDINARY IMAGE UPLOAD (HTTP version - works on web)
+  // CLOUDINARY IMAGE UPLOAD - FIXED
   // ============================================================
-  Future<String?> _uploadImage(File image, String path) async {
+  Future<String?> _uploadImage(File image, String path, bool isProfile) async {
     try {
       setState(() {
         _isUploading = true;
@@ -307,20 +315,28 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       
       print('📤 Uploading to Cloudinary...');
       
-      // ✅ STATIC METHOD CALL - No instance needed
+      // ✅ STATIC METHOD CALL
       final url = await CloudinaryService.uploadImage(
         image: image,
         folder: 'washers',
       );
       
-      setState(() {
-        _isUploading = false;
-        _uploadProgress = 1.0;
-      });
-      
       if (url == null) {
         throw Exception('Upload failed - no URL returned');
       }
+      
+      // ✅ Store the URL in the appropriate variable
+      setState(() {
+        _isUploading = false;
+        _uploadProgress = 1.0;
+        if (isProfile) {
+          _profileImageUrl = url;
+          _profileUploaded = true;
+        } else {
+          _idImageUrl = url;
+          _idUploaded = true;
+        }
+      });
       
       print('✅ Upload successful: $url');
       return url;
@@ -405,9 +421,11 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       String? profileUrl;
       String? idUrl;
       
+      // Upload profile image
       profileUrl = await _uploadImage(
         _profileImage!, 
-        'washers/${DateTime.now().millisecondsSinceEpoch}_profile.jpg'
+        'washers/${DateTime.now().millisecondsSinceEpoch}_profile.jpg',
+        true, // isProfile
       );
       
       if (profileUrl == null) {
@@ -416,9 +434,11 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         return;
       }
       
+      // Upload ID image
       idUrl = await _uploadImage(
         _idImage!, 
-        'washers/${DateTime.now().millisecondsSinceEpoch}_id.jpg'
+        'washers/${DateTime.now().millisecondsSinceEpoch}_id.jpg',
+        false, // isProfile
       );
       
       if (idUrl == null) {
@@ -695,7 +715,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Profile Picture Upload
+                    // Profile Picture Upload - SHOWS IMAGE PREVIEW
                     // ============================================================
                     const Text(
                       'Profile Picture',
@@ -743,10 +763,16 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 8),
                     Center(
                       child: Text(
-                        _profileImage != null ? '✅ Photo selected' : 'Tap to upload profile picture',
+                        _profileImage != null 
+                            ? _profileUploaded 
+                                ? '✅ Photo uploaded successfully!' 
+                                : '✅ Photo selected (uploading on save)' 
+                            : 'Tap to upload profile picture',
                         style: TextStyle(
                           fontSize: 12,
-                          color: _profileImage != null ? Colors.green : Colors.grey.shade500,
+                          color: _profileImage != null 
+                              ? _profileUploaded ? Colors.green : Colors.orange 
+                              : Colors.grey.shade500,
                         ),
                       ),
                     ),
@@ -754,7 +780,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Means of Identification Upload
+                    // Means of Identification Upload - SHOWS IMAGE PREVIEW
                     // ============================================================
                     const Text(
                       'Means of Identification',
@@ -816,10 +842,16 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 8),
                     Center(
                       child: Text(
-                        _idImage != null ? '✅ ID uploaded' : 'Tap to upload means of identification',
+                        _idImage != null 
+                            ? _idUploaded 
+                                ? '✅ ID uploaded successfully!' 
+                                : '✅ ID selected (uploading on save)' 
+                            : 'Tap to upload means of identification',
                         style: TextStyle(
                           fontSize: 12,
-                          color: _idImage != null ? Colors.green : Colors.grey.shade500,
+                          color: _idImage != null 
+                              ? _idUploaded ? Colors.green : Colors.orange 
+                              : Colors.grey.shade500,
                         ),
                       ),
                     ),
