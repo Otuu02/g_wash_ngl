@@ -14,6 +14,7 @@ class AuthService extends ChangeNotifier {
   String? _userId;
   String? _userRole; // customer, washer, cleaner, laundry_provider, admin
   String? _serviceCategory; // Car Wash, House Cleaning, Laundry
+  String? _userEmail; // ✅ ADDED: User email field
   
   // Store registered users
   Map<String, Map<String, String>> _registeredUsers = {};
@@ -23,6 +24,24 @@ class AuthService extends ChangeNotifier {
     _listenToAuthChanges();
     _checkIfWasherOnStartup();
   }
+
+  // ============================================================
+  // GETTERS
+  // ============================================================
+  bool get isLoggedIn => _isLoggedIn;
+  String? get userName => _userName;
+  String? get userPhone => _userPhone;
+  String? get userId => _userId;
+  String? get userRole => _userRole;
+  String? get serviceCategory => _serviceCategory;
+  String? get userEmail => _userEmail; // ✅ ADDED: Getter for userEmail
+  
+  bool get isCustomer => _userRole == 'customer' || _userRole == null;
+  bool get isWasher => _userRole == 'washer';
+  bool get isCleaner => _userRole == 'cleaner';
+  bool get isLaundryProvider => _userRole == 'laundry_provider';
+  bool get isAdmin => _userRole == 'admin';
+  bool get isServiceProvider => isWasher || isCleaner || isLaundryProvider;
 
   // ============================================================
   // FIX: Check if user is a washer on startup
@@ -42,6 +61,7 @@ class AuthService extends ChangeNotifier {
       if (user != null) {
         print('✅ Firebase Auth: User signed in: ${user.uid}');
         _userId = user.uid;
+        _userEmail = user.email; // ✅ Store email
         _isLoggedIn = true;
         await _loadUserFromFirestore(user.uid);
         await _checkIfWasher(user.uid);
@@ -55,6 +75,7 @@ class AuthService extends ChangeNotifier {
         _userId = null;
         _userRole = null;
         _serviceCategory = null;
+        _userEmail = null;
         await _saveUserState();
         notifyListeners();
       }
@@ -75,14 +96,9 @@ class AuthService extends ChangeNotifier {
         final data = doc.data() as Map<String, dynamic>;
         _userName = data['name'] ?? 'User';
         _userPhone = data['phone'] ?? '';
-        
-        final firestoreRole = data['role'] ?? 'customer';
+        _userEmail = data['email'] ?? ''; // ✅ Load email
+        _userRole = data['role'] ?? 'customer';
         _serviceCategory = data['serviceCategory'];
-        
-        if (_userRole == null || _userRole == 'customer') {
-          _userRole = firestoreRole;
-        }
-        
         _isLoggedIn = true;
         print('✅ User loaded from Firestore: $_userName (role: $_userRole)');
       } else {
@@ -115,20 +131,6 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  bool get isLoggedIn => _isLoggedIn;
-  String? get userName => _userName;
-  String? get userPhone => _userPhone;
-  String? get userId => _userId;
-  String? get userRole => _userRole;
-  String? get serviceCategory => _serviceCategory;
-  
-  bool get isCustomer => _userRole == 'customer' || _userRole == null;
-  bool get isWasher => _userRole == 'washer';
-  bool get isCleaner => _userRole == 'cleaner';
-  bool get isLaundryProvider => _userRole == 'laundry_provider';
-  bool get isAdmin => _userRole == 'admin';
-  bool get isServiceProvider => isWasher || isCleaner || isLaundryProvider;
-
   Future<void> _loadSavedUser() async {
     final prefs = await SharedPreferences.getInstance();
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
@@ -137,6 +139,7 @@ class AuthService extends ChangeNotifier {
     _userId = prefs.getString('userId');
     _userRole = prefs.getString('userRole');
     _serviceCategory = prefs.getString('serviceCategory');
+    _userEmail = prefs.getString('userEmail'); // ✅ Load saved email
     
     final usersJson = prefs.getString('registeredUsers');
     if (usersJson != null) {
@@ -157,6 +160,7 @@ class AuthService extends ChangeNotifier {
     if (_userId != null) await prefs.setString('userId', _userId!);
     if (_userRole != null) await prefs.setString('userRole', _userRole!);
     if (_serviceCategory != null) await prefs.setString('serviceCategory', _serviceCategory!);
+    if (_userEmail != null) await prefs.setString('userEmail', _userEmail!); // ✅ Save email
     
     final usersJson = jsonEncode(_registeredUsers);
     await prefs.setString('registeredUsers', usersJson);
@@ -212,6 +216,7 @@ class AuthService extends ChangeNotifier {
           );
       
       final String uid = userCredential.user!.uid;
+      _userEmail = userCredential.user!.email; // ✅ Store email
       
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'name': name,
@@ -284,6 +289,7 @@ class AuthService extends ChangeNotifier {
         final userName = userData['name'] ?? 'User';
         final userRole = userData['role'] ?? 'customer';
         final userServiceCategory = userData['serviceCategory'];
+        final userEmail = userData['email'] ?? '';
         
         bool isWasher = false;
         String? washerId;
@@ -322,6 +328,7 @@ class AuthService extends ChangeNotifier {
           _userId = uid;
           _userName = userName;
           _userPhone = formattedPhone;
+          _userEmail = userEmail; // ✅ Store email
           _serviceCategory = userServiceCategory;
           
           if (isWasher) {
@@ -354,6 +361,7 @@ class AuthService extends ChangeNotifier {
                   );
               
               final uid = newUser.user!.uid;
+              _userEmail = newUser.user!.email; // ✅ Store email
               
               await FirebaseFirestore.instance.collection('users').doc(uid).set({
                 'name': userName,
@@ -509,11 +517,13 @@ class AuthService extends ChangeNotifier {
     _userId = DateTime.now().millisecondsSinceEpoch.toString();
     _userRole = 'customer';
     _serviceCategory = null;
+    _userEmail = 'demo@gwashng.com';
     
     try {
       await FirebaseFirestore.instance.collection('users').doc(_userId).set({
         'name': _userName,
         'phone': formattedPhone,
+        'email': 'demo@gwashng.com',
         'role': 'customer',
         'isBlocked': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -536,6 +546,7 @@ class AuthService extends ChangeNotifier {
     _isLoggedIn = true;
     _userName = name.isNotEmpty ? name : 'Google User';
     _userPhone = '';
+    _userEmail = email;
     _userId = FirebaseAuth.instance.currentUser?.uid ?? DateTime.now().millisecondsSinceEpoch.toString();
     _userRole = 'customer';
     _serviceCategory = null;
@@ -560,6 +571,7 @@ class AuthService extends ChangeNotifier {
     _userId = null;
     _userRole = null;
     _serviceCategory = null;
+    _userEmail = null;
     await _saveUserState();
     notifyListeners();
     print('✅ User logged out');
@@ -579,6 +591,7 @@ class AuthService extends ChangeNotifier {
     _userId = prefs.getString('userId');
     _userRole = prefs.getString('userRole');
     _serviceCategory = prefs.getString('serviceCategory');
+    _userEmail = prefs.getString('userEmail');
     notifyListeners();
   }
 
@@ -909,11 +922,16 @@ class AuthService extends ChangeNotifier {
       _userPhone = phone;
       await prefs.setString('userPhone', phone);
     }
+    if (email != null) {
+      _userEmail = email;
+      await prefs.setString('userEmail', email);
+    }
     
     try {
       await FirebaseFirestore.instance.collection('users').doc(_userId).update({
         'name': name ?? _userName,
         'phone': phone ?? _userPhone,
+        'email': email ?? _userEmail,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -925,7 +943,7 @@ class AuthService extends ChangeNotifier {
   
   Future<String?> getUserEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('userEmail');
+    return prefs.getString('userEmail') ?? _userEmail;
   }
 
   Future<Map<String, dynamic>> getWasherData() async {

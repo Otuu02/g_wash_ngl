@@ -10,7 +10,7 @@ import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
 import '../../../services/app_notification_service.dart';
 import '../../../services/communication_service.dart';
-import '../../customer/tracking_screen.dart';
+import '../customer/tracking_screen.dart';
 
 class JobRequestScreen extends StatefulWidget {
   const JobRequestScreen({super.key});
@@ -29,22 +29,18 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
     setState(() {});
 
     try {
-      // 1. Assign provider to job
-      final result = await JobService().assignProviderToJob(
+      await JobService().assignProviderToJob(
         jobId: jobId, 
         providerId: washerId,
       );
 
-      // 2. Get washer details for notifications
       final washerDoc = await FirebaseFirestore.instance
           .collection('washers')
           .doc(washerId)
           .get();
       final washerData = washerDoc.data() ?? {};
       final washerName = washerData['name'] ?? 'Provider';
-      final washerPhone = washerData['phone'] ?? '';
 
-      // 3. Send notifications
       final commService = CommunicationService();
       await commService.sendProviderAssignedNotifications(
         jobId: jobId,
@@ -64,7 +60,6 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
           ),
         );
 
-        // Navigate to Tracking Screen (customer view)
         final lat = job['latitude'] ?? 6.5244;
         final lng = job['longitude'] ?? 3.3792;
         final location = job['location'] ?? 'Customer Location';
@@ -171,7 +166,6 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
 
             return TabBarView(
               children: [
-                // Pending Tab
                 pendingJobs.isEmpty
                     ? _buildEmptyState('No pending job requests', 'Check back later for new customer requests')
                     : ListView.builder(
@@ -180,7 +174,6 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                         itemBuilder: (context, index) =>
                             _buildJobCard(pendingJobs[index], washerId),
                       ),
-                // Active Tab
                 activeJobs.isEmpty
                     ? _buildEmptyState('No active jobs', 'Accepted jobs will appear here')
                     : ListView.builder(

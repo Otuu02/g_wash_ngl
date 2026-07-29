@@ -244,7 +244,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
       final customerName = authService.userName ?? 'Customer';
       final customerPhone = authService.userPhone ?? '';
-      final customerEmail = authService.userEmail ?? '';
+      final customerEmail = '';
 
       print('📝 Creating job for: $customerName ($uid)');
       print('📝 Service: $_selectedService - ₦$_selectedServicePrice');
