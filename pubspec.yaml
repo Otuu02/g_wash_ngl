@@ -48,8 +48,8 @@ dependencies:
   carousel_slider: ^4.2.1
   lottie: ^3.1.0
 
-  # Forms - Updated to 10.x
-  flutter_form_builder: ^10.3.0+2
+  # Forms - Use 9.5.0 which works with Dart 3.5.0
+  flutter_form_builder: 9.5.0
 
   # Authentication
   google_sign_in: ^6.1.5
