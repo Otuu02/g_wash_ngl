@@ -27,7 +27,7 @@ dependencies:
   geolocator: ^13.0.2
   geocoding: ^4.0.0
 
-  # HTTP & API (Required for imgBB upload)
+  # HTTP & API
   http: ^1.2.2
 
   # Storage
@@ -36,7 +36,7 @@ dependencies:
 
   # Utilities
   image_picker: ^1.1.2
-  intl: 0.19.0
+  intl: ^0.20.2
   connectivity_plus: ^6.0.3
   permission_handler: ^11.3.1
   url_launcher: ^6.3.0
@@ -48,8 +48,8 @@ dependencies:
   carousel_slider: ^4.2.1
   lottie: ^3.1.0
 
-  # Forms
-  flutter_form_builder: ^9.5.0
+  # Forms - Updated to 10.x
+  flutter_form_builder: ^10.3.0+2
 
   # Authentication
   google_sign_in: ^6.1.5
