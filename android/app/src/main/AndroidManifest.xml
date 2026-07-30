@@ -9,15 +9,13 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     
-    <!-- ============================================================
-    FIX: Google Maps API Key with proper meta-data
-    ============================================================ -->
     <application
         android:label="G Wash NG"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
         
+        <!-- ✅ Google Maps API Key from billing-enabled project -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw" />
