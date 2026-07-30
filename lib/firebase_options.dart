@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 class FirebaseConfig {
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: "AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw",
+    apiKey: "AIzaSyCSBBZZdb5oP_dXrMy56_W5LpKciS-ieQ4",
     authDomain: "g-wash-ng.firebaseapp.com",
     projectId: "g-wash-ng",
     storageBucket: "g-wash-ng.appspot.com",

@@ -15,10 +15,10 @@
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
         
-        <!-- ✅ Google Maps API Key from billing-enabled project -->
+        <!-- ✅ Browser key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw" />
+            android:value="AIzaSyCSBBZZdb5oP_dXrMy56_W5LpKciS-ieQ4" />
         
         <meta-data
             android:name="com.google.android.gms.version"
