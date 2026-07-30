@@ -46,7 +46,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   String? _washerId;
   String? _washerImageUrl;
   String? _lastStatus;
-  String _currentLocation = 'En route to your location';
+  String _currentLocation = 'Your washer is on the way';
   int _etaMinutes = 15;
   double _distanceKm = 1.5;
   bool _isProcessing = false;
@@ -118,7 +118,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
           _fetchWasherDetails();
         }
 
-        // Trigger local notification/popup on status changes
         if (_lastStatus != null && _lastStatus != status) {
           _showStatusNotification(status);
         }
@@ -132,7 +131,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
           switch (status) {
             case 'assigned':
               _currentStep = 1;
-              _currentLocation = 'Washer assigned & on the way';
+              _currentLocation = 'Your washer is on the way';
               break;
             case 'accepted':
               _currentStep = 1;
@@ -140,7 +139,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
               break;
             case 'enRoute':
               _currentStep = 1;
-              _currentLocation = 'Washer is en route to your location';
+              _currentLocation = 'Your washer is on the way';
               break;
             case 'arrived':
               _currentStep = 2;
@@ -247,14 +246,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
     return 12742 * asin(sqrt(a));
   }
 
-  // ============================================================
-  // CUSTOMER CONFIRMS COMPLETION & PAYMENT
-  // ============================================================
   Future<void> _customerConfirmCompletion() async {
     setState(() => _isProcessing = true);
 
     try {
-      // Update job status to completed (customer confirms)
       await FirebaseFirestore.instance
           .collection('jobs')
           .doc(widget.jobId)
@@ -270,7 +265,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
         _isProcessing = false;
       });
 
-      // Show payment dialog
       _showPaymentDialog();
       
     } catch (e) {
@@ -285,9 +279,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
     }
   }
 
-  // ============================================================
-  // PAYMENT DIALOG
-  // ============================================================
   void _showPaymentDialog() {
     showDialog(
       context: context,
@@ -358,16 +349,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
-  // ============================================================
-  // PROCESS PAYMENT
-  // ============================================================
   Future<void> _processPayment() async {
-    Navigator.pop(context); // Close payment dialog
-    
+    Navigator.pop(context);
+
     try {
       setState(() => _isProcessing = true);
 
-      // Navigate to Payment Screen for full payment processing
       if (mounted) {
         final result = await Navigator.push(
           context,
@@ -386,13 +373,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
         setState(() => _isProcessing = false);
 
         if (result == true) {
-          // Payment successful
           setState(() {
             _isPaid = true;
             _currentStep = 4;
           });
           
-          // Update job status to paid
           await FirebaseFirestore.instance
               .collection('jobs')
               .doc(widget.jobId)
@@ -417,9 +402,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
     }
   }
 
-  // ============================================================
-  // SUCCESS DIALOG - Navigate to rating
-  // ============================================================
   void _showSuccessDialog() {
     showDialog(
       context: context,
@@ -445,7 +427,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -527,10 +509,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   void _callWasher() {
+    // TODO: Implement actual phone call
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Calling washer... (Feature coming soon)'),
         backgroundColor: AppColors.primary,
+        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -652,375 +636,389 @@ class _TrackingScreenState extends State<TrackingScreen> {
       ),
       body: Column(
         children: [
-          // Map View
-          Expanded(
-            flex: 2,
-            child: Stack(
-              children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _clientLocation,
-                    zoom: 14.5,
-                  ),
-                  markers: {
-                    Marker(
-                      markerId: const MarkerId('client'),
-                      position: _clientLocation,
-                      infoWindow: InfoWindow(title: 'Your Location', snippet: widget.pickupAddress),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-                    ),
-                    if (!isPaid)
-                      Marker(
-                        markerId: const MarkerId('provider'),
-                        position: _providerLocation,
-                        infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm.toStringAsFixed(1)} km away'),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-                      ),
-                  },
-                  polylines: !isPaid
-                      ? {
-                          Polyline(
-                            polylineId: const PolylineId('route'),
-                            points: [_providerLocation, _clientLocation],
-                            color: AppColors.primary,
-                            width: 4,
-                          ),
-                        }
-                      : {},
-                  onMapCreated: (controller) => _mapController = controller,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
+          // ============================================================
+          // MAP VIEW - Full width, reduced height
+          // ============================================================
+          Container(
+            height: 180,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                if (!isPaid)
-                  Positioned(
-                    top: 12,
-                    left: 16,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.12),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${_distanceKm.toStringAsFixed(1)} km away',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'ETA: $_etaMinutes mins',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
               ],
             ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Status Section
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Icon(
-                  isPaid ? Icons.check_circle : 
-                  isCompleted ? Icons.payment : 
-                  Icons.directions_car,
-                  size: 24,
-                  color: isPaid ? Colors.green : 
-                         isCompleted ? Colors.orange : 
-                         AppColors.primary,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: _clientLocation,
+                  zoom: 14.5,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isPaid ? 'Payment Successful!' :
-                        isCompleted ? 'Service Completed!' :
-                        'Washer On The Way',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        isPaid ? 'Thank you for using G Wash NG' :
-                        isCompleted ? 'Please confirm and pay' :
-                        _currentLocation,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                markers: {
+                  Marker(
+                    markerId: const MarkerId('client'),
+                    position: _clientLocation,
+                    infoWindow: InfoWindow(title: 'Your Location', snippet: widget.pickupAddress),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
                   ),
-                ),
-              ],
+                  if (!isPaid)
+                    Marker(
+                      markerId: const MarkerId('provider'),
+                      position: _providerLocation,
+                      infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm.toStringAsFixed(1)} km away'),
+                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                    ),
+                },
+                polylines: !isPaid
+                    ? {
+                        Polyline(
+                          polylineId: const PolylineId('route'),
+                          points: [_providerLocation, _clientLocation],
+                          color: AppColors.primary,
+                          width: 4,
+                        ),
+                      }
+                    : {},
+                onMapCreated: (controller) => _mapController = controller,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
+                zoomControlsEnabled: false,
+                mapToolbarEnabled: false,
+                padding: const EdgeInsets.all(8),
+              ),
             ),
           ),
           
           const SizedBox(height: 16),
           
-          // Washer Info Card
+          // ============================================================
+          // STATUS CARD - Clean, like second screenshot
+          // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Card(
-              shape: RoundedRectangleBorder(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.green.withOpacity(0.2)),
               ),
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.primary,
-                          width: 2,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.directions_car,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Washer On The Way',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                        Text(
+                          _currentLocation,
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.timer,
+                          color: Colors.green,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$_etaMinutes mins',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // ============================================================
+          // WASHER INFO CARD - Like second screenshot
+          // ============================================================
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Provider Image
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.primary,
+                        width: 2,
                       ),
-                      child: ClipOval(
-                        child: _washerImageUrl != null && _washerImageUrl!.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: _washerImageUrl!,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: AppColors.primary.withOpacity(0.1),
-                                  child: const Icon(
-                                    Icons.person,
-                                    color: AppColors.primary,
-                                    size: 28,
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: AppColors.primary.withOpacity(0.1),
-                                  child: const Icon(
-                                    Icons.person,
-                                    color: AppColors.primary,
-                                    size: 28,
-                                  ),
-                                ),
-                              )
-                            : Container(
+                    ),
+                    child: ClipOval(
+                      child: _washerImageUrl != null && _washerImageUrl!.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: _washerImageUrl!,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
                                 color: AppColors.primary.withOpacity(0.1),
                                 child: const Icon(
                                   Icons.person,
                                   color: AppColors.primary,
-                                  size: 28,
+                                  size: 30,
                                 ),
                               ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.washerName,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              errorWidget: (context, url, error) => Container(
+                                color: AppColors.primary.withOpacity(0.1),
+                                child: const Icon(
+                                  Icons.person,
+                                  color: AppColors.primary,
+                                  size: 30,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: AppColors.primary.withOpacity(0.1),
+                              child: const Icon(
+                                Icons.person,
+                                color: AppColors.primary,
+                                size: 30,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 14,
-                              ),
-                              const SizedBox(width: 4),
-                              const Text(
-                                '4.8',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Professional Washer',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
                     ),
-                    IconButton(
-                      onPressed: _callWasher,
-                      icon: const Icon(
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.washerName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              '4.8',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Professional Washer',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_distanceKm.toStringAsFixed(1)} km away',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _callWasher,
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
                         Icons.phone,
                         color: AppColors.primary,
+                        size: 22,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
           
           const SizedBox(height: 16),
           
-          // ETA & Service Details
+          // ============================================================
+          // ETA & SERVICE DETAILS - Like second screenshot
+          // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                if (!isPaid && !isCompleted)
-                  Expanded(
-                    child: Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 1,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Estimated Arrival',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
-                              'ETA',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 11,
+                            Text(
+                              _etaMinutes.toString(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _etaMinutes.toString(),
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Text(
-                                  'mins',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(width: 4),
+                            const Text(
+                              'mins',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-                if (!isPaid && !isCompleted) const SizedBox(width: 12),
-                Expanded(
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Service',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.serviceName,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Card(
-                    shape: RoundedRectangleBorder(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 1,
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Price',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 11,
-                            ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Service',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 11,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isPaid ? '✅ Paid' : 
-                            widget.price > 0 
-                                ? '₦${NumberFormat('#,###').format(widget.price)}'
-                                : '₦0',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: isPaid ? Colors.green : 
-                                     widget.price > 0 ? AppColors.primary : Colors.grey,
-                            ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.serviceName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Price',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isPaid ? '✅ Paid' : 
+                          widget.price > 0 
+                              ? '₦${NumberFormat('#,###').format(widget.price)}'
+                              : '₦0',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: isPaid ? Colors.green : 
+                                   widget.price > 0 ? AppColors.primary : Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1031,13 +1029,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
           const Spacer(),
           
           // ============================================================
-          // ACTION BUTTONS - Customer driven
+          // ACTION BUTTONS
           // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
-                // CASE 1: Service Completed but NOT Paid → "Confirm & Pay"
+                // COMPLETE ORDER BUTTON
                 if (isCompleted && !isPaid)
                   SizedBox(
                     width: double.infinity,
@@ -1046,7 +1044,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1061,16 +1059,16 @@ class _TrackingScreenState extends State<TrackingScreen> {
                               ),
                             )
                           : const Text(
-                              '✅ Confirm & Pay',
+                              '✅ Complete Order & Pay',
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                     ),
                   ),
                 
-                // CASE 2: Paid → "Rate Service"
+                // RATE SERVICE BUTTON
                 if (isPaid)
                   SizedBox(
                     width: double.infinity,
@@ -1089,7 +1087,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1097,7 +1095,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       child: const Text(
                         '⭐ Rate Service',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1106,7 +1104,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 
                 const SizedBox(height: 12),
                 
-                // CASE 3: Active job (not completed) → "Cancel Booking"
+                // CANCEL BOOKING BUTTON
                 if (!isCompleted && !isPaid && !isCancelled)
                   SizedBox(
                     width: double.infinity,
@@ -1115,7 +1113,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1123,7 +1121,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       child: const Text(
                         'Cancel Booking',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
