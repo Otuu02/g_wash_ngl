@@ -8,9 +8,8 @@
   <title>G Wash NG</title>
   <link rel="manifest" href="manifest.json">
   
-  <!-- ✅ Google Maps API Key with async loading for better performance -->
-  <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDVZmeFAuWz47ovO7AJesNevZ7fdH1Y3Bo&libraries=places,geometry&v=3.53&loading=async">
+  <!-- Google Maps API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDVZmeFAuWz47ovO7AJesNevZ7fdH1Y3Bo&libraries=places,geometry">
   </script>
   
   <!-- Firebase SDK -->
@@ -21,18 +20,8 @@
   
   <script>
     window.flutterWebRenderer = "canvaskit";
-    console.log('🚀 G Wash NG - Web App Loaded');
+    console.log('🚀 G Wash NG - Web App');
   </script>
-  
-  <!-- Fallback for map loading errors -->
-  <style>
-    .gm-style .gm-style-iw-c {
-      padding: 8px !important;
-    }
-    .gm-style .gm-style-iw-d {
-      overflow: auto !important;
-    }
-  </style>
 </head>
 <body>
   <script src="main.dart.js" type="application/javascript"></script>
