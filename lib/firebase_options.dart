@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
 class FirebaseConfig {
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: "AIzaSyDVZmeFAuWz47ovO7AJesNevZ7fdH1Y3Bo",
+    apiKey: "AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw",
     authDomain: "g-wash-ng.firebaseapp.com",
     projectId: "g-wash-ng",
     storageBucket: "g-wash-ng.firebasestorage.app",
@@ -13,6 +13,14 @@ class FirebaseConfig {
     measurementId: "G-1YSN7QM6E8",
   );
 
-  // Use web config for all platforms
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: "AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw",
+    authDomain: "g-wash-ng.firebaseapp.com",
+    projectId: "g-wash-ng",
+    storageBucket: "g-wash-ng.firebasestorage.app",
+    messagingSenderId: "268073858735",
+    appId: "1:268073858735:android:YOUR_ANDROID_APP_ID",
+  );
+
   static const FirebaseOptions current = web;
 }
