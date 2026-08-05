@@ -10,7 +10,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import 'signup_screen.dart';
-import '../customer/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,7 +24,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _biometricEnabled = false;
-  bool _twoFAEnabled = false;
   bool _rememberMe = false;
   final LocalAuthentication _localAuth = LocalAuthentication();
 
@@ -199,8 +197,13 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      print('❌ Google Sign-In error: $e');
-      _showError('Google Sign-In failed: $e');
+      debugPrint('❌ Google Sign-In error: $e');
+      final errorStr = e.toString();
+      if (errorStr.contains('origin_mismatch')) {
+        _showError('Google OAuth origin mismatch: Add http://localhost:8080 to Authorized JavaScript origins in Google Cloud Console.');
+      } else {
+        _showError('Google Sign-In failed. Please try password login or check internet connection.');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -339,7 +342,78 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               
-              const SizedBox(height: 24),
+              // ============================================================
+              // QUICK DEMO ACCOUNTS (For Instant Testing)
+              // ============================================================
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.flash_on, color: AppColors.primary, size: 18),
+                        SizedBox(width: 6),
+                        Text(
+                          'Quick Demo Testing Logins',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ActionChip(
+                          avatar: const Icon(Icons.person, size: 16, color: AppColors.primary),
+                          label: const Text('Customer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                          onPressed: () {
+                            _phoneController.text = '08012345678';
+                            _passwordController.text = 'password123';
+                            _loginWithPassword();
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.local_car_wash, size: 16, color: AppColors.primary),
+                          label: const Text('Washer', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                          onPressed: () {
+                            _phoneController.text = '08087654321';
+                            _passwordController.text = 'password123';
+                            _loginWithPassword();
+                          },
+                        ),
+                        ActionChip(
+                          avatar: const Icon(Icons.admin_panel_settings, size: 16, color: AppColors.primary),
+                          label: const Text('Admin', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: AppColors.primary.withOpacity(0.3)),
+                          onPressed: () {
+                            _phoneController.text = '08000000000';
+                            _passwordController.text = 'password123';
+                            _loginWithPassword();
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
 
               // ============================================================
               // OPTION 2: Password / Phone Login

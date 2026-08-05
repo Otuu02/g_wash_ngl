@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
+import '../config/env.dart';
 
 class LocationService extends ChangeNotifier {
   Position? _currentPosition;
@@ -16,8 +17,8 @@ class LocationService extends ChangeNotifier {
   
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  // Google Maps API Key (Replace with your actual key)
-  static const String GOOGLE_MAPS_API_KEY = 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw';
+  // Dynamic Google Maps API Key supporting --dart-define GOOGLE_MAPS_API_KEY=...
+  static String get GOOGLE_MAPS_API_KEY => Env.googleMapsApiKey;
   
   // API URLs
   static const String GEOCODE_API_URL = 'https://maps.googleapis.com/maps/api/geocode/json';

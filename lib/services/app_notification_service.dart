@@ -114,6 +114,9 @@ class AppNotificationService extends ChangeNotifier {
   // ============================================================
   // SHOW NOTIFICATION WITH OVERLAY
   // ============================================================
+  // ============================================================
+  // SHOW NOTIFICATION WITH OVERLAY & CUSTOM DURATION
+  // ============================================================
   Future<void> notify({
     BuildContext? context,
     required String title,
@@ -122,6 +125,7 @@ class AppNotificationService extends ChangeNotifier {
     IconData icon = Icons.notifications_active,
     Color backgroundColor = AppColors.primary,
     String? jobId,
+    Duration displayDuration = const Duration(milliseconds: 4000),
   }) async {
     // Add to persistent storage
     final newItem = AppNotificationItem(
@@ -146,11 +150,12 @@ class AppNotificationService extends ChangeNotifier {
         message: message,
         icon: icon,
         backgroundColor: backgroundColor,
+        duration: displayDuration,
       );
     }
 
     // Log notification
-    print('📢 NOTIFICATION: $title - $message');
+    debugPrint('📢 NOTIFICATION: $title - $message');
   }
 
   // ============================================================
@@ -202,7 +207,7 @@ class AppNotificationService extends ChangeNotifier {
   }
 
   // ============================================================
-  // SHOW OVERLAY BANNER
+  // SHOW OVERLAY BANNER WITH FLEXIBLE DURATION
   // ============================================================
   static void showTopOverlayBanner(
     BuildContext context, {
@@ -210,6 +215,7 @@ class AppNotificationService extends ChangeNotifier {
     required String message,
     IconData icon = Icons.notifications_active,
     Color backgroundColor = AppColors.primary,
+    Duration duration = const Duration(milliseconds: 4000),
   }) {
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
@@ -221,6 +227,7 @@ class AppNotificationService extends ChangeNotifier {
         message: message,
         icon: icon,
         backgroundColor: backgroundColor,
+        duration: duration,
         onDismissed: () {
           entry.remove();
         },
@@ -239,6 +246,7 @@ class _TopBannerWidget extends StatefulWidget {
   final String message;
   final IconData icon;
   final Color backgroundColor;
+  final Duration duration;
   final VoidCallback onDismissed;
 
   const _TopBannerWidget({
@@ -246,6 +254,7 @@ class _TopBannerWidget extends StatefulWidget {
     required this.message,
     required this.icon,
     required this.backgroundColor,
+    required this.duration,
     required this.onDismissed,
   });
 
@@ -278,7 +287,7 @@ class _TopBannerWidgetState extends State<_TopBannerWidget>
 
     _controller.forward();
 
-    Future.delayed(const Duration(milliseconds: 4000), () {
+    Future.delayed(widget.duration, () {
       if (mounted) {
         _dismiss();
       }

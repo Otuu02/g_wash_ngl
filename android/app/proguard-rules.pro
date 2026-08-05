@@ -19,3 +19,10 @@
 
 # Paystack
 -keep class co.paystack.** { *; }
+
+# Flutter Deferred Components & Play Core R8 Rules
+-dontwarn io.flutter.embedding.engine.deferredcomponents.**
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
+-keep class io.flutter.embedding.engine.deferredcomponents.** { *; }
+

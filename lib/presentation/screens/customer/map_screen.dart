@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../services/auth_service.dart';
 
 class MapScreen extends StatefulWidget {
   final Function(String, LatLng)? onLocationSelected;
@@ -24,7 +22,6 @@ class _MapScreenState extends State<MapScreen> {
   LatLng _selectedPosition = const LatLng(6.5244, 3.3792);
   String _selectedAddress = 'Lekki Phase 1, Lagos';
   bool _isLoading = true;
-  bool _isGettingLocation = false;
   bool _isDragging = false;
 
   // Map style - Custom style (optional)

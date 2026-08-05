@@ -104,10 +104,14 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         }
       }
     } catch (e) {
-      print('❌ Google Sign-In error: $e');
+      debugPrint('❌ Google Sign-In error: $e');
+      final errorStr = e.toString();
+      final message = errorStr.contains('origin_mismatch')
+          ? 'Google OAuth origin mismatch: Add http://localhost:8080 to Authorized JavaScript origins in Google Cloud Console.'
+          : 'Google Sign-In failed. Please try password login or check internet connection.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Google Sign-In failed: $e'),
+          content: Text(message),
           backgroundColor: Colors.red,
         ),
       );

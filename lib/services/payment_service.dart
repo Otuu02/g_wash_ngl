@@ -1,6 +1,6 @@
 // lib/services/payment_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'app_notification_service.dart';
 
 class PaymentService {
@@ -12,7 +12,7 @@ class PaymentService {
   final AppNotificationService _notificationService = AppNotificationService();
 
   // ============================================================
-  // PROCESS PAYMENT - WITH NOTIFICATIONS
+  // PROCESS PAYMENT - WITH NOTIFICATIONS & SECURITY VERIFICATION
   // ============================================================
   Future<Map<String, dynamic>> processPayment({
     required String jobId,
@@ -25,6 +25,15 @@ class PaymentService {
     String? cardLast4,
   }) async {
     try {
+      // 🔒 SECURITY GUARD: Validate inputs
+      if (amount <= 0 || jobId.isEmpty || userId.isEmpty) {
+        throw ArgumentError('Invalid payment parameters: amount, jobId, and userId must be valid.');
+      }
+
+      // NOTE: In production environments, actual payment status updates should be verified
+      // server-side (e.g. via Paystack/Flutterwave webhook or Firebase Cloud Functions)
+      // to prevent client-side payment forgery.
+
       final paymentRef = _firestore.collection('payments').doc();
       final paymentId = paymentRef.id;
       final reference = 'GWASH-${DateTime.now().millisecondsSinceEpoch}';
@@ -67,8 +76,8 @@ class PaymentService {
         jobId: jobId,
       );
 
-      print('✅ Payment processed for job: $jobId');
-      print('📢 Payment notification sent');
+      debugPrint('✅ Payment processed for job: $jobId');
+      debugPrint('📢 Payment notification sent');
 
       return {
         'success': true,
@@ -77,7 +86,7 @@ class PaymentService {
         'transactionId': transactionId,
       };
     } catch (e) {
-      print('❌ Payment processing error: $e');
+      debugPrint('❌ Payment processing error: $e');
       
       // ✅ SEND NOTIFICATION: Payment Failed
       _notificationService.addNotification(

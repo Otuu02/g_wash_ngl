@@ -10,6 +10,7 @@ class PermissionService {
   static Future<bool> requestLocationPermission(BuildContext context) async {
     // Check if location services are enabled
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!context.mounted) return false;
     if (!serviceEnabled) {
       _showLocationDialog(
         context, 
@@ -23,9 +24,11 @@ class PermissionService {
 
     // Check permission status
     LocationPermission permission = await Geolocator.checkPermission();
+    if (!context.mounted) return false;
     
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+      if (!context.mounted) return false;
       if (permission == LocationPermission.denied) {
         _showPermissionDialog(
           context,
@@ -51,6 +54,7 @@ class PermissionService {
   /// Request background location permission for live tracking
   static Future<bool> requestBackgroundLocationPermission(BuildContext context) async {
     final PermissionStatus status = await Permission.locationAlways.request();
+    if (!context.mounted) return false;
     
     if (status == PermissionStatus.granted) {
       return true;
@@ -78,6 +82,7 @@ class PermissionService {
   /// Request camera permission for taking photos (profile, vehicle, etc.)
   static Future<bool> requestCameraPermission(BuildContext context) async {
     final PermissionStatus status = await Permission.camera.request();
+    if (!context.mounted) return false;
     
     if (status == PermissionStatus.granted) {
       return true;
@@ -112,6 +117,7 @@ class PermissionService {
     } else {
       status = await Permission.storage.request();
     }
+    if (!context.mounted) return false;
     
     if (status == PermissionStatus.granted) {
       return true;
@@ -141,6 +147,7 @@ class PermissionService {
     // Only needed for Android 13+
     if (await _isAndroid13OrAbove()) {
       final PermissionStatus status = await Permission.notification.request();
+      if (!context.mounted) return false;
       
       if (status == PermissionStatus.granted) {
         return true;
@@ -161,6 +168,7 @@ class PermissionService {
   /// Request contact permission for sharing and referrals
   static Future<bool> requestContactPermission(BuildContext context) async {
     final PermissionStatus status = await Permission.contacts.request();
+    if (!context.mounted) return false;
     
     if (status == PermissionStatus.granted) {
       return true;
@@ -179,6 +187,7 @@ class PermissionService {
   /// Request microphone permission for voice notes and calls
   static Future<bool> requestMicrophonePermission(BuildContext context) async {
     final PermissionStatus status = await Permission.microphone.request();
+    if (!context.mounted) return false;
     
     if (status == PermissionStatus.granted) {
       return true;
@@ -228,12 +237,15 @@ class PermissionService {
     
     // Request location
     results['location'] = await requestLocationPermission(context);
+    if (!context.mounted) return results;
     
     // Request camera
     results['camera'] = await requestCameraPermission(context);
+    if (!context.mounted) return results;
     
     // Request storage
     results['storage'] = await requestStoragePermission(context);
+    if (!context.mounted) return results;
     
     // Request notifications (optional)
     results['notifications'] = await requestNotificationPermission(context);
@@ -247,15 +259,19 @@ class PermissionService {
     
     // Location is required
     results['location'] = await requestLocationPermission(context);
+    if (!context.mounted) return results;
     
     // Background location for providers
     results['backgroundLocation'] = await requestBackgroundLocationPermission(context);
+    if (!context.mounted) return results;
     
     // Camera for vehicle/service photos
     results['camera'] = await requestCameraPermission(context);
+    if (!context.mounted) return results;
     
     // Storage for uploading documents
     results['storage'] = await requestStoragePermission(context);
+    if (!context.mounted) return results;
     
     // Notifications for job alerts
     results['notifications'] = await requestNotificationPermission(context);

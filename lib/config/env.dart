@@ -54,7 +54,10 @@ class Env {
   // Helper getters
   static String get apiUrl => config['apiUrl'];
   static String get paystackPublicKey => config['paystackPublicKey'];
-  static String get googleMapsApiKey => config['googleMapsApiKey'];
+  static String get googleMapsApiKey => const String.fromEnvironment(
+        'GOOGLE_MAPS_API_KEY',
+        defaultValue: 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
+      );
   static bool get enableLogging => config['enableLogging'];
   static bool get enableCrashReporting => config['enableCrashReporting'];
   static bool get enableAnalytics => config['enableAnalytics'];

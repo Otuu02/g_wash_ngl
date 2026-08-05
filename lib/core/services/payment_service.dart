@@ -2,7 +2,7 @@
 // PURPOSE: Handle payment processing with Paystack/Flutterwave integration
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class PaymentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -18,22 +18,22 @@ class PaymentService {
     String? customerPhone,
   }) async {
     try {
-      // In production, integrate with Paystack or Flutterwave here
-      // For now, we'll simulate payment processing
+      // In production, integrate with Paystack or Flutterwave webhooks / Cloud Functions.
       
-      // Validate payment
-      if (amount <= 0) {
+      // Validate payment parameters
+      if (amount <= 0 || jobId.trim().isEmpty) {
         return PaymentResult(
           success: false,
-          message: 'Invalid payment amount',
+          message: 'Invalid payment parameters (amount must be > 0 and jobId must be valid)',
         );
       }
 
       // Simulate payment processing delay
       await Future.delayed(const Duration(seconds: 2));
 
-      // Generate reference
-      final reference = 'GWSH_${DateTime.now().millisecondsSinceEpoch}_${jobId.substring(0, 6)}';
+      // Generate reference safely
+      final jobSegment = jobId.length >= 6 ? jobId.substring(0, 6) : jobId;
+      final reference = 'GWSH_${DateTime.now().millisecondsSinceEpoch}_$jobSegment';
 
       // Update payment status in Firestore
       await _firestore.collection('jobs').doc(jobId).update({
@@ -61,7 +61,7 @@ class PaymentService {
         reference: reference,
       );
     } catch (e) {
-      print('❌ Payment failed: $e');
+      debugPrint('❌ Payment failed: $e');
       return PaymentResult(
         success: false,
         message: 'Payment failed: $e',
@@ -210,15 +210,15 @@ class PaymentService {
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final price = data['price'] ?? 0;
-        totalEarnings += price as int;  // ← FIXED: Cast to int
+        final price = (data['price'] ?? 0) as int;
+        totalEarnings += price;
         totalJobs++;
 
         final paidAt = data['paidAt'] as Timestamp?;
         if (paidAt != null) {
           final paidDate = paidAt.toDate();
           if (paidDate.isAfter(today)) {
-            todayEarnings += price as int;  // ← FIXED: Cast to int
+            todayEarnings += price;
           }
         }
       }
@@ -270,7 +270,6 @@ class PaymentService {
 
       if (event == 'charge.success') {
         final reference = data['reference'] ?? '';
-        final amount = data['amount'] ?? 0;
 
         // Find job by reference
         final snapshot = await _firestore

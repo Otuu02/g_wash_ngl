@@ -24,7 +24,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.gwashng.g_wash_ng"
-    compileSdk 34
+    compileSdk 35
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -43,7 +43,7 @@ android {
 
     defaultConfig {
         applicationId "com.gwashng.g_wash_ng"
-        minSdkVersion flutter.minSdkVersion
+        minSdkVersion 23
         targetSdk 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

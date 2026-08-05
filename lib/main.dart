@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 
 // Customer Screens
@@ -40,6 +41,12 @@ import 'presentation/screens/auth/otp_screen.dart';
 import 'services/auth_service.dart';
 import 'services/app_notification_service.dart';
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: FirebaseConfig.web);
+  debugPrint("Handling background FCM message: ${message.messageId}");
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -49,17 +56,43 @@ void main() async {
   
   final authService = AuthService();
   final notificationService = AppNotificationService();
+
+  // ✅ Initialize Firebase Push Messaging
+  try {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        notificationService.notify(
+          title: message.notification!.title ?? 'Notification',
+          message: message.notification!.body ?? '',
+          type: message.data['type'] ?? 'system',
+          jobId: message.data['jobId'],
+        );
+      }
+    });
+
+    FirebaseMessaging.instance.getToken().then((token) {
+      if (token != null) {
+        debugPrint('📲 FCM Push Token: $token');
+      }
+    }).catchError((e) {
+      debugPrint('ℹ️ FCM Token notice: $e');
+    });
+  } catch (e) {
+    debugPrint('ℹ️ FCM Messaging skipped (platform/headless mode): $e');
+  }
   
   try {
     await authService.migrateLocalUsersToFirestore();
-    print('✅ User migration completed successfully');
+    debugPrint('✅ User migration completed successfully');
   } catch (e) {
-    print('❌ User migration failed: $e');
+    debugPrint('❌ User migration failed: $e');
   }
   
   // ✅ Load saved notifications on startup
   await notificationService.loadSavedNotifications();
-  print('✅ Notification service initialized with ${notificationService.notifications.length} notifications');
+  debugPrint('✅ Notification service initialized with ${notificationService.notifications.length} notifications');
   
   runApp(
     provider.MultiProvider(

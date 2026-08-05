@@ -1,16 +1,12 @@
 // lib/presentation/screens/admin/admin_dashboard_screen.dart
 // PURPOSE: Complete Admin Dashboard for G Wash NG - Full control over users, washers, jobs, and system settings
 
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/models/user_model.dart';
-import '../../../core/models/job_model.dart';
-import '../../../core/models/washer_model.dart';
 import '../../../core/services/admin_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {

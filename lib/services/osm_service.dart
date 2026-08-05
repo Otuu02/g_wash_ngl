@@ -2,6 +2,7 @@
 // PURPOSE: FREE OpenStreetMap Nominatim API for location search across Nigeria
 // No API key required! Works as a fallback when Google Maps quota is exceeded.
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
@@ -10,8 +11,6 @@ class OSMService {
   static const String NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
   static const String REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
   static const String DETAILS_URL = 'https://nominatim.openstreetmap.org/details';
-  
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   /// Search for addresses in Nigeria (FREE fallback when Google Maps quota exceeded)
   static Future<List<Map<String, dynamic>>> searchInNigeria(String query) async {
@@ -34,7 +33,7 @@ class OSMService {
       }
       return [];
     } catch (e) {
-      print('OSM search error: $e');
+      debugPrint('OSM search error: $e');
       return [];
     }
   }
@@ -57,7 +56,7 @@ class OSMService {
       }
       return [];
     } catch (e) {
-      print('OSM city search error: $e');
+      debugPrint('OSM city search error: $e');
       return [];
     }
   }

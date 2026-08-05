@@ -1,17 +1,13 @@
 // FILE: lib/presentation/screens/customer/booking_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
-import '../../../services/app_notification_service.dart';
 import '../../../services/communication_service.dart';
 import '../washer/matching_screen.dart';
-import 'tracking_screen.dart';
 
 class BookingScreen extends StatefulWidget {
   final String? selectedService;

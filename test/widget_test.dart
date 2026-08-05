@@ -1,23 +1,15 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:g_wash_ng/services/auth_service.dart';
+import 'package:g_wash_ng/services/app_notification_service.dart';
 import 'package:g_wash_ng/main.dart';
 
 class MockAuthService extends AuthService {
   MockAuthService() : super();
 
-  @override
   void listenToAuthChanges() {}
 
-  @override
   Future<void> loadSavedUser() async {}
 
   @override
@@ -50,12 +42,14 @@ void main() {
     });
 
     final mockAuth = MockAuthService();
+    final notificationService = AppNotificationService();
 
     // Build our app wrapped in the required Provider and trigger a frame.
     await tester.pumpWidget(
       provider.MultiProvider(
         providers: [
           provider.ChangeNotifierProvider<AuthService>(create: (_) => mockAuth),
+          provider.ChangeNotifierProvider<AppNotificationService>(create: (_) => notificationService),
         ],
         child: const GWashApp(),
       ),

@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:async';
 import '../../../core/constants/app_colors.dart';
@@ -46,7 +45,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // Real data from Firestore
   List<Map<String, dynamic>> _categories = [];
   List<Map<String, dynamic>> _services = [];
-  bool _isLoading = true;
   
   // Service Categories (Added Ride Service)
   final List<Map<String, dynamic>> _defaultCategories = [

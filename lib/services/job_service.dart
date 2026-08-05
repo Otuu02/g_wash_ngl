@@ -1,6 +1,8 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../config/env.dart';
 import 'app_notification_service.dart';
 
 class JobService extends ChangeNotifier {
@@ -68,9 +70,10 @@ class JobService extends ChangeNotifier {
     required String category,
     double? userLat,
     double? userLng,
+    int limit = 20,
   }) async {
     try {
-      final snapshot = await _firestore.collection('washers').get();
+      final snapshot = await _firestore.collection('washers').limit(limit).get();
 
       List<Map<String, dynamic>> providers = [];
       for (var doc in snapshot.docs) {
@@ -111,8 +114,8 @@ class JobService extends ChangeNotifier {
         }
       }
 
-      // If no providers found, provide fallback demo providers
-      if (providers.isEmpty) {
+      // If no providers found, provide fallback demo providers only in dev/debug mode
+      if (providers.isEmpty && (kDebugMode || Env.isDevelopment)) {
         if (category == 'House Cleaning') {
           providers = [
             {

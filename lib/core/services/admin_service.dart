@@ -101,7 +101,7 @@ class AdminService {
       
       // 3. Delete user from Firebase Auth (if exists)
       try {
-        final user = await _auth.currentUser;
+        final user = _auth.currentUser;
         if (user != null && user.uid == userId) {
           await user.delete();
         }
@@ -402,15 +402,15 @@ class AdminService {
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final price = data['price'] ?? 0;
-        totalEarnings += price as int;
+        final price = (data['price'] ?? 0) as int;
+        totalEarnings += price;
         totalJobs++;
 
         final paidAt = data['paidAt'] as Timestamp?;
         if (paidAt != null) {
           final paidDate = paidAt.toDate();
           if (paidDate.isAfter(today)) {
-            todayEarnings += price as int;
+            todayEarnings += price;
           }
         }
       }

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/location_service.dart';
 import '../../../services/app_notification_service.dart';
@@ -508,15 +509,21 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
-  void _callWasher() {
-    // TODO: Implement actual phone call
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Calling washer... (Feature coming soon)'),
-        backgroundColor: AppColors.primary,
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _callWasher() async {
+    final Uri url = Uri.parse('tel:08000000000');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open phone dialer.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   @override

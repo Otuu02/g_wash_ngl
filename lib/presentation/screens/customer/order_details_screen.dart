@@ -2,6 +2,7 @@
 // PURPOSE: Show detailed information about a specific order with clickable actions
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -99,7 +100,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Future<void> _viewOnMap() async {
     final lat = widget.order['latitude'] ?? 6.5244;
     final lng = widget.order['longitude'] ?? 3.3792;
-    final location = widget.order['location'] ?? 'Lekki, Lagos';
     
     final url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
     
@@ -284,6 +284,7 @@ Date: ${orderData['date'] ?? orderData['createdAt']}
 Thank you for using G Wash NG! 🚗
     ''';
     
+    Clipboard.setData(ClipboardData(text: shareText));
     Helpers.showSnackBar(
       context,
       message: 'Order details copied to clipboard',
@@ -300,9 +301,6 @@ Thank you for using G Wash NG! 🚗
     final orderData = _updatedOrder ?? widget.order;
     final status = orderData['status']?.toString().toLowerCase() ?? 'pending';
     final isCompleted = status == 'completed' || status == 'paid';
-    final isCancelled = status == 'cancelled';
-    final isPending = status == 'pending' || status == 'searching' || status == 'assigned' || status == 'accepted' || status == 'enroute';
-    final isInProgress = status == 'enroute' || status == 'arrived' || status == 'accepted';
 
     return Scaffold(
       appBar: AppBar(
