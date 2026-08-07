@@ -50,16 +50,27 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen>
           ],
         ),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
+      body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('platform_financials')
-            .doc('stats')
+            .collection('payments')
+            .where('status', isEqualTo: 'completed')
             .snapshots(),
         builder: (context, snapshot) {
-          final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
-          final double totalGrossVolume = (data['totalGrossVolume'] ?? 0.0).toDouble();
-          final double totalPlatformRevenue = (data['totalPlatformRevenue'] ?? 0.0).toDouble();
-          final double totalWasherPayouts = (data['totalWasherPayouts'] ?? 0.0).toDouble();
+          final docs = snapshot.data?.docs ?? [];
+          double totalGrossVolume = 0.0;
+          double totalPlatformRevenue = 0.0;
+          double totalWasherPayouts = 0.0;
+
+          for (var doc in docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final gross = (data['amount'] ?? 0.0).toDouble();
+            final fee = (data['platformFee'] ?? (gross * 0.05)).toDouble();
+            final share = (data['providerShare'] ?? (gross * 0.95)).toDouble();
+
+            totalGrossVolume += gross;
+            totalPlatformRevenue += fee;
+            totalWasherPayouts += share;
+          }
 
           return Column(
             children: [

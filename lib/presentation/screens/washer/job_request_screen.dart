@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
+import '../../../services/cloudinary_service.dart';
 import '../customer/tracking_screen.dart';
 
 class JobRequestScreen extends StatefulWidget {
@@ -234,20 +236,43 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    serviceName,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        serviceName,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.lock, size: 10, color: Colors.green),
+                          SizedBox(width: 3),
+                          Text(
+                            'Escrow Paid',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   '₦$price',
@@ -690,22 +715,13 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
         width: double.infinity,
         height: 46,
         child: ElevatedButton.icon(
-          onPressed: () async {
+          onPressed: () {
             if (jobId != null) {
-              await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
-                'status': 'completed',
-                'completedAt': FieldValue.serverTimestamp(),
-              });
-              setState(() {});
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('✅ Updated: Service Completed!'), backgroundColor: Colors.green),
-                );
-              }
+              _showCompletionProofModal(context, jobId);
             }
           },
-          icon: const Icon(Icons.check_circle, color: Colors.white, size: 20),
-          label: const Text('✅ Complete Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+          label: const Text('📸 Complete Job & Upload Proof', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
             foregroundColor: Colors.white,
@@ -716,5 +732,163 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
     }
 
     return const SizedBox.shrink();
+  }
+
+  Future<void> _showCompletionProofModal(BuildContext context, String jobId) async {
+    XFile? pickedFile;
+    bool isUploading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (modalContext) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '📸 Upload Proof of Completion',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Please snap or upload a photo of the completed job to release Escrow payment.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              if (pickedFile != null) ...[
+                Container(
+                  height: 160,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: FutureBuilder(
+                      future: pickedFile!.readAsBytes(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          return Image.memory(snapshot.data!, fit: BoxFit.cover);
+                        }
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+                        if (img != null) {
+                          setModalState(() => pickedFile = img);
+                        }
+                      },
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Camera'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                        if (img != null) {
+                          setModalState(() => pickedFile = img);
+                        }
+                      },
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Gallery'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: isUploading
+                      ? null
+                      : () async {
+                          if (pickedFile == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('❌ Please capture or upload a proof photo before completing.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setModalState(() => isUploading = true);
+
+                          try {
+                            // Upload proof image to Cloudinary
+                            final proofUrl = await CloudinaryService().uploadImage(
+                              imageFile: pickedFile!,
+                              folder: 'job_proofs',
+                            );
+
+                            // Update Firestore job doc with proof
+                            await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
+                              'completionProofUrl': proofUrl ?? '',
+                              'completedAt': FieldValue.serverTimestamp(),
+                            });
+
+                            // Complete job and release Escrow
+                            await JobService().completeJob(jobId, context: context);
+
+                            if (mounted) {
+                              Navigator.pop(modalContext);
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('🎉 Service completed & Escrow payment released!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setModalState(() => isUploading = false);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('❌ Upload error: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                  icon: isUploading
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.check_circle),
+                  label: Text(isUploading ? 'Uploading Proof...' : 'Submit Proof & Release Payment'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -253,16 +253,22 @@ class _WasherDashboardState extends State<WasherDashboard> {
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final status = (data['status'] ?? '').toString().toLowerCase();
+        final paymentStatus = (data['paymentStatus'] ?? '').toString().toLowerCase();
         final price = (data['price'] ?? 0) as num;
-        final washerShare = (price * 0.95).round(); // 95% washer share
+        final washerShare = (data['providerShare'] != null && data['providerShare'] is num)
+            ? (data['providerShare'] as num).round()
+            : (price * 0.95).round(); // 95% washer share
 
-        if (status == 'completed' || status == 'paid') {
+        // STRICT CHECK: Money only counts if paymentStatus is 'paid'
+        if ((status == 'completed' || status == 'paid') && paymentStatus == 'paid') {
           totalJobs++;
           totalEarnings += washerShare;
 
           DateTime? jobDate;
           if (data['completedAt'] != null && data['completedAt'] is Timestamp) {
             jobDate = (data['completedAt'] as Timestamp).toDate();
+          } else if (data['paidAt'] != null && data['paidAt'] is Timestamp) {
+            jobDate = (data['paidAt'] as Timestamp).toDate();
           } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
             jobDate = (data['createdAt'] as Timestamp).toDate();
           }
@@ -276,7 +282,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
       }
 
       final dynamic rawBalance = _washerData['availableBalance'] ?? _washerData['balance'];
-      final int availableBalance = rawBalance != null && rawBalance is num ? rawBalance.toInt() : totalEarnings;
+      final int availableBalance = rawBalance != null && rawBalance is num ? rawBalance.toInt() : 0;
 
       setState(() {
         _washerStats = {
@@ -301,7 +307,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
     final double availableBalance = ((_washerStats['availableBalance'] ?? _washerStats['totalEarnings'] ?? 0) as num).toDouble();
     final String washerName = _washerData['name'] ?? 'Service Provider';
 
-    final TextEditingController amountCtrl = TextEditingController(text: availableBalance > 0 ? availableBalance.toInt().toString() : '5000');
+    final TextEditingController amountCtrl = TextEditingController(text: availableBalance > 0 ? availableBalance.toInt().toString() : '0');
     final TextEditingController accountNumCtrl = TextEditingController(text: (_washerData['accountNumber'] ?? '').toString());
     final TextEditingController accountNameCtrl = TextEditingController(text: (_washerData['accountName'] ?? washerName).toString());
     String selectedBank = (_washerData['bankName'] ?? 'GTBank').toString();

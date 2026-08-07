@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../config/env.dart';
 import 'app_notification_service.dart';
 import 'communication_service.dart';
+import 'payment_service.dart';
 
 class JobService extends ChangeNotifier {
   static final JobService _instance = JobService._internal();
@@ -447,26 +448,23 @@ class JobService extends ChangeNotifier {
       final customerName = jobData['customerName'] ?? 'Customer';
       final serviceName = jobData['serviceName'] ?? 'Service';
 
-      // Update job
+      // Update job status
       await _firestore.collection('jobs').doc(jobId).update({
         'status': 'completed',
         'completedAt': FieldValue.serverTimestamp(),
       });
 
-      // Update provider stats
-      if (washerId != null) {
-        await _firestore.collection('washers').doc(washerId).update({
-          'totalJobs': FieldValue.increment(1),
-          'totalEarnings': FieldValue.increment(price),
-          'pendingJobs': FieldValue.increment(-1),
-          'todayEarnings': FieldValue.increment(price),
-        });
+      // 🔓 RELEASE ESCROW FUNDS TO WASHER & ADMIN
+      try {
+        await PaymentService().releaseEscrowPayment(jobId);
+      } catch (escrowErr) {
+        debugPrint('⚠️ Escrow release notice: $escrowErr');
       }
 
-      // ✅ SEND NOTIFICATION: Job Completed
+      // ✅ SEND NOTIFICATION: Service Delivered & Escrow Released
       _notificationService.addNotification(
-        title: 'Order Delivered',
-        message: 'Your $serviceName service has been completed successfully. Please make payment.',
+        title: '🎉 Order Completed!',
+        message: 'Your $serviceName service is complete. Held escrow funds have been released to the provider. Thank you!',
         type: 'booking',
         jobId: jobId,
       );
@@ -475,8 +473,8 @@ class JobService extends ChangeNotifier {
       if (context != null) {
         _notificationService.notify(
           context: context,
-          title: 'Order Completed',
-          message: 'Please complete payment for your $serviceName service.',
+          title: 'Service Completed',
+          message: 'Escrow payment released for $serviceName. Please rate your provider!',
           type: 'booking',
           icon: Icons.check_circle,
           backgroundColor: Colors.green,

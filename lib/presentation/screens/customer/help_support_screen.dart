@@ -2,6 +2,7 @@
 // PURPOSE: Help and support center with working call, email, and live chat
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/helpers.dart';
@@ -307,30 +308,73 @@ class LiveChatBottomSheet extends StatefulWidget {
 class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
   final TextEditingController _messageController = TextEditingController();
   final List<Map<String, dynamic>> _messages = [
-    {'text': 'Hello! How can we help you today?', 'isUser': false, 'time': '11:40 AM'},
+    {
+      'text': '🤖 Hello! I am the G Wash AI Assistant. How can I help you today?',
+      'isUser': false,
+      'time': 'Just now',
+    },
   ];
   bool _isTyping = false;
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
-    
+  final List<String> _quickSuggestions = [
+    '🔒 How Escrow Works',
+    '📸 Photo Proof Policy',
+    '🚚 Track My Washer',
+    '💵 Washer Earnings (95%)',
+    '📞 Speak to Human Agent',
+  ];
+
+  String _getChatbotResponse(String query) {
+    final q = query.toLowerCase().trim();
+
+    if (q.contains('escrow') || q.contains('pay') || q.contains('payment') || q.contains('money') || q.contains('paystack')) {
+      return '🔒 Payments on G Wash NG are processed via Paystack and held safely in Escrow until your service is completed. Once the provider completes the task, 95% is paid to them and 5% to platform commission.';
+    }
+    if (q.contains('proof') || q.contains('photo') || q.contains('picture') || q.contains('finish') || q.contains('complete')) {
+      return '📸 Service providers are required to upload a mandatory Photo Proof of completion before Escrow funds can be released to their wallet balance.';
+    }
+    if (q.contains('track') || q.contains('where') || q.contains('location') || q.contains('map')) {
+      return '🚚 You can track your assigned washer in real-time on the Tracking screen once they accept your job booking!';
+    }
+    if (q.contains('earn') || q.contains('washer') || q.contains('share') || q.contains('payout') || q.contains('commission')) {
+      return '💵 Washers earn 95% of every completed job! Payouts are updated live in their wallet balance.';
+    }
+    if (q.contains('cancel') || q.contains('refund')) {
+      return '❌ You can cancel any booking before the washer arrives for a full refund back to your wallet or card.';
+    }
+    if (q.contains('human') || q.contains('agent') || q.contains('call') || q.contains('speak') || q.contains('contact')) {
+      return '📞 Connecting you to a live support agent... You can also call us directly at 07065584504 or email giftotuuobinna1995@gmail.com.';
+    }
+
+    return '🤖 I am here to help! You can ask me about Escrow payments, real-time tracking, washer payouts (95%), or photo proof policies.';
+  }
+
+  void _sendMessage({String? customText}) {
+    final textToSend = customText ?? _messageController.text.trim();
+    if (textToSend.isEmpty) return;
+
+    final nowTime = DateFormat('hh:mm a').format(DateTime.now());
+
     setState(() {
       _messages.add({
-        'text': _messageController.text.trim(),
+        'text': textToSend,
         'isUser': true,
-        'time': DateTime.now().toString().substring(11, 16),
+        'time': nowTime,
       });
-      _messageController.clear();
+      if (customText == null) _messageController.clear();
       _isTyping = true;
     });
-    
-    Future.delayed(const Duration(seconds: 1), () {
+
+    final botReply = _getChatbotResponse(textToSend);
+
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (!mounted) return;
       setState(() {
         _isTyping = false;
         _messages.add({
-          'text': 'Thank you for your message. A support agent will respond shortly.',
+          'text': botReply,
           'isUser': false,
-          'time': DateTime.now().toString().substring(11, 16),
+          'time': DateFormat('hh:mm a').format(DateTime.now()),
         });
       });
     });
@@ -447,6 +491,29 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
               },
             ),
           ),
+          // Quick Suggestion Chips
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _quickSuggestions.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final suggestion = _quickSuggestions[index];
+                return ActionChip(
+                  label: Text(
+                    suggestion,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
+                  ),
+                  backgroundColor: AppColors.primary.withOpacity(0.08),
+                  side: BorderSide(color: AppColors.primary.withOpacity(0.2)),
+                  onPressed: () => _sendMessage(customText: suggestion),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(

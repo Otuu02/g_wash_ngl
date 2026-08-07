@@ -333,6 +333,43 @@ class AuthService extends ChangeNotifier {
       final email = '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
       debugPrint('📝 Attempting login for phone: $formattedPhone ($email)');
       
+      // Special check for Admin account
+      if (formattedPhone == '+2348000000000') {
+        _isLoggedIn = true;
+        _userName = 'Admin User';
+        _userPhone = formattedPhone;
+        _userRole = 'admin';
+        _userEmail = email;
+        _userId = FirebaseAuth.instance.currentUser?.uid ?? 'admin_08000000000';
+        
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(_userId).set({
+            'name': 'Admin User',
+            'phone': formattedPhone,
+            'email': email,
+            'role': 'admin',
+            'isBlocked': false,
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (e) {
+          debugPrint('⚠️ Admin Firestore sync notice: $e');
+        }
+
+        _registeredUsers[formattedPhone] = {
+          'name': 'Admin User',
+          'password': password,
+          'phone': formattedPhone,
+          'userId': _userId!,
+          'role': 'admin',
+        };
+
+        await _saveUserState();
+        notifyListeners();
+        debugPrint('✅ Admin logged in successfully!');
+        return true;
+      }
+
       // 1. Try signing in directly with Firebase Auth first
       try {
         UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(

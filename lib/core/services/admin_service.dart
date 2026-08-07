@@ -15,61 +15,67 @@ class AdminService {
       final washers = await _firestore.collection('washers').get();
       final jobs = await _firestore.collection('jobs').get();
       
-      int revenue = 0;
       int completedJobs = 0;
       int activeJobs = 0;
       
       for (var doc in jobs.docs) {
-        final status = doc['status'] ?? '';
-        final price = doc['price'] ?? 0;
-        final paymentStatus = doc['paymentStatus'] ?? '';
+        final data = doc.data();
+        final status = data['status'] ?? '';
         
-        if (paymentStatus == 'paid' || status == 'paid' || status == 'completed') {
-          final p = (price is num) ? price.toInt() : 0;
-          revenue += p;
+        if (status == 'completed') {
           completedJobs++;
-        }
-        if (status == 'assigned' || status == 'enRoute') {
+        } else if (status == 'assigned' || status == 'enRoute' || status == 'in_progress') {
           activeJobs++;
         }
       }
-      
+
+      // Calculate revenue STRICTLY from real completed payments in 'payments' collection
+      double totalGrossRevenue = 0.0;
       double totalPlatformRevenue = 0.0;
       double totalWasherPayouts = 0.0;
-      
+
       try {
-        final platformDoc = await _firestore.collection('platform_financials').doc('stats').get();
-        if (platformDoc.exists) {
-          final pData = platformDoc.data()!;
-          totalPlatformRevenue = (pData['totalPlatformRevenue'] ?? 0.0).toDouble();
-          totalWasherPayouts = (pData['totalWasherPayouts'] ?? 0.0).toDouble();
-        } else {
-          totalPlatformRevenue = revenue * 0.05;
-          totalWasherPayouts = revenue * 0.95;
+        final paymentsQuery = await _firestore
+            .collection('payments')
+            .where('status', isEqualTo: 'completed')
+            .get();
+
+        for (var doc in paymentsQuery.docs) {
+          final data = doc.data();
+          final gross = (data['amount'] ?? 0.0).toDouble();
+          final fee = (data['platformFee'] ?? (gross * 0.05)).toDouble();
+          final share = (data['providerShare'] ?? (gross * 0.95)).toDouble();
+
+          totalGrossRevenue += gross;
+          totalPlatformRevenue += fee;
+          totalWasherPayouts += share;
         }
       } catch (e) {
-        totalPlatformRevenue = revenue * 0.05;
-        totalWasherPayouts = revenue * 0.95;
+        // If collection does not exist or query fails, default to 0
       }
-      
+
       return {
         'totalUsers': users.size,
         'totalWashers': washers.size,
         'totalJobs': jobs.size,
-        'totalRevenue': revenue,
+        'totalRevenue': totalGrossRevenue.toInt(),
         'totalPlatformRevenue': totalPlatformRevenue,
         'totalWasherPayouts': totalWasherPayouts,
-        'pendingWashers': washers.docs.where((w) => w['approved'] != true).length,
+        'pendingWashers': washers.docs.where((w) {
+          final data = w.data();
+          return data['approved'] != true;
+        }).length,
         'activeJobs': activeJobs,
         'completedJobs': completedJobs,
       };
     } catch (e) {
-      print('Error getting dashboard stats: $e');
       return {
         'totalUsers': 0,
         'totalWashers': 0,
         'totalJobs': 0,
         'totalRevenue': 0,
+        'totalPlatformRevenue': 0.0,
+        'totalWasherPayouts': 0.0,
         'pendingWashers': 0,
         'activeJobs': 0,
         'completedJobs': 0,

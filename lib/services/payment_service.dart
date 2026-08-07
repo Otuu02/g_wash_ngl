@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../config/env.dart';
 import 'app_notification_service.dart';
 import 'communication_service.dart';
@@ -196,7 +197,7 @@ class PaymentService {
         'location': location,
         'paymentMethod': paymentMethod,
         'gateway': 'paystack',
-        'status': 'completed',
+        'status': 'escrow', // Held in Escrow until service completion
         'paymentDate': FieldValue.serverTimestamp(),
         'paymentReference': reference,
         'transactionId': transactionId,
@@ -205,65 +206,25 @@ class PaymentService {
 
       await paymentRef.set(paymentData);
 
-      // Update job status to paid
+      // Update job status: Payment secured in Escrow
       await _firestore.collection('jobs').doc(jobId).update({
-        'paymentStatus': 'paid',
+        'paymentStatus': 'paid', // Escrow paid
         'paymentMethod': paymentMethod,
         'paymentReference': reference,
         'transactionId': transactionId,
         'paidAt': FieldValue.serverTimestamp(),
-        'status': 'paid',
-        'completedAt': FieldValue.serverTimestamp(),
+        'isEscrowSecured': true,
       });
 
-      // Credit Washer Account Balance (95% share)
-      if (washerId != null && washerId.toString().isNotEmpty) {
-        final washerRef = _firestore.collection('washers').doc(washerId);
-        await washerRef.set({
-          'availableBalance': FieldValue.increment(providerShare),
-          'totalEarnings': FieldValue.increment(providerShare),
-          'totalPlatformFeesPaid': FieldValue.increment(platformFee),
-          'completedJobs': FieldValue.increment(1),
-        }, SetOptions(merge: true));
-
-        // Add Washer Transaction Log
-        await _firestore.collection('washer_transactions').add({
-          'washerId': washerId,
-          'jobId': jobId,
-          'serviceName': serviceName,
-          'grossAmount': grossAmount,
-          'platformFee': platformFee, // 5%
-          'netEarnings': providerShare, // 95%
-          'type': 'credit',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-
-      // Update Platform Financial Stats for Admin
-      final platformRef = _firestore.collection('platform_financials').doc('stats');
-      await platformRef.set({
-        'totalGrossVolume': FieldValue.increment(grossAmount),
-        'totalPlatformRevenue': FieldValue.increment(platformFee),
-        'totalWasherPayouts': FieldValue.increment(providerShare),
-        'totalTransactionsCount': FieldValue.increment(1),
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      // ✅ DISPATCH TWILIO SMS, GMAIL SMTP EMAIL, SYSTEM PUSH & POPUP OVERLAY
-      await _communicationService.sendPaymentCompletedNotifications(
-        customerName: userName,
-        customerPhone: jobData['customerPhone'] ?? '',
-        customerEmail: jobData['customerEmail'] ?? '',
-        serviceName: serviceName,
-        amount: grossAmount,
-        reference: reference,
-        providerName: jobData['washerName'],
-        providerPhone: jobData['washerPhone'],
-        providerEmail: jobData['washerEmail'],
-        providerShare: providerShare,
+      // Notify customer and washer that payment is secured in Escrow
+      _notificationService.addNotification(
+        title: '🔒 Payment Secured in Escrow',
+        message: 'Payment of ₦${NumberFormat('#,###').format(grossAmount)} for $serviceName is held safely in Escrow. The provider can now begin.',
+        type: 'payment',
+        jobId: jobId,
       );
 
-      debugPrint('✅ Paystack Payment processed: $jobId | Fee: ₦$platformFee | Washer: ₦$providerShare');
+      debugPrint('🔒 Paystack Payment held in Escrow: $jobId | Fee: ₦$platformFee | Washer Share: ₦$providerShare');
 
       return {
         'success': true,
@@ -272,6 +233,7 @@ class PaymentService {
         'transactionId': transactionId,
         'platformFee': platformFee,
         'providerShare': providerShare,
+        'isEscrow': true,
       };
     } catch (e) {
       debugPrint('❌ Payment processing error: $e');
@@ -287,6 +249,100 @@ class PaymentService {
         'success': false,
         'error': e.toString(),
       };
+    }
+  }
+
+  // ============================================================
+  // RELEASE ESCROW PAYMENT TO WASHER (ON JOB COMPLETION)
+  // ============================================================
+  Future<Map<String, dynamic>> releaseEscrowPayment(String jobId) async {
+    try {
+      debugPrint('🔓 Releasing Escrow Payment for Job: $jobId');
+
+      final paymentQuery = await _firestore
+          .collection('payments')
+          .where('jobId', isEqualTo: jobId)
+          .limit(1)
+          .get();
+
+      final jobDoc = await _firestore.collection('jobs').doc(jobId).get();
+      final jobData = jobDoc.data() ?? {};
+      final washerId = jobData['washerId'] ?? jobData['assignedWasherId'];
+      final price = (jobData['price'] ?? 0).toDouble();
+
+      final double grossAmount = price;
+      final double platformFee = grossAmount * 0.05; // 5%
+      final double providerShare = grossAmount * 0.95; // 95%
+
+      if (paymentQuery.docs.isNotEmpty) {
+        final paymentDoc = paymentQuery.docs.first;
+        final pData = paymentDoc.data();
+
+        // Prevent double release
+        if (pData['status'] == 'completed') {
+          debugPrint('ℹ️ Escrow funds already released for job: $jobId');
+          return {'success': true, 'alreadyReleased': true};
+        }
+
+        // Update payment record to completed
+        await paymentDoc.reference.update({
+          'status': 'completed',
+          'releasedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Credit Washer Account Balance (95% share)
+      if (washerId != null && washerId.toString().isNotEmpty) {
+        final washerRef = _firestore.collection('washers').doc(washerId);
+        await washerRef.set({
+          'availableBalance': FieldValue.increment(providerShare),
+          'totalEarnings': FieldValue.increment(providerShare),
+          'totalPlatformFeesPaid': FieldValue.increment(platformFee),
+          'completedJobs': FieldValue.increment(1),
+        }, SetOptions(merge: true));
+
+        // Add Washer Transaction Log
+        await _firestore.collection('washer_transactions').add({
+          'washerId': washerId,
+          'jobId': jobId,
+          'serviceName': jobData['serviceName'] ?? 'Service',
+          'grossAmount': grossAmount,
+          'platformFee': platformFee,
+          'netEarnings': providerShare,
+          'type': 'credit',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Update Platform Financial Stats for Admin
+      final platformRef = _firestore.collection('platform_financials').doc('stats');
+      await platformRef.set({
+        'totalGrossVolume': FieldValue.increment(grossAmount),
+        'totalPlatformRevenue': FieldValue.increment(platformFee),
+        'totalWasherPayouts': FieldValue.increment(providerShare),
+        'totalTransactionsCount': FieldValue.increment(1),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // Dispatch Notifications
+      await _communicationService.sendPaymentCompletedNotifications(
+        customerName: jobData['customerName'] ?? 'Customer',
+        customerPhone: jobData['customerPhone'] ?? '',
+        customerEmail: jobData['customerEmail'] ?? '',
+        serviceName: jobData['serviceName'] ?? 'Service',
+        amount: grossAmount,
+        reference: jobData['paymentReference'] ?? 'GWASH-ESCROW',
+        providerName: jobData['washerName'],
+        providerPhone: jobData['washerPhone'],
+        providerEmail: jobData['washerEmail'],
+        providerShare: providerShare,
+      );
+
+      debugPrint('✅ Escrow released successfully! Washer received ₦$providerShare | Admin ₦$platformFee');
+      return {'success': true, 'providerShare': providerShare, 'platformFee': platformFee};
+    } catch (e) {
+      debugPrint('❌ Escrow Release Error: $e');
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -617,7 +673,8 @@ class PaymentService {
   }
 
   // ============================================================
-  // GET DAILY EARNINGS (Washer)
+  // ============================================================
+  // GET DAILY EARNINGS (Washer - 95% Net Share)
   // ============================================================
   Future<Map<String, dynamic>> getDailyEarnings(String washerId, DateTime date) async {
     try {
@@ -627,6 +684,7 @@ class PaymentService {
       final snapshot = await _firestore
           .collection('payments')
           .where('washerId', isEqualTo: washerId)
+          .where('status', isEqualTo: 'completed')
           .where('paymentDate', isGreaterThanOrEqualTo: startOfDay)
           .where('paymentDate', isLessThan: endOfDay)
           .get();
@@ -634,7 +692,8 @@ class PaymentService {
       double total = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        total += (data['amount'] ?? 0).toDouble();
+        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.95);
+        total += (share as num).toDouble();
       }
 
       return {
@@ -660,7 +719,7 @@ class PaymentService {
   }
 
   // ============================================================
-  // GET MONTHLY EARNINGS (Washer)
+  // GET MONTHLY EARNINGS (Washer - 95% Net Share)
   // ============================================================
   Future<Map<String, dynamic>> getMonthlyEarnings(String washerId, int year, int month) async {
     try {
@@ -670,6 +729,7 @@ class PaymentService {
       final snapshot = await _firestore
           .collection('payments')
           .where('washerId', isEqualTo: washerId)
+          .where('status', isEqualTo: 'completed')
           .where('paymentDate', isGreaterThanOrEqualTo: startOfMonth)
           .where('paymentDate', isLessThan: endOfMonth)
           .get();
@@ -677,7 +737,8 @@ class PaymentService {
       double total = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        total += (data['amount'] ?? 0).toDouble();
+        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.95);
+        total += (share as num).toDouble();
       }
 
       return {
@@ -705,19 +766,21 @@ class PaymentService {
   }
 
   // ============================================================
-  // GET TOTAL EARNINGS (Washer)
+  // GET TOTAL EARNINGS (Washer - 95% Net Share)
   // ============================================================
   Future<double> getTotalEarnings(String washerId) async {
     try {
       final snapshot = await _firestore
           .collection('payments')
           .where('washerId', isEqualTo: washerId)
+          .where('status', isEqualTo: 'completed')
           .get();
 
       double total = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        total += (data['amount'] ?? 0).toDouble();
+        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.95);
+        total += (share as num).toDouble();
       }
 
       return total;

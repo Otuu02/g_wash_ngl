@@ -214,12 +214,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
               break;
             case 'completed':
               _currentStep = 3;
-              _currentLocation = 'Service completed! Please confirm and pay.';
+              _currentLocation = 'Service completed! Escrow funds released to provider.';
               _movementTimer?.cancel();
               break;
             case 'paid':
               _currentStep = 4;
-              _currentLocation = 'Payment successful! Thank you.';
+              _currentLocation = 'Payment secured in Escrow!';
               _movementTimer?.cancel();
               break;
             case 'cancelled':
@@ -259,7 +259,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
         break;
       case 'completed':
         notifTitle = '🎉 Service Completed!';
-        notifMsg = 'Your service has been completed. Please confirm and pay.';
+        notifMsg = 'Service completed! Held escrow funds released to provider. Please rate your provider!';
         notifIcon = Icons.check_circle_outline;
         notifColor = Colors.green;
         break;
