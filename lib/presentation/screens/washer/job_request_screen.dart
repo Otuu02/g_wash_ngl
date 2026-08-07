@@ -142,25 +142,51 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
             ],
           ),
         ),
-        body: FutureBuilder<List<List<Map<String, dynamic>>>>(
-          future: Future.wait([
-            JobService().getPendingJobs(category: authService.serviceCategory),
-            washerId.isNotEmpty
-                ? JobService().getWasherJobs(washerId)
-                : Future.value(<Map<String, dynamic>>[]),
-          ]),
+        body: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('jobs').snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final pendingJobs = snapshot.data?[0] ?? [];
-            final washerJobs = snapshot.data?[1] ?? [];
-            final activeJobs = washerJobs.where((j) =>
-                j['status'] == 'assigned' ||
-                j['status'] == 'enRoute' ||
-                j['status'] == 'in_progress' ||
-                j['status'] == 'arrived').toList();
+            final docs = snapshot.data?.docs ?? [];
+            final List<Map<String, dynamic>> allJobs = docs.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return {
+                'id': doc.id,
+                ...data,
+              };
+            }).toList();
+
+            // Sort newest first
+            allJobs.sort((a, b) {
+              final aTime = a['createdAt'] is Timestamp ? (a['createdAt'] as Timestamp).toDate() : DateTime(2020);
+              final bTime = b['createdAt'] is Timestamp ? (b['createdAt'] as Timestamp).toDate() : DateTime(2020);
+              return bTime.compareTo(aTime);
+            });
+
+            // Pending Jobs: matching washerId OR unassigned/searching status
+            final pendingJobs = allJobs.where((j) {
+              final status = (j['status'] ?? '').toString().toLowerCase();
+              final jWasherId = (j['washerId'] ?? '').toString();
+              
+              final isTargetWasher = washerId.isNotEmpty && (jWasherId == washerId);
+              final isUnassignedPending = (jWasherId.isEmpty || status == 'searching' || status == 'pending') &&
+                  (status == 'pending' || status == 'searching' || status == 'assigned');
+
+              return isTargetWasher && status == 'assigned' || isUnassignedPending;
+            }).toList();
+
+            // Active Jobs: assigned to current washer & active status
+            final activeJobs = allJobs.where((j) {
+              final status = (j['status'] ?? '').toString().toLowerCase();
+              final jWasherId = (j['washerId'] ?? '').toString();
+              
+              final isMyJob = washerId.isEmpty || jWasherId == washerId;
+              final isActiveStatus = status == 'accepted' || status == 'enroute' || status == 'in_progress' || status == 'arrived';
+
+              return isMyJob && isActiveStatus;
+            }).toList();
 
             return TabBarView(
               children: [

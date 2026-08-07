@@ -18,30 +18,9 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
   
-  <style>
-    /* Suppress Google Maps API key / quota warning modal overlay */
-    .gm-err-container, 
-    .gm-err-content, 
-    div[style*="z-index: 1000001"],
-    div[style*="z-index: 1000002"] {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
-    }
-  </style>
-
   <script>
     window.flutterWebRenderer = "canvaskit";
     console.log('🚀 G Wash NG - Web App');
-
-    // Auto dismiss Google Maps billing alert dialogs if injected
-    setInterval(function() {
-      var errContainers = document.querySelectorAll('.gm-err-container');
-      errContainers.forEach(function(el) { el.remove(); });
-      var dismissBtns = document.querySelectorAll('.gm-err-clean-btn, button[aria-label="Close"]');
-      dismissBtns.forEach(function(btn) { btn.click(); });
-    }, 500);
 
     function requestPushPermission() {
       if ('Notification' in window && Notification.permission !== 'granted') {
