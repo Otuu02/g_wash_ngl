@@ -91,9 +91,9 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   Map<String, List<String>> _selectedSubServices = {};
   Map<String, String> _subServicePrices = {};
   
-  String _selectedVehicleType = 'Motorcycle';
+  String? _selectedVehicleType;
   double _workingRadius = 10;
-  String _selectedBank = 'Access Bank';
+  String? _selectedBank;
   String _bankSearchQuery = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -103,45 +103,38 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   // All Nigerian Banks
   // ============================================================
   final List<String> _allBanks = [
-    'Access Bank', 'GTBank', 'First Bank', 'UBA', 'Zenith Bank',
-    'Union Bank', 'Fidelity Bank', 'Ecobank', 'Stanbic IBTC', 'Polaris Bank',
-    'Sterling Bank', 'Wema Bank', 'Heritage Bank', 'Keystone Bank',
-    'Providus Bank', 'Titan Trust Bank', 'Globus Bank', 'Parallex Bank',
-    'Premium Trust Bank', 'Signature Bank',
-    'Accion Microfinance Bank', 'AB Microfinance Bank', 'Afemai Microfinance Bank',
-    'Allianz Microfinance Bank', 'Alvana Microfinance Bank', 'Aso Savings & Loans',
-    'Baobab Microfinance Bank', 'BIPC Microfinance Bank', 'Bosak Microfinance Bank',
-    'Cedar Microfinance Bank', 'Covenant Microfinance Bank', 'Crown Microfinance Bank',
-    'DBN Microfinance Bank', 'E-Block Microfinance Bank', 'Ehiama Microfinance Bank',
-    'Empower Microfinance Bank', 'ESOP Microfinance Bank', 'FairMoney Microfinance Bank',
-    'Fina Microfinance Bank', 'Forte Microfinance Bank', 'Girei Microfinance Bank',
-    'Gombe Microfinance Bank', 'GreenBank Microfinance Bank', 'Haggai Microfinance Bank',
-    'Hasal Microfinance Bank', 'Infinity Microfinance Bank', 'Innovate Microfinance Bank',
-    'Kadpoly Microfinance Bank', 'Kano Microfinance Bank', 'Kasuwa Microfinance Bank',
-    'Kuda Microfinance Bank', 'Lasaco Microfinance Bank', 'Mainstreet Microfinance Bank',
-    'Mint Microfinance Bank', 'Mkobo Microfinance Bank', 'Mutual Microfinance Bank',
-    'New Prudent Microfinance Bank', 'NIRSAL Microfinance Bank', 'Noble Microfinance Bank',
-    'Nurture Microfinance Bank', 'Ojokoro Microfinance Bank', 'Omiye Microfinance Bank',
-    'Paga Microfinance Bank', 'Palmcoast Microfinance Bank', 'Partnership Microfinance Bank',
-    'Pepper Microfinance Bank', 'Personal Trust Microfinance Bank', 'Progressive Microfinance Bank',
-    'Rabobank Microfinance Bank', 'Rigo Microfinance Bank', 'Sabru Microfinance Bank',
-    'Sagamu Microfinance Bank', 'Seedvest Microfinance Bank', 'Smart Microfinance Bank',
-    'Sparkle Microfinance Bank', 'Splendid Microfinance Bank', 'Startup Microfinance Bank',
-    'Sunshine Microfinance Bank', 'Tangerine Microfinance Bank', 'TCF Microfinance Bank',
-    'Top Capital Microfinance Bank', 'Trustfund Microfinance Bank', 'Unibright Microfinance Bank',
-    'Victory Microfinance Bank', 'Vision Microfinance Bank', 'VFD Microfinance Bank',
-    'Vivid Microfinance Bank', 'Waya Microfinance Bank', 'Yobe Microfinance Bank',
-    'Kuda Bank', 'OPay', 'PalmPay', 'FairMoney', 'Carbon Bank',
-    'VBank', 'Sparkle Bank', 'ALAT by Wema', 'Rubies Bank', 'Eyowo',
-    'Zenith Bank (Eazy)', 'GTBank (GTWorld)', 'Access Bank (AccessMore)',
-    'Sterling Bank (OneBank)', 'UBA (UBAMobile)', 'Fidelity Bank (Fidelity Online)',
-    'Union Bank (UnionMobile)', 'Ecobank (Ecobank Mobile)', 'Stanbic IBTC (Stanbic Mobile)',
-    'Polaris Bank (Polaris Mobile)', 'Wema Bank (ALAT)', 'First Bank (FirstMobile)',
-    'Heritage Bank (Heritage Mobile)', 'Keystone Bank (Keystone Mobile)',
-    '9Mobile (9PSB)', 'MTN MoMo', 'Airtel SmartCash', 'Glo G-Wallet',
-    'eTranzact', 'Paga', 'Interswitch', 'Flutterwave (Barter)',
-    'Paystack (Paystack Business)', 'Moniepoint', 'Opay (Opay Business)',
-    'PalmPay (PalmPay Business)', 'Kuda (Kuda Business)',
+    'Access Bank',
+    'GTBank (Guaranty Trust Bank)',
+    'Zenith Bank',
+    'First Bank of Nigeria',
+    'UBA (United Bank for Africa)',
+    'Kuda Bank',
+    'Moniepoint Microfinance Bank',
+    'OPay',
+    'PalmPay',
+    'FCMB (First City Monument Bank)',
+    'Fidelity Bank',
+    'Stanbic IBTC Bank',
+    'Sterling Bank',
+    'Wema Bank / ALAT',
+    'Union Bank of Nigeria',
+    'Ecobank Nigeria',
+    'Keystone Bank',
+    'Providus Bank',
+    'Heritage Bank',
+    'Polaris Bank',
+    'FairMoney Microfinance Bank',
+    'Taj Bank',
+    'Parallex Bank',
+    'Lotus Bank',
+    'Signature Bank',
+    'Titan Trust Bank',
+    'Globus Bank',
+    'Premium Trust Bank',
+    'VBank (VFD Microfinance)',
+    'Rubies Bank',
+    'Eyowo',
+    'Paga',
   ];
   
   List<String> get _filteredBanks {
@@ -338,9 +331,9 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'mainCategoryNames': mainCategoryNames,
         'selectedSubServices': selectedSubServices,
         'subServicePrices': subServicePrices,
-        'vehicleType': _selectedVehicleType,
+        'vehicleType': _selectedVehicleType ?? 'None / Walking',
         'workingRadius': _workingRadius.toInt(),
-        'bankName': _selectedBank,
+        'bankName': _selectedBank ?? '',
         'accountNumber': _accountNumberController.text.trim(),
         'accountName': _accountNameController.text.trim(),
         'isVerified': false,
@@ -902,22 +895,29 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    DropdownButtonFormField(
+                    DropdownButtonFormField<String>(
                       value: _selectedVehicleType,
                       decoration: const InputDecoration(
-                        labelText: 'Vehicle Type *',
+                        labelText: 'Vehicle Type (Optional)',
+                        hintText: 'Select your vehicle type',
                         prefixIcon: Icon(Icons.directions_car, color: AppColors.primary),
                         border: OutlineInputBorder(),
                         focusedBorder: OutlineInputBorder(
                           borderSide: BorderSide(color: AppColors.primary, width: 2),
                         ),
                       ),
-                      items: _vehicleTypes.map((type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(type),
-                      )).toList(),
-                      onChanged: (value) => setState(() => _selectedVehicleType = value!),
-                      validator: (value) => value == null ? 'Select vehicle type' : null,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(value: 'None / Walking', child: Text('None / Walking (No vehicle)')),
+                        DropdownMenuItem(value: 'Motorcycle', child: Text('Motorcycle')),
+                        DropdownMenuItem(value: 'Car', child: Text('Car')),
+                        DropdownMenuItem(value: 'Van', child: Text('Van')),
+                        DropdownMenuItem(value: 'Truck', child: Text('Truck')),
+                        DropdownMenuItem(value: 'SUV', child: Text('SUV')),
+                        DropdownMenuItem(value: 'Bicycle', child: Text('Bicycle')),
+                        DropdownMenuItem(value: 'Keke (Tricycle)', child: Text('Keke (Tricycle)')),
+                      ],
+                      onChanged: (value) => setState(() => _selectedVehicleType = value),
                     ),
                     const SizedBox(height: 16),
                     
@@ -945,7 +945,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Bank Information - MANUAL ENTRY ONLY
+                    // Bank Information - COMPLETE NIGERIAN BANKS DROPDOWN
                     // ============================================================
                     const Text(
                       'Bank Information',
@@ -953,87 +953,29 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Enter your bank details manually (no automatic verification)',
+                      'Select your bank for earnings payouts',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(height: 16),
                     
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          onChanged: (value) {
-                            setState(() {
-                              _bankSearchQuery = value;
-                            });
-                          },
-                          decoration: const InputDecoration(
-                            labelText: 'Search Bank *',
-                            prefixIcon: Icon(Icons.search, color: AppColors.primary),
-                            border: OutlineInputBorder(),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: AppColors.primary, width: 2),
-                            ),
-                            suffixIcon: Icon(Icons.arrow_drop_down, color: AppColors.primary),
-                          ),
+                    DropdownButtonFormField<String>(
+                      value: _selectedBank,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Bank *',
+                        hintText: 'Choose your Nigerian Bank',
+                        prefixIcon: Icon(Icons.account_balance, color: AppColors.primary),
+                        border: OutlineInputBorder(),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
                         ),
-                        const SizedBox(height: 8),
-                        if (_bankSearchQuery.isNotEmpty)
-                          Container(
-                            height: 150,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: _filteredBanks.length > 20 ? 20 : _filteredBanks.length,
-                              itemBuilder: (context, index) {
-                                final bank = _filteredBanks[index];
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(bank, style: const TextStyle(fontSize: 13)),
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedBank = bank;
-                                      _bankSearchQuery = '';
-                                    });
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-                        if (_bankSearchQuery.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.primary.withOpacity(0.1)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.check_circle, color: AppColors.primary, size: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _selectedBank,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '(selected)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
+                      ),
+                      isExpanded: true,
+                      items: _allBanks.map((bank) => DropdownMenuItem<String>(
+                        value: bank,
+                        child: Text(bank, overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: (value) => setState(() => _selectedBank = value),
+                      validator: (value) => value == null || value.isEmpty ? 'Select your bank' : null,
                     ),
                     
                     const SizedBox(height: 12),
