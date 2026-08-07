@@ -28,7 +28,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
-  String _selectedLocation = 'Lekki Phase 1, Lagos';
+  String _selectedLocation = 'Locating current position...';
   LatLng? _selectedCoordinates;
   int _selectedCategoryIndex = 0;
   
@@ -214,6 +214,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _loadUserLocation() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
+      final locationService = LocationService();
+
+      // First check if user has a previously stored address
       if (user != null) {
         final doc = await FirebaseFirestore.instance
             .collection('users')
@@ -222,25 +225,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (doc.exists) {
           final data = doc.data();
           if (data != null) {
-            if (data['currentAddress'] != null) {
-              setState(() {
-                _selectedLocation = data['currentAddress'];
-              });
+            if (data['currentAddress'] != null && data['currentAddress'].toString().isNotEmpty) {
+              if (mounted) {
+                setState(() {
+                  _selectedLocation = data['currentAddress'];
+                });
+              }
             }
             if (data['currentLat'] != null && data['currentLng'] != null) {
-              setState(() {
-                _selectedCoordinates = LatLng(
-                  data['currentLat'],
-                  data['currentLng'],
-                );
-              });
+              if (mounted) {
+                setState(() {
+                  _selectedCoordinates = LatLng(
+                    data['currentLat'],
+                    data['currentLng'],
+                  );
+                });
+              }
             }
           }
         }
       }
 
-      final locationService = LocationService();
+      // Automatically fetch current live GPS position on login / app launch
+      debugPrint('📍 Fetching real-time device location on app launch...');
       final pos = await locationService.getCurrentLocation();
+      
       if (mounted) {
         setState(() {
           _selectedCoordinates = LatLng(pos.latitude, pos.longitude);
@@ -248,9 +257,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             _selectedLocation = locationService.currentAddress!;
           }
         });
+
+        // Show location update toast if address was detected
+        if (_selectedLocation.isNotEmpty && !_selectedLocation.contains('Locating')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.my_location, color: Colors.white, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Location updated: $_selectedLocation',
+                      style: const TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.primary,
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
       }
     } catch (e) {
-      print('Error loading user location: $e');
+      debugPrint('ℹ️ Notice fetching live user location: $e');
+      if (mounted && _selectedLocation == 'Locating current position...') {
+        setState(() {
+          _selectedLocation = 'Lagos, Nigeria';
+        });
+      }
     }
   }
 
@@ -371,6 +410,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  Future<void> _changeLocation() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LocationSearchScreen(),
+      ),
+    );
+
+    if (result != null && result['address'] != null) {
+      final String address = result['address'];
+      final LatLng? coords = result['coordinates'];
+
+      setState(() {
+        _selectedLocation = address;
+        if (coords != null) _selectedCoordinates = coords;
+      });
+
+      // Save updated location to Firestore for current user
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'currentAddress': address,
+          if (coords != null) 'currentLat': coords.latitude,
+          if (coords != null) 'currentLng': coords.longitude,
+          'lastLocationUpdate': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    }
   }
 
   @override
@@ -924,7 +993,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ============================================================
   // REMAINING METHODS (Unchanged)
   // ============================================================
-  void _changeLocation() async {
+  void _openLocationPicker() async {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(

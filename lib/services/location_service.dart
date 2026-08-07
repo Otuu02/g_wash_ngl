@@ -178,10 +178,26 @@ class LocationService extends ChangeNotifier {
           return _currentAddress!;
         }
       }
-      return 'Unknown location';
+      
+      // Fallback to OpenStreetMap / BigDataCloud free reverse geocoding
+      final osmResponse = await http.get(
+        Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng'),
+        headers: {'User-Agent': 'GWashNG/1.0'},
+      );
+      if (osmResponse.statusCode == 200) {
+        final osmData = jsonDecode(osmResponse.body);
+        final displayName = osmData['display_name'];
+        if (displayName != null && displayName.toString().isNotEmpty) {
+          _currentAddress = displayName.toString();
+          notifyListeners();
+          return _currentAddress!;
+        }
+      }
+
+      return 'Lagos, Nigeria';
     } catch (e) {
       print('Reverse geocoding error: $e');
-      return 'Unable to get address';
+      return 'Lagos, Nigeria';
     }
   }
   
