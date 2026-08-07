@@ -154,81 +154,141 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () async {
-                            final amt = double.tryParse(_amountController.text) ?? 0;
-                            if (amt < 10000) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Minimum withdrawal amount is ₦10,000!'), backgroundColor: Colors.red),
-                              );
-                              return;
-                            }
-                            if (amt > availableBalance) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Requested amount exceeds available balance!'), backgroundColor: Colors.red),
-                              );
-                              return;
-                            }
-                            if (_accountNumberController.text.trim().length < 10) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please enter a valid 10-digit account number!'), backgroundColor: Colors.red),
-                              );
-                              return;
-                            }
-                            if (_accountNameController.text.trim().isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('❌ Please enter the account holder name!'), backgroundColor: Colors.red),
-                              );
-                              return;
-                            }
-
-                            Navigator.pop(context);
-                            setState(() => _isLoading = true);
-
-                            final res = await PaymentService().requestWasherPayout(
-                              washerId: washerId,
-                              washerName: washerName,
-                              amount: amt,
-                              bankName: _selectedBank,
-                              accountNumber: _accountNumberController.text.trim(),
-                              accountName: _accountNameController.text.trim(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final accNum = _accountNumberController.text.trim();
+                          final accName = _accountNameController.text.trim();
+                          if (accNum.length < 10) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter a valid 10-digit account number!'), backgroundColor: Colors.red),
                             );
+                            return;
+                          }
+                          if (accName.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter account holder name!'), backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
 
-                            setState(() => _isLoading = false);
+                          Navigator.pop(context);
+                          try {
+                            await FirebaseFirestore.instance.collection('washers').doc(washerId).set({
+                              'bankName': _selectedBank,
+                              'accountNumber': accNum,
+                              'accountName': accName,
+                              'bankConnected': true,
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            }, SetOptions(merge: true));
 
-                            if (res['success'] == true) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('🎉 Withdrawal request submitted! Admin will approve shortly.'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            } else {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('❌ Error: ${res['error']}'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('✅ Bank account details saved successfully!'), backgroundColor: Colors.green),
+                              );
                             }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error saving bank details: $e'), backgroundColor: Colors.red),
+                              );
+                            }
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: AppColors.primary),
+                        ),
+                        child: const Text('Save Bank Details', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      ),
                     ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Submit Payout Request', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                final amt = double.tryParse(_amountController.text) ?? 0;
+                                if (amt < 1000) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Minimum withdrawal amount is ₦1,000!'), backgroundColor: Colors.red),
+                                  );
+                                  return;
+                                }
+                                if (amt > availableBalance && availableBalance > 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Requested amount exceeds available balance!'), backgroundColor: Colors.red),
+                                  );
+                                  return;
+                                }
+                                if (_accountNumberController.text.trim().length < 10) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Please enter a valid 10-digit account number!'), backgroundColor: Colors.red),
+                                  );
+                                  return;
+                                }
+                                if (_accountNameController.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('❌ Please enter the account holder name!'), backgroundColor: Colors.red),
+                                  );
+                                  return;
+                                }
+
+                                Navigator.pop(context);
+                                setState(() => _isLoading = true);
+
+                                // Save bank details first
+                                await FirebaseFirestore.instance.collection('washers').doc(washerId).set({
+                                  'bankName': _selectedBank,
+                                  'accountNumber': _accountNumberController.text.trim(),
+                                  'accountName': _accountNameController.text.trim(),
+                                  'bankConnected': true,
+                                }, SetOptions(merge: true));
+
+                                final res = await PaymentService().requestWasherPayout(
+                                  washerId: washerId,
+                                  washerName: washerName,
+                                  amount: amt,
+                                  bankName: _selectedBank,
+                                  accountNumber: _accountNumberController.text.trim(),
+                                  accountName: _accountNameController.text.trim(),
+                                );
+
+                                setState(() => _isLoading = false);
+
+                                if (res['success'] == true) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('🎉 Withdrawal request submitted! Admin will approve shortly.'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                } else {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('❌ Error: ${res['error']}'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Withdraw Payout', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
               ],
@@ -270,8 +330,6 @@ class _EarningsScreenState extends State<EarningsScreen> {
           final double totalPlatformFees = (washerData['totalPlatformFeesPaid'] ?? 0.0).toDouble();
           final int completedJobs = washerData['completedJobs'] ?? 0;
 
-          final bool canWithdraw = availableBalance >= 10000;
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -311,22 +369,21 @@ class _EarningsScreenState extends State<EarningsScreen> {
                         width: double.infinity,
                         height: 46,
                         child: ElevatedButton.icon(
-                          onPressed: canWithdraw
-                              ? () => _withdraw(availableBalance, washerId, washerName, Map<String, dynamic>.from(washerData))
-                              : null,
-                          icon: Icon(
-                            canWithdraw ? Icons.account_balance_wallet : Icons.lock_clock,
+                          onPressed: () => _withdraw(availableBalance, washerId, washerName, Map<String, dynamic>.from(washerData)),
+                          icon: const Icon(
+                            Icons.account_balance_wallet,
                             size: 20,
                           ),
                           label: Text(
-                            canWithdraw
+                            (washerData['accountNumber'] ?? '').toString().isNotEmpty
                                 ? 'Withdraw Earnings to Bank'
-                                : 'Min Withdrawal: ₦10,000 (Available: ₦${NumberFormat('#,###').format(availableBalance)})',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                : 'Connect Bank Account & Withdraw',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: canWithdraw ? Colors.white : Colors.white38,
-                            foregroundColor: canWithdraw ? AppColors.primary : Colors.grey[700],
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.primary,
+                            elevation: 2,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -338,52 +395,57 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Connected Bank Account Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.06),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.15),
-                          shape: BoxShape.circle,
+                // Connected Bank Account Card (Clickable to Edit/Connect Bank Details)
+                InkWell(
+                  onTap: () => _withdraw(availableBalance, washerId, washerName, Map<String, dynamic>.from(washerData)),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.account_balance, color: Colors.blue, size: 24),
                         ),
-                        child: const Icon(Icons.account_balance, color: Colors.blue, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Text(
-                                  'Connected Bank Account',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue),
-                                ),
-                                const SizedBox(width: 6),
-                                if (washerData['bankConnected'] == true || (washerData['accountNumber'] ?? '').toString().isNotEmpty)
-                                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              (washerData['accountNumber'] ?? '').toString().isNotEmpty
-                                  ? '${washerData['bankName'] ?? 'Bank'} • ${washerData['accountNumber']} (${washerData['accountName'] ?? washerName})'
-                                  : 'No bank account connected yet. Tap Withdraw to connect!',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[800]),
-                            ),
-                          ],
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text(
+                                    'Connected Bank Account',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  if (washerData['bankConnected'] == true || (washerData['accountNumber'] ?? '').toString().isNotEmpty)
+                                    const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                (washerData['accountNumber'] ?? '').toString().isNotEmpty
+                                    ? '${washerData['bankName'] ?? 'Bank'} • ${washerData['accountNumber']} (${washerData['accountName'] ?? washerName})'
+                                    : 'No bank account connected yet. Tap to connect!',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const Icon(Icons.edit_note, color: Colors.blue),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
