@@ -16,6 +16,7 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -24,11 +25,19 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscureConfirmPassword = true;
 
   Future<void> _signup() async {
-    if (_nameController.text.isEmpty) {
+    if (_nameController.text.trim().isEmpty) {
       _showError('Please enter your name');
       return;
     }
-    if (_phoneController.text.isEmpty) {
+    if (_emailController.text.trim().isEmpty) {
+      _showError('Please enter your email address');
+      return;
+    }
+    if (!_emailController.text.trim().contains('@') || !_emailController.text.trim().contains('.')) {
+      _showError('Please enter a valid email address');
+      return;
+    }
+    if (_phoneController.text.trim().isEmpty) {
       _showError('Please enter your phone number');
       return;
     }
@@ -48,6 +57,7 @@ class _SignupScreenState extends State<SignupScreen> {
       _nameController.text.trim(),
       _phoneController.text.trim(),
       _passwordController.text.trim(),
+      email: _emailController.text.trim(),
     );
 
     setState(() => _isLoading = false);
@@ -119,6 +129,18 @@ class _SignupScreenState extends State<SignupScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Full Name',
                   prefixIcon: Icon(Icons.person_outline),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Email Input
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email Address',
+                  hintText: 'example@gmail.com',
+                  prefixIcon: Icon(Icons.email_outlined),
                   border: OutlineInputBorder(),
                 ),
               ),

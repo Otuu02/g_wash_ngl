@@ -232,7 +232,7 @@ class AuthService extends ChangeNotifier {
   // ============================================================
   // SIGNUP - Creates user in Firebase Auth
   // ============================================================
-  Future<bool> signup(String name, String phoneNumber, String password, {String role = 'customer'}) async {
+  Future<bool> signup(String name, String phoneNumber, String password, {String? email, String role = 'customer'}) async {
     try {
       final formattedPhone = formatPhone(phoneNumber);
       
@@ -248,17 +248,19 @@ class AuthService extends ChangeNotifier {
         return false;
       }
       
-      final email = '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
+      final String userEmail = (email != null && email.trim().isNotEmpty)
+          ? email.trim().toLowerCase()
+          : '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
       String uid = 'usr_${DateTime.now().millisecondsSinceEpoch}';
       
       try {
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(
-              email: email,
+              email: userEmail,
               password: password,
             );
         uid = userCredential.user!.uid;
-        _userEmail = userCredential.user!.email;
+        _userEmail = userCredential.user!.email ?? userEmail;
       } on FirebaseAuthException catch (e) {
         debugPrint('⚠️ Firebase Auth signup notice: ${e.message} (code: ${e.code})');
         if (e.code == 'email-already-in-use') {
@@ -267,12 +269,13 @@ class AuthService extends ChangeNotifier {
         }
       } catch (e) {
         debugPrint('⚠️ Firebase Auth signup fallback: $e');
+        _userEmail = userEmail;
       }
 
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'name': name,
         'phone': formattedPhone,
-        'email': email,
+        'email': userEmail,
         'role': role,
         'isBlocked': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -283,6 +286,7 @@ class AuthService extends ChangeNotifier {
         'name': name,
         'password': password,
         'phone': formattedPhone,
+        'email': userEmail,
         'userId': uid,
         'role': role,
       };
@@ -292,6 +296,7 @@ class AuthService extends ChangeNotifier {
       _userPhone = formattedPhone;
       _userId = uid;
       _userRole = role;
+      _userEmail = userEmail;
       _serviceCategory = null;
       await _saveUserState();
       notifyListeners();
@@ -299,7 +304,7 @@ class AuthService extends ChangeNotifier {
       // Dispatch Welcome Email & SMS
       CommunicationService().sendWelcomeNotifications(
         userName: name,
-        email: email,
+        email: userEmail,
         phone: formattedPhone,
         role: role,
       );
