@@ -8,8 +8,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
-import '../../../services/app_notification_service.dart';
-import '../../../services/communication_service.dart';
 import '../customer/tracking_screen.dart';
 
 class JobRequestScreen extends StatefulWidget {
@@ -26,36 +24,32 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
     final jobId = job['id'];
     if (jobId == null) return;
 
-    setState(() {});
+    final resolvedWasherId = washerId.isNotEmpty
+        ? washerId
+        : (Provider.of<AuthService>(context, listen: false).userId ?? '');
+
+    if (resolvedWasherId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in as a service provider to accept jobs.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     try {
-      await JobService().assignProviderToJob(
+      final result = await JobService().assignProviderToJob(
         jobId: jobId, 
-        providerId: washerId,
+        providerId: resolvedWasherId,
       );
 
-      final washerDoc = await FirebaseFirestore.instance
-          .collection('washers')
-          .doc(washerId)
-          .get();
-      final washerData = washerDoc.data() ?? {};
-      final washerName = washerData['name'] ?? 'Provider';
-
-      final commService = CommunicationService();
-      await commService.sendProviderAssignedNotifications(
-        jobId: jobId,
-        customerName: job['customerName'] ?? 'Customer',
-        customerPhone: job['customerPhone'] ?? '',
-        customerEmail: job['customerEmail'] ?? '',
-        providerName: washerName,
-        serviceName: job['serviceName'] ?? 'Service',
-        eta: '15 mins',
-      );
+      final washerName = result['washerName'] ?? 'Provider';
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Job Accepted Successfully!'),
+            content: Text('✅ Job Accepted Successfully! Customer notified.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -74,8 +68,8 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
               pickupLocation: LatLng(lat, lng),
               serviceName: job['serviceName'] ?? 'Service',
               price: job['price'] ?? 0,
-              washerId: washerId,
-              washerImage: washerData['profileImage'],
+              washerId: resolvedWasherId,
+              washerImage: result['washerImage'],
             ),
           ),
         );
@@ -98,7 +92,11 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
     if (jobId == null) return;
 
     try {
-      await JobService().cancelJob(jobId: jobId, reason: 'Declined by service provider');
+      await JobService().cancelJob(
+        jobId: jobId,
+        reason: 'Declined by service provider',
+        cancelledBy: 'Service Provider',
+      );
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
@@ -397,6 +395,13 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
               ],
             ),
             const SizedBox(height: 16),
+            
+            // ============================================================
+            // WORKFLOW STATUS BUTTONS FOR PROVIDER
+            // ============================================================
+            _buildStatusActionButton(job),
+            
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -437,7 +442,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                       }
                     },
                     icon: const Icon(Icons.navigation, size: 18),
-                    label: const Text('Navigate'),
+                    label: const Text('Track / Map'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -458,19 +463,10 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 children: [
                   Icon(Icons.info_outline, size: 14, color: Colors.blue),
                   SizedBox(width: 8),
-                  Text(
-                    'You are en route to customer location',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  Spacer(),
-                  SizedBox(
-                    width: 8,
-                    height: 8,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                      ),
+                  Expanded(
+                    child: Text(
+                      'Tap buttons above to update customer on your arrival and service progress.',
+                      style: TextStyle(fontSize: 11, color: Colors.blue),
                     ),
                   ),
                 ],
@@ -504,6 +500,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                 await JobService().cancelJob(
                   jobId: jobId,
                   reason: 'Cancelled by service provider',
+                  cancelledBy: 'Service Provider',
                 );
                 if (mounted) {
                   setState(() {});
@@ -600,5 +597,98 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildStatusActionButton(Map<String, dynamic> job) {
+    final status = job['status'] ?? 'assigned';
+    final jobId = job['id'];
+
+    if (status == 'assigned' || status == 'enRoute') {
+      return SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton.icon(
+          onPressed: () async {
+            if (jobId != null) {
+              await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
+                'status': 'arrived',
+                'arrivedAt': FieldValue.serverTimestamp(),
+              });
+              setState(() {});
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('📍 Updated: You have arrived!'), backgroundColor: Colors.blue),
+                );
+              }
+            }
+          },
+          icon: const Icon(Icons.location_on, color: Colors.white, size: 20),
+          label: const Text('📍 I Have Arrived', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      );
+    } else if (status == 'arrived') {
+      return SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton.icon(
+          onPressed: () async {
+            if (jobId != null) {
+              await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
+                'status': 'in_progress',
+                'startedAt': FieldValue.serverTimestamp(),
+              });
+              setState(() {});
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('🚿 Updated: Service Started!'), backgroundColor: Colors.purple),
+                );
+              }
+            }
+          },
+          icon: const Icon(Icons.play_arrow, color: Colors.white, size: 20),
+          label: const Text('🚿 Start Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.purple,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      );
+    } else if (status == 'in_progress') {
+      return SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton.icon(
+          onPressed: () async {
+            if (jobId != null) {
+              await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
+                'status': 'completed',
+                'completedAt': FieldValue.serverTimestamp(),
+              });
+              setState(() {});
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('✅ Updated: Service Completed!'), backgroundColor: Colors.green),
+                );
+              }
+            }
+          },
+          icon: const Icon(Icons.check_circle, color: Colors.white, size: 20),
+          label: const Text('✅ Complete Service', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }

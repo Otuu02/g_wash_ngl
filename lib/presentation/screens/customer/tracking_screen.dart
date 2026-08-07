@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/location_service.dart';
 import '../../../services/app_notification_service.dart';
+import '../../../services/job_service.dart';
 import '../customer/rating_screen.dart';
 import 'payment_screen.dart';
 
@@ -57,6 +58,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   late LatLng _providerLocation;
   StreamSubscription? _jobSubscription;
   StreamSubscription? _washerSubscription;
+  Timer? _movementTimer;
 
   @override
   void initState() {
@@ -70,14 +72,51 @@ class _TrackingScreenState extends State<TrackingScreen> {
     _washerImageUrl = widget.washerImage;
     _listenToJobUpdates();
     _fetchWasherDetails();
+    _startMovementSimulation();
   }
 
   @override
   void dispose() {
     _jobSubscription?.cancel();
     _washerSubscription?.cancel();
+    _movementTimer?.cancel();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  void _startMovementSimulation() {
+    _movementTimer?.cancel();
+    _movementTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      if (!mounted) return;
+      if (_jobStatus == 'assigned' || _jobStatus == 'enRoute') {
+        final dLat = _clientLocation.latitude - _providerLocation.latitude;
+        final dLng = _clientLocation.longitude - _providerLocation.longitude;
+
+        if (dLat.abs() < 0.0002 && dLng.abs() < 0.0002) {
+          setState(() {
+            _providerLocation = _clientLocation;
+            _currentLocation = 'Washer is arriving at your location';
+            _etaMinutes = 1;
+            _distanceKm = 0.05;
+          });
+        } else {
+          final newLat = _providerLocation.latitude + dLat * 0.08;
+          final newLng = _providerLocation.longitude + dLng * 0.08;
+          final newLoc = LatLng(newLat, newLng);
+
+          final dist = _calculateDistance(_clientLocation.latitude, _clientLocation.longitude, newLat, newLng);
+          final eta = (dist * 4).round().clamp(1, 45);
+
+          setState(() {
+            _providerLocation = newLoc;
+            _distanceKm = dist;
+            _etaMinutes = eta;
+          });
+
+          _mapController?.animateCamera(CameraUpdate.newLatLng(newLoc));
+        }
+      }
+    });
   }
 
   void _fetchWasherDetails() async {
@@ -471,14 +510,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
               Navigator.pop(context);
               setState(() => _isProcessing = true);
               try {
-                await FirebaseFirestore.instance
-                    .collection('jobs')
-                    .doc(widget.jobId)
-                    .update({
-                  'status': 'cancelled',
-                  'cancelledAt': FieldValue.serverTimestamp(),
-                  'cancelledBy': 'customer',
-                });
+                await JobService().cancelJob(
+                  jobId: widget.jobId,
+                  reason: 'Cancelled by customer',
+                  cancelledBy: 'Customer',
+                );
 
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -644,59 +680,122 @@ class _TrackingScreenState extends State<TrackingScreen> {
       body: Column(
         children: [
           // ============================================================
-          // MAP VIEW - Full width, reduced height
+          // MAP VIEW - Prominent Live Map with Real-Time Marker Animation
           // ============================================================
           Container(
-            height: 180,
+            height: 260,
             width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  blurRadius: 10,
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: GoogleMap(
-                initialCameraPosition: CameraPosition(
-                  target: _clientLocation,
-                  zoom: 14.5,
-                ),
-                markers: {
-                  Marker(
-                    markerId: const MarkerId('client'),
-                    position: _clientLocation,
-                    infoWindow: InfoWindow(title: 'Your Location', snippet: widget.pickupAddress),
-                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-                  ),
-                  if (!isPaid)
-                    Marker(
-                      markerId: const MarkerId('provider'),
-                      position: _providerLocation,
-                      infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm.toStringAsFixed(1)} km away'),
-                      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+              child: Stack(
+                children: [
+                  GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: _clientLocation,
+                      zoom: 14.5,
                     ),
-                },
-                polylines: !isPaid
-                    ? {
-                        Polyline(
-                          polylineId: const PolylineId('route'),
-                          points: [_providerLocation, _clientLocation],
-                          color: AppColors.primary,
-                          width: 4,
+                    markers: {
+                      Marker(
+                        markerId: const MarkerId('client'),
+                        position: _clientLocation,
+                        infoWindow: InfoWindow(title: 'Your Location', snippet: widget.pickupAddress),
+                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+                      ),
+                      if (!isPaid)
+                        Marker(
+                          markerId: const MarkerId('provider'),
+                          position: _providerLocation,
+                          infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm.toStringAsFixed(1)} km away'),
+                          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
                         ),
-                      }
-                    : {},
-                onMapCreated: (controller) => _mapController = controller,
-                myLocationEnabled: true,
-                myLocationButtonEnabled: true,
-                zoomControlsEnabled: false,
-                mapToolbarEnabled: false,
-                padding: const EdgeInsets.all(8),
+                    },
+                    polylines: !isPaid
+                        ? {
+                            Polyline(
+                              polylineId: const PolylineId('route'),
+                              points: [_providerLocation, _clientLocation],
+                              color: AppColors.primary,
+                              width: 5,
+                            ),
+                          }
+                        : {},
+                    onMapCreated: (controller) => _mapController = controller,
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: true,
+                    zoomControlsEnabled: true,
+                    mapToolbarEnabled: false,
+                    padding: const EdgeInsets.all(8),
+                  ),
+
+                  // Live Animated Indicator Overlay Banner
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.92),
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _jobStatus == 'arrived'
+                                  ? '📍 Provider has arrived at your location'
+                                  : isCompleted
+                                      ? '✅ Service Completed'
+                                      : '🚗 En Route • ${_distanceKm.toStringAsFixed(1)} km away • ETA: $_etaMinutes mins',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (_jobStatus == 'assigned' || _jobStatus == 'enRoute')
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1100,7 +1199,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         ),
                       ),
                       child: const Text(
-                        '⭐ Rate Service',
+                        '⭐ Rate Your Service Provider',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -1108,8 +1207,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       ),
                     ),
                   ),
-                
-                const SizedBox(height: 12),
+
+                // ============================================================
+                // PROVIDER ACTION SIMULATOR QUICK BAR (DEMO CONTROLS)
+                // ============================================================
+                _buildProviderSimulationQuickBar(),
                 
                 // CANCEL BOOKING BUTTON
                 if (!isCompleted && !isPaid && !isCancelled)
@@ -1139,6 +1241,96 @@ class _TrackingScreenState extends State<TrackingScreen> {
           ),
           
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProviderSimulationQuickBar() {
+    return Container(
+      margin: const EdgeInsets.only(top: 12, bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.touch_app, size: 16, color: AppColors.primary),
+              SizedBox(width: 6),
+              Text(
+                'Provider Actions Control (Demo/Testing)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Simulate provider status actions live in real-time:',
+            style: TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).update({
+                      'status': 'arrived',
+                      'arrivedAt': FieldValue.serverTimestamp(),
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    elevation: 1,
+                  ),
+                  child: const Text('📍 Arrived', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).update({
+                      'status': 'in_progress',
+                      'startedAt': FieldValue.serverTimestamp(),
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    elevation: 1,
+                  ),
+                  child: const Text('🚿 Started', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    await FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).update({
+                      'status': 'completed',
+                      'completedAt': FieldValue.serverTimestamp(),
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    elevation: 1,
+                  ),
+                  child: const Text('✅ Complete', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

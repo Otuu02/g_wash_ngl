@@ -15,6 +15,7 @@ class AuthService extends ChangeNotifier {
   String? _userRole; // customer, washer, cleaner, laundry_provider, admin
   String? _serviceCategory; // Car Wash, House Cleaning, Laundry
   String? _userEmail; // ✅ ADDED: User email field
+  String? _photoURL; // ✅ Profile picture URL
   
   // Store registered users
   Map<String, Map<String, String>> _registeredUsers = {};
@@ -34,7 +35,8 @@ class AuthService extends ChangeNotifier {
   String? get userId => _userId;
   String? get userRole => _userRole;
   String? get serviceCategory => _serviceCategory;
-  String? get userEmail => _userEmail; // ✅ ADDED: Getter for userEmail
+  String? get userEmail => _userEmail;
+  String? get photoURL => _photoURL;
   
   bool get isCustomer => _userRole == 'customer' || _userRole == null;
   bool get isWasher => _userRole == 'washer';
@@ -100,7 +102,8 @@ class AuthService extends ChangeNotifier {
         final data = doc.data() as Map<String, dynamic>;
         _userName = data['name'] ?? 'User';
         _userPhone = data['phone'] ?? '';
-        _userEmail = data['email'] ?? ''; // ✅ Load email
+        _userEmail = data['email'] ?? '';
+        _photoURL = data['photoURL'] ?? data['profilePicture'];
         _userRole = data['role'] ?? 'customer';
         _serviceCategory = data['serviceCategory'];
         _isLoggedIn = true;
@@ -123,6 +126,7 @@ class AuthService extends ChangeNotifier {
         'name': user?.displayName ?? 'User',
         'phone': user?.phoneNumber ?? '',
         'email': user?.email ?? '',
+        'photoURL': user?.photoURL ?? '',
         'role': 'customer',
         'isBlocked': false,
         'createdAt': FieldValue.serverTimestamp(),
@@ -143,7 +147,8 @@ class AuthService extends ChangeNotifier {
     _userId = prefs.getString('userId');
     _userRole = prefs.getString('userRole');
     _serviceCategory = prefs.getString('serviceCategory');
-    _userEmail = prefs.getString('userEmail'); // ✅ Load saved email
+    _userEmail = prefs.getString('userEmail');
+    _photoURL = prefs.getString('photoURL');
     
     final usersJson = prefs.getString('registeredUsers');
     if (usersJson != null) {
@@ -164,10 +169,41 @@ class AuthService extends ChangeNotifier {
     if (_userId != null) await prefs.setString('userId', _userId!);
     if (_userRole != null) await prefs.setString('userRole', _userRole!);
     if (_serviceCategory != null) await prefs.setString('serviceCategory', _serviceCategory!);
-    if (_userEmail != null) await prefs.setString('userEmail', _userEmail!); // ✅ Save email
+    if (_userEmail != null) await prefs.setString('userEmail', _userEmail!);
+    if (_photoURL != null) await prefs.setString('photoURL', _photoURL!);
     
     final usersJson = jsonEncode(_registeredUsers);
     await prefs.setString('registeredUsers', usersJson);
+  }
+
+  // ============================================================
+  // Update Profile Picture (Cloudinary)
+  // ============================================================
+  Future<void> updateProfilePicture(String photoUrl) async {
+    _photoURL = photoUrl;
+    final uid = _userId;
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'photoURL': photoUrl,
+          'profilePicture': photoUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        if (isServiceProvider) {
+          await FirebaseFirestore.instance.collection('washers').doc(uid).set({
+            'photoURL': photoUrl,
+            'profilePicture': photoUrl,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+        debugPrint('✅ Profile photo updated in Firestore: $photoUrl');
+      } catch (e) {
+        debugPrint('❌ Error updating profile photo in Firestore: $e');
+      }
+    }
+    await _saveUserState();
+    notifyListeners();
   }
 
   // ============================================================

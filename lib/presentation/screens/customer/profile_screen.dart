@@ -3,13 +3,97 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/cloudinary_service.dart';
 import '../welcome_screen.dart';
 import '../washer/washer_registration_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
+  Future<void> _pickAndUploadProfileImage(BuildContext context, AuthService authService) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await showModalBottomSheet<XFile?>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Change Profile Picture',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.primary),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                Navigator.pop(context, file);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+              title: const Text('Take a Photo'),
+              onTap: () async {
+                final file = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+                Navigator.pop(context, file);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (image == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+            SizedBox(width: 12),
+            Text('Uploading profile photo to Cloudinary...'),
+          ],
+        ),
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    try {
+      final cloudinaryService = CloudinaryService();
+      final photoUrl = await cloudinaryService.uploadImage(imageFile: image);
+
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        await authService.updateProfilePicture(photoUrl);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Profile photo updated successfully! 🎉'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Upload failed: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +107,13 @@ class ProfileScreen extends StatelessWidget {
         elevation: 1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, '/home');
+            }
+          },
         ),
       ),
       body: ListView(
@@ -35,7 +125,7 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               children: [
                 GestureDetector(
-                  onTap: () => _showEditProfileDialog(context, authService),
+                  onTap: () => _pickAndUploadProfileImage(context, authService),
                   child: Container(
                     width: 100,
                     height: 100,
@@ -48,17 +138,31 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     child: Stack(
                       children: [
-                        const Center(child: Icon(Icons.person, size: 50, color: Color(0xFF0CAF60))),
+                        ClipOval(
+                          child: authService.photoURL != null && authService.photoURL!.isNotEmpty
+                              ? Image.network(
+                                  authService.photoURL!,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Center(
+                                    child: Icon(Icons.person, size: 50, color: Color(0xFF0CAF60)),
+                                  ),
+                                )
+                              : const Center(
+                                  child: Icon(Icons.person, size: 50, color: Color(0xFF0CAF60)),
+                                ),
+                        ),
                         Positioned(
                           bottom: 0,
                           right: 0,
                           child: Container(
-                            padding: const EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(6),
                             decoration: const BoxDecoration(
                               color: AppColors.primary,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
                           ),
                         ),
                       ],

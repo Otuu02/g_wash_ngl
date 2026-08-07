@@ -1,8 +1,10 @@
-// FILE: lib/presentation/screens/washer/earnings_screen.dart
-// PURPOSE: Display washer earnings and withdrawal options
-
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/payment_service.dart';
 
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
@@ -15,94 +17,223 @@ class _EarningsScreenState extends State<EarningsScreen> {
   int _selectedPeriod = 0; // 0: Today, 1: Week, 2: Month
   bool _isLoading = false;
 
-  final Map<String, dynamic> _earningsData = {
-    'today': {'earnings': 12500, 'jobs': 3},
-    'week': {'earnings': 45200, 'jobs': 12},
-    'month': {'earnings': 187500, 'jobs': 47},
-    'total': 245000,
-  };
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _bankNameController = TextEditingController(text: 'GTBank');
+  final TextEditingController _accountNumberController = TextEditingController();
+  final TextEditingController _accountNameController = TextEditingController();
 
-  final List<Map<String, dynamic>> _recentTransactions = [
-    {'date': 'May 5, 2024', 'amount': 3000, 'jobId': 'JOB-001', 'customer': 'David O.'},
-    {'date': 'May 4, 2024', 'amount': 5000, 'jobId': 'JOB-002', 'customer': 'Sarah A.'},
-    {'date': 'May 3, 2024', 'amount': 10000, 'jobId': 'JOB-003', 'customer': 'John M.'},
-    {'date': 'May 2, 2024', 'amount': 7000, 'jobId': 'JOB-004', 'customer': 'Mary B.'},
+  final List<String> _nigerianBanks = const [
+    'GTBank',
+    'Access Bank',
+    'Zenith Bank',
+    'First Bank',
+    'UBA',
+    'Kuda Bank',
+    'OPay',
+    'PalmPay',
+    'Moniepoint',
+    'Stanbic IBTC',
+    'FCMB',
+    'Sterling Bank',
+    'Wema Bank',
+    'Union Bank',
+    'Fidelity Bank',
   ];
 
-  void _withdraw() {
+  String _selectedBank = 'GTBank';
+
+  void _withdraw(double availableBalance, String washerId, String washerName, Map<String, dynamic> washerData) {
+    _amountController.text = availableBalance.toInt().toString();
+    
+    final savedBank = washerData['bankName'];
+    if (savedBank != null && _nigerianBanks.contains(savedBank)) {
+      _selectedBank = savedBank;
+    }
+    _bankNameController.text = _selectedBank;
+    
+    if ((washerData['accountNumber'] ?? '').toString().isNotEmpty) {
+      _accountNumberController.text = washerData['accountNumber'].toString();
+    }
+    
+    if ((washerData['accountName'] ?? '').toString().isNotEmpty) {
+      _accountNameController.text = washerData['accountName'].toString();
+    } else {
+      _accountNameController.text = washerName;
+    }
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Withdraw Earnings',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            const Text('Available Balance: ₦245,000'),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                prefixText: '₦',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            const Text('Withdraw to:'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.grey300),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.account_balance),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('UBA'),
-                        Text('******7890', style: TextStyle(fontSize: 12)),
-                      ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Withdraw Earnings',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  Icon(Icons.arrow_forward_ios, size: 16),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  setState(() => _isLoading = true);
-                  Future.delayed(const Duration(seconds: 2), () {
-                    setState(() => _isLoading = false);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Withdrawal request submitted!'),
-                        backgroundColor: Colors.green,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    );
-                  });
-                },
-                child: const Text('Request Withdrawal'),
-              ),
+                      child: const Text('Min: ₦10,000', style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Available Balance: ₦${NumberFormat('#,###').format(availableBalance)}',
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.primary),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _amountController,
+                  decoration: const InputDecoration(
+                    labelText: 'Withdrawal Amount (₦)',
+                    prefixText: '₦ ',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _nigerianBanks.contains(_selectedBank) ? _selectedBank : _nigerianBanks.first,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Bank',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.account_balance),
+                  ),
+                  items: _nigerianBanks.map((bank) => DropdownMenuItem(
+                    value: bank,
+                    child: Text(bank),
+                  )).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setModalState(() {
+                        _selectedBank = val;
+                        _bankNameController.text = val;
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _accountNumberController,
+                  decoration: const InputDecoration(
+                    labelText: 'Account Number (10 digits)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.pin),
+                  ),
+                  keyboardType: TextInputType.number,
+                  maxLength: 10,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _accountNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Account Holder Name',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            final amt = double.tryParse(_amountController.text) ?? 0;
+                            if (amt < 10000) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('❌ Minimum withdrawal amount is ₦10,000!'), backgroundColor: Colors.red),
+                              );
+                              return;
+                            }
+                            if (amt > availableBalance) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('❌ Requested amount exceeds available balance!'), backgroundColor: Colors.red),
+                              );
+                              return;
+                            }
+                            if (_accountNumberController.text.trim().length < 10) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('❌ Please enter a valid 10-digit account number!'), backgroundColor: Colors.red),
+                              );
+                              return;
+                            }
+                            if (_accountNameController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('❌ Please enter the account holder name!'), backgroundColor: Colors.red),
+                              );
+                              return;
+                            }
+
+                            Navigator.pop(context);
+                            setState(() => _isLoading = true);
+
+                            final res = await PaymentService().requestWasherPayout(
+                              washerId: washerId,
+                              washerName: washerName,
+                              amount: amt,
+                              bankName: _selectedBank,
+                              accountNumber: _accountNumberController.text.trim(),
+                              accountName: _accountNameController.text.trim(),
+                            );
+
+                            setState(() => _isLoading = false);
+
+                            if (res['success'] == true) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('🎉 Withdrawal request submitted! Admin will approve shortly.'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('❌ Error: ${res['error']}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Submit Payout Request', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -110,150 +241,337 @@ class _EarningsScreenState extends State<EarningsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final periodData = _selectedPeriod == 0 ? _earningsData['today'] :
-                       _selectedPeriod == 1 ? _earningsData['week'] :
-                       _earningsData['month'];
+    final authService = Provider.of<AuthService>(context);
+    final userId = authService.getCurrentUserId() ?? '';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Earnings'),
+        title: const Text('Washer Financials & Earnings'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Total Balance Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Total Earnings',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '₦${_earningsData['total']}',
-                    style: const TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: _withdraw,
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.primary,
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('washers')
+            .doc(userId)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final washerDocExists = snapshot.hasData && snapshot.data!.exists;
+          final washerData = washerDocExists ? (snapshot.data!.data() as Map<String, dynamic>) : {};
+          final washerId = userId;
+          final washerName = washerData['name'] ?? authService.userName ?? 'Washer';
+
+          final double availableBalance = (washerData['availableBalance'] ?? 0.0).toDouble();
+          final double totalEarnings = (washerData['totalEarnings'] ?? 0.0).toDouble();
+          final double totalPlatformFees = (washerData['totalPlatformFeesPaid'] ?? 0.0).toDouble();
+          final int completedJobs = washerData['completedJobs'] ?? 0;
+
+          final bool canWithdraw = availableBalance >= 10000;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // Available Balance Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      child: const Text('Withdraw'),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Period Selector
-            Row(
-              children: [
-                Expanded(
-                  child: _buildPeriodButton('Today', 0),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildPeriodButton('This Week', 1),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildPeriodButton('This Month', 2),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Period Stats
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'Earnings',
-                    '₦${periodData['earnings']}',
-                    Icons.money,
-                    Colors.green,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'Jobs Completed',
-                    '${periodData['jobs']}',
-                    Icons.work,
-                    Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Recent Transactions
-            const Text(
-              'Recent Transactions',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _recentTransactions.length,
-              itemBuilder: (context, index) {
-                final transaction = _recentTransactions[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.primaryBackground,
-                      child: const Icon(Icons.payment, size: 20, color: AppColors.primary),
-                    ),
-                    title: Text('Job #${transaction['jobId']}'),
-                    subtitle: Text(transaction['customer']),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '+₦${transaction['amount']}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Available Balance (95% Net Share)',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '₦${NumberFormat('#,###').format(availableBalance)}',
+                        style: const TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 46,
+                        child: ElevatedButton.icon(
+                          onPressed: canWithdraw
+                              ? () => _withdraw(availableBalance, washerId, washerName, Map<String, dynamic>.from(washerData))
+                              : null,
+                          icon: Icon(
+                            canWithdraw ? Icons.account_balance_wallet : Icons.lock_clock,
+                            size: 20,
+                          ),
+                          label: Text(
+                            canWithdraw
+                                ? 'Withdraw Earnings to Bank'
+                                : 'Min Withdrawal: ₦10,000 (Available: ₦${NumberFormat('#,###').format(availableBalance)})',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: canWithdraw ? Colors.white : Colors.white38,
+                            foregroundColor: canWithdraw ? AppColors.primary : Colors.grey[700],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
-                        Text(
-                          transaction['date'],
-                          style: const TextStyle(fontSize: 10, color: AppColors.grey500),
-                        ),
-                      ],
-                    ),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Transaction details for Job ${transaction['jobId']}')),
-                      );
-                    },
+                      ),
+                    ],
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 16),
+
+                // Connected Bank Account Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.account_balance, color: Colors.blue, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'Connected Bank Account',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue),
+                                ),
+                                const SizedBox(width: 6),
+                                if (washerData['bankConnected'] == true || (washerData['accountNumber'] ?? '').toString().isNotEmpty)
+                                  const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              (washerData['accountNumber'] ?? '').toString().isNotEmpty
+                                  ? '${washerData['bankName'] ?? 'Bank'} • ${washerData['accountNumber']} (${washerData['accountName'] ?? washerName})'
+                                  : 'No bank account connected yet. Tap Withdraw to connect!',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Financial Breakdown Stats (Net Share vs 5% Commission)
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.green.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.savings, color: Colors.green, size: 18),
+                                SizedBox(width: 6),
+                                Text('Net Earned (95%)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '₦${NumberFormat('#,###').format(totalEarnings)}',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.pie_chart, color: Colors.orange, size: 18),
+                                SizedBox(width: 6),
+                                Text('5% Platform Fee', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '₦${NumberFormat('#,###').format(totalPlatformFees)}',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+            // Period Selector
+                // Completed Jobs Counter Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.check_circle_outline, color: Colors.blue, size: 24),
+                          SizedBox(width: 10),
+                          Text(
+                            'Completed Service Jobs',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '$completedJobs Jobs',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Recent Washer Earnings Transactions
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Recent Washer Earnings (95% Share)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('washer_transactions')
+                      .where('washerId', isEqualTo: washerId)
+                      .orderBy('createdAt', descending: true)
+                      .limit(20)
+                      .snapshots(),
+                  builder: (context, txnSnapshot) {
+                    if (txnSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final txns = txnSnapshot.data?.docs ?? [];
+                    if (txns.isEmpty) {
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'No earning transactions logged yet',
+                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: txns.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final txn = txns[index].data() as Map<String, dynamic>;
+                        final gross = (txn['grossAmount'] ?? 0.0).toDouble();
+                        final net = (txn['netEarnings'] ?? 0.0).toDouble();
+                        final fee = (txn['platformFee'] ?? 0.0).toDouble();
+                        final service = txn['serviceName'] ?? 'Service';
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Colors.green.withOpacity(0.12),
+                                child: const Icon(Icons.arrow_downward, color: Colors.green, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(service, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                    const SizedBox(height: 2),
+                                    Text('Gross: ₦${NumberFormat('#,###').format(gross.toInt())} (5% Fee: ₦${NumberFormat('#,###').format(fee.toInt())})',
+                                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '+₦${NumberFormat('#,###').format(net.toInt())}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

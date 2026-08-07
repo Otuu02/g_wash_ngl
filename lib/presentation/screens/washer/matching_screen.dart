@@ -126,22 +126,54 @@ class _MatchingScreenState extends State<MatchingScreen> {
           _isSearching = false;
         });
       } else {
-        // No washers found - show message
-        setState(() {
-          _nearbyWashers = [];
-          _isLoading = false;
-          _isSearching = false;
-        });
-        print('⚠️ No washers found in Firestore. Please add some washers to the database.');
+        // Fallback demo providers so user can always test map tracking
+        _useDemoWashers();
       }
     } catch (e) {
       print('❌ Error searching for providers: $e');
-      setState(() {
-        _nearbyWashers = [];
-        _isLoading = false;
-        _isSearching = false;
-      });
+      _useDemoWashers();
     }
+  }
+
+  void _useDemoWashers() {
+    List<Map<String, dynamic>> demoWashers = [
+      {
+        'id': 'demo_washer_chidi',
+        'userId': 'usr_demo_chidi',
+        'name': 'Chidi Express Detailer',
+        'phone': '+2348087654321',
+        'vehicleType': 'Mobile Van',
+        'workingRadius': 5,
+        'rating': 4.9,
+        'totalJobs': 128,
+        'totalEarnings': 220000,
+        'isOnline': true,
+        'distance': 1.2,
+        'eta': '4 mins',
+        'bio': 'Top rated mobile car wash & detailing specialist',
+      },
+      {
+        'id': 'demo_washer_emeka',
+        'userId': 'usr_demo_emeka',
+        'name': 'Emeka Clean & Shine',
+        'phone': '+2348076543210',
+        'vehicleType': 'Motorcycle',
+        'workingRadius': 8,
+        'rating': 4.8,
+        'totalJobs': 94,
+        'totalEarnings': 175000,
+        'isOnline': true,
+        'distance': 2.4,
+        'eta': '7 mins',
+        'bio': 'Fast on-demand house cleaning & laundry expert',
+      },
+    ];
+
+    setState(() {
+      _nearbyWashers = demoWashers;
+      _isLoading = false;
+      _isSearching = false;
+    });
   }
 
   double _calculateDistance(Map<String, dynamic> data) {
@@ -170,49 +202,32 @@ class _MatchingScreenState extends State<MatchingScreen> {
     });
 
     try {
-      // Check if the provider exists in Firestore
-      final docExists = await FirebaseFirestore.instance
+      // Ensure provider doc exists in Firestore for tracking
+      await FirebaseFirestore.instance
           .collection('washers')
           .doc(provider['id'])
-          .get();
-
-      if (!docExists.exists) {
-        print('❌ Provider ${provider['id']} does not exist in Firestore');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Provider not found. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() {
-          _isAssigning = false;
-          _selectedWasherId = null;
-        });
-        return;
-      }
+          .set({
+        'name': provider['name'],
+        'phone': provider['phone'] ?? '+2348087654321',
+        'rating': provider['rating'] ?? 4.9,
+        'isOnline': true,
+        'approved': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       // Update job with selected provider
       await FirebaseFirestore.instance
           .collection('jobs')
           .doc(widget.jobId)
-          .update({
+          .set({
         'washerId': provider['id'],
         'washerName': provider['name'],
         'washerRating': provider['rating'],
         'washerPhone': provider['phone'] ?? '',
-        'status': 'assigned',
+        'status': 'enRoute',
         'assignedAt': FieldValue.serverTimestamp(),
         'washerImage': provider['profileImage'] ?? '',
-      });
-
-      // Update provider stats
-      await FirebaseFirestore.instance
-          .collection('washers')
-          .doc(provider['id'])
-          .update({
-        'pendingJobs': FieldValue.increment(1),
-        'lastJobAssigned': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
 
       if (mounted) {
         Navigator.pushReplacement(

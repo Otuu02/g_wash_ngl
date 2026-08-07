@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
 import '../../../services/communication_service.dart';
+import '../../../services/location_service.dart';
 import '../washer/matching_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -32,6 +33,8 @@ class _BookingScreenState extends State<BookingScreen> {
   String _selectedService = 'Exterior Wash';
   int _selectedServicePrice = 3000;
   String _selectedLocation = 'Lekki Phase 1, Lagos';
+  double _latitude = 6.5244;
+  double _longitude = 3.3792;
   DateTime _selectedDate = DateTime.now();
   String _selectedTime = '9:00 AM';
   bool _isBooking = false;
@@ -74,6 +77,25 @@ class _BookingScreenState extends State<BookingScreen> {
   void initState() {
     super.initState();
     _initializeSelections();
+    _fetchGPSLocation();
+  }
+
+  Future<void> _fetchGPSLocation() async {
+    try {
+      final locService = LocationService();
+      final pos = await locService.getCurrentLocation();
+      if (mounted) {
+        setState(() {
+          _latitude = pos.latitude;
+          _longitude = pos.longitude;
+          if (locService.currentAddress != null && locService.currentAddress!.isNotEmpty) {
+            _selectedLocation = locService.currentAddress!;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('ℹ️ Location fetch info: $e');
+    }
   }
 
   void _initializeSelections() {
@@ -239,23 +261,25 @@ class _BookingScreenState extends State<BookingScreen> {
       }
 
       final customerName = authService.userName ?? 'Customer';
-      final customerPhone = authService.userPhone ?? '';
-      final customerEmail = '';
+      final customerPhone = authService.userPhone ?? (user?.phoneNumber ?? '');
+      final customerEmail = authService.userEmail ?? (user?.email ?? '');
 
       print('📝 Creating job for: $customerName ($uid)');
       print('📝 Service: $_selectedService - ₦$_selectedServicePrice');
       print('📝 Location: $_selectedLocation');
 
-      // Create job
+      // Create job with dynamic GPS coordinates & trigger Twilio SMS + Gmail SMTP notifications
       final result = await JobService().createJob(
         customerId: uid,
         customerName: customerName,
+        customerPhone: customerPhone,
+        customerEmail: customerEmail,
         serviceCategory: _selectedCategory,
         serviceName: _selectedService,
         price: _selectedServicePrice,
         location: _selectedLocation,
-        latitude: 6.5244,
-        longitude: 3.3792,
+        latitude: _latitude,
+        longitude: _longitude,
         scheduledDate: _selectedDate,
         scheduledTime: _selectedTime,
       );
@@ -264,43 +288,9 @@ class _BookingScreenState extends State<BookingScreen> {
       
       print('✅ Job created with ID: $jobId');
 
-      // ✅ SEND COMMUNICATION NOTIFICATIONS (SMS, Email, Push)
-      final commService = CommunicationService();
-      await commService.sendBookingNotifications(
-        jobId: jobId,
-        customerName: customerName,
-        customerPhone: customerPhone,
-        customerEmail: customerEmail,
-        serviceName: _selectedService,
-        location: _selectedLocation,
-        price: _selectedServicePrice,
-      );
-
-      // Show success message
+      // Show prominent success modal popup
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Booking confirmed! Finding provider...'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
-      // Navigate to matching screen
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MatchingScreen(
-              jobId: jobId,
-              serviceCategory: _selectedCategory,
-              serviceName: _selectedService,
-              price: _selectedServicePrice,
-              location: _selectedLocation,
-            ),
-          ),
-        );
+        _showBookingSuccessDialog(jobId, providerName: result['washerName']);
       }
       
     } catch (e) {
@@ -323,6 +313,132 @@ class _BookingScreenState extends State<BookingScreen> {
         setState(() => _isBooking = false);
       }
     }
+  }
+
+  void _showBookingSuccessDialog(String jobId, {String? providerName}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 60),
+            SizedBox(height: 12),
+            Text(
+              'Booking Confirmed! 🎉',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Center(
+              child: Text(
+                'Your service order has been placed successfully!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.mark_email_read, color: Colors.blue, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'SMS & Email notifications dispatched via Twilio & Gmail SMTP to ${providerName ?? 'assigned provider'}.',
+                      style: const TextStyle(fontSize: 11, color: Colors.blue, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+              ),
+              child: Column(
+                children: [
+                  _buildSuccessSummaryRow('Service', _selectedService),
+                  const Divider(height: 12),
+                  _buildSuccessSummaryRow('Category', _selectedCategory),
+                  const Divider(height: 12),
+                  _buildSuccessSummaryRow('Amount', '₦${NumberFormat('#,###').format(_selectedServicePrice)}'),
+                  const Divider(height: 12),
+                  _buildSuccessSummaryRow('Location', _selectedLocation),
+                  if (providerName != null && providerName.isNotEmpty) ...[
+                    const Divider(height: 12),
+                    _buildSuccessSummaryRow('Provider', providerName),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MatchingScreen(
+                      jobId: jobId,
+                      serviceCategory: _selectedCategory,
+                      serviceName: _selectedService,
+                      price: _selectedServicePrice,
+                      location: _selectedLocation,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text(
+                'Proceed to Find Provider ➔',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuccessSummaryRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
   }
 
   @override

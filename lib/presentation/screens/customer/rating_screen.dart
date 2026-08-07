@@ -1,15 +1,21 @@
-// lib/presentation/screens/customer/rating_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/communication_service.dart';
+import '../../../services/app_notification_service.dart';
 
 class RatingScreen extends StatefulWidget {
   final String jobId;
   final String washerId;
+  final String? serviceName;
 
   const RatingScreen({
     super.key,
     required this.jobId,
     required this.washerId,
+    this.serviceName,
   });
 
   @override
@@ -17,7 +23,7 @@ class RatingScreen extends StatefulWidget {
 }
 
 class _RatingScreenState extends State<RatingScreen> {
-  double _rating = 0;
+  double _rating = 5.0;
   final TextEditingController _commentController = TextEditingController();
   bool _isSubmitting = false;
 
@@ -33,28 +39,112 @@ class _RatingScreenState extends State<RatingScreen> {
   Future<void> _submitRating() async {
     if (_rating == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a rating')),
+        const SnackBar(content: Text('Please select a star rating')),
       );
       return;
     }
 
     setState(() => _isSubmitting = true);
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final customerId = authService.getCurrentUserId() ?? '';
+      final customerName = authService.userName ?? 'Customer';
+      final commentText = _commentController.text.trim();
 
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      
-      // Show success and navigate back
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Thank you for your rating!'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
-      
-      Navigator.popUntil(context, (route) => route.isFirst);
+      // 1. Save review document to Firestore
+      await FirebaseFirestore.instance.collection('reviews').add({
+        'jobId': widget.jobId,
+        'washerId': widget.washerId,
+        'customerId': customerId,
+        'customerName': customerName,
+        'serviceName': widget.serviceName ?? 'Service',
+        'rating': _rating,
+        'comment': commentText.isNotEmpty ? commentText : 'No comment provided.',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Update job record with rating & review
+      if (widget.jobId.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).set({
+          'rating': _rating,
+          'review': commentText.isNotEmpty ? commentText : 'No comment provided.',
+          'ratedAt': FieldValue.serverTimestamp(),
+          'isRated': true,
+        }, SetOptions(merge: true));
+      }
+
+      // 3. Recalculate Washer Average Rating
+      if (widget.washerId.isNotEmpty) {
+        final reviewsSnapshot = await FirebaseFirestore.instance
+            .collection('reviews')
+            .where('washerId', isEqualTo: widget.washerId)
+            .get();
+
+        if (reviewsSnapshot.docs.isNotEmpty) {
+          double totalSum = 0.0;
+          for (var doc in reviewsSnapshot.docs) {
+            totalSum += (doc.data()['rating'] ?? 5.0).toDouble();
+          }
+          final double avgRating = totalSum / reviewsSnapshot.docs.length;
+          final double roundedRating = double.parse(avgRating.toStringAsFixed(1));
+
+          await FirebaseFirestore.instance.collection('washers').doc(widget.washerId).set({
+            'rating': roundedRating,
+            'totalReviewsCount': reviewsSnapshot.docs.length,
+          }, SetOptions(merge: true));
+        }
+
+        // Fetch washer info to dispatch notification
+        final washerDoc = await FirebaseFirestore.instance.collection('washers').doc(widget.washerId).get();
+        final washerData = washerDoc.data() ?? {};
+        final wPhone = washerData['phone'] ?? '';
+        final wEmail = washerData['email'] ?? '';
+
+        final notificationMsg = '⭐ New ${_rating.toStringAsFixed(0)}-Star Review from $customerName: "${commentText.isNotEmpty ? commentText : 'Great service!'}"';
+
+        // Dispatch System Push, SMS, Email
+        AppNotificationService().notify(
+          title: '⭐ New Rating & Review Received!',
+          message: notificationMsg,
+          type: 'review',
+        );
+
+        if (wPhone.isNotEmpty) {
+          await CommunicationService().sendRealSms(phone: wPhone, message: notificationMsg);
+        }
+        if (wEmail.isNotEmpty) {
+          await CommunicationService().sendRealEmail(
+            email: wEmail,
+            subject: '⭐ You received a new review - G Wash NG',
+            body: notificationMsg,
+          );
+        }
+      }
+
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🎉 Thank you for your review!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      print('❌ Error submitting rating: $e');
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit review: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
     }
   }
 

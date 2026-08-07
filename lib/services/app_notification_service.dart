@@ -1,9 +1,12 @@
 // FILE: lib/services/app_notification_service.dart
-// PURPOSE: Manage In-App Local Notifications (offline & online overlay popups + persistent storage)
+// PURPOSE: Manage System Push Notifications (Android Status Bar), In-App Popups & Persistent Storage
 
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'web_push_helper.dart';
 import '../core/constants/app_colors.dart';
 
 class AppNotificationItem {
@@ -52,8 +55,105 @@ class AppNotificationItem {
 class AppNotificationService extends ChangeNotifier {
   static final AppNotificationService _instance = AppNotificationService._internal();
   factory AppNotificationService() => _instance;
+
+  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+  bool _isLocalNotificationsInitialized = false;
+
   AppNotificationService._internal() {
     loadSavedNotifications();
+    requestPushPermission();
+    _initLocalNotifications();
+  }
+
+  Future<void> _initLocalNotifications() async {
+    if (kIsWeb) return;
+    try {
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosInit = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+      );
+
+      const initSettings = InitializationSettings(
+        android: androidInit,
+        iOS: iosInit,
+      );
+
+      await _flutterLocalNotificationsPlugin.initialize(initSettings);
+      _isLocalNotificationsInitialized = true;
+      debugPrint('🔔 [Local System Push Notifications Initialized]');
+    } catch (e) {
+      debugPrint('❌ Error initializing local notifications plugin: $e');
+    }
+  }
+
+  void requestPushPermission() {
+    if (kIsWeb) {
+      requestWebPushPermission();
+    }
+  }
+
+  Future<void> _triggerNativeSystemPush(String title, String message) async {
+    // 1. Web Push
+    if (kIsWeb) {
+      triggerNativeWebPushNotification(title, message);
+      return;
+    }
+
+    // 2. Android / iOS Local System Push Notification in Status Bar
+    if (!_isLocalNotificationsInitialized) {
+      await _initLocalNotifications();
+    }
+
+    try {
+      final bigTextStyle = BigTextStyleInformation(
+        message,
+        htmlFormatBigText: true,
+        contentTitle: '<b>$title</b>',
+        htmlFormatContentTitle: true,
+        summaryText: 'G-Wash NG Alert',
+        htmlFormatSummaryText: true,
+      );
+
+      final androidDetails = AndroidNotificationDetails(
+        'gwash_updates_channel_v2',
+        'G-Wash Order & Service Notifications',
+        channelDescription: 'Real-time order updates, provider status, and booking alerts',
+        importance: Importance.max,
+        priority: Priority.max,
+        showWhen: true,
+        styleInformation: bigTextStyle,
+        enableVibration: true,
+        playSound: true,
+        visibility: NotificationVisibility.public,
+        category: AndroidNotificationCategory.message,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      final id = (DateTime.now().millisecondsSinceEpoch % 100000);
+      await _flutterLocalNotificationsPlugin.show(
+        id,
+        title,
+        message,
+        notificationDetails,
+      );
+      debugPrint('📲 [System Push Notification Shown in Status Bar]: $title');
+    } catch (e) {
+      debugPrint('❌ Error showing native system push notification: $e');
+    }
   }
 
   static const String _storageKey = 'local_app_notifications';
@@ -108,14 +208,12 @@ class AppNotificationService extends ChangeNotifier {
     
     _notifications.insert(0, newItem);
     _saveToStorage();
+    _triggerNativeSystemPush(title, message);
     notifyListeners();
   }
 
   // ============================================================
-  // SHOW NOTIFICATION WITH OVERLAY
-  // ============================================================
-  // ============================================================
-  // SHOW NOTIFICATION WITH OVERLAY & CUSTOM DURATION
+  // SHOW NOTIFICATION WITH OVERLAY & NATIVE SYSTEM PUSH
   // ============================================================
   Future<void> notify({
     BuildContext? context,
@@ -140,9 +238,13 @@ class AppNotificationService extends ChangeNotifier {
 
     _notifications.insert(0, newItem);
     await _saveToStorage();
+    
+    // Trigger native OS status bar push notification
+    await _triggerNativeSystemPush(title, message);
+    
     notifyListeners();
 
-    // Show overlay if context available
+    // Show overlay banner if context available
     if (context != null && context.mounted) {
       showTopOverlayBanner(
         context,
@@ -154,7 +256,6 @@ class AppNotificationService extends ChangeNotifier {
       );
     }
 
-    // Log notification
     debugPrint('📢 NOTIFICATION: $title - $message');
   }
 

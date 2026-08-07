@@ -37,6 +37,21 @@ ios/Flutter/Generated.xcconfig
 *.swp
 *.swo
 
+# Security & Environment Variables
+.env
+.env.*
+!.env.example
+*.env
+
+# Firebase & Secret Keys
+google-services.json
+GoogleService-Info.plist
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
 # Build
 build/
 *.apk

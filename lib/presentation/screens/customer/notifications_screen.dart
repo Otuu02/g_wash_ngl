@@ -104,39 +104,40 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Widget _buildInboxTab(List<AppNotificationItem> notifications) {
-    if (notifications.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.notifications_off_outlined, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            const Text(
-              'No notifications yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'You will receive order and status updates here',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    }
-
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Colors.grey[100],
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${notifications.length} Messages',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700]),
+        if (notifications.isEmpty)
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.notifications_off_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No notifications yet',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'You will receive order and status updates here',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ],
               ),
+            ),
+          )
+        else ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.grey[100],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${notifications.length} Messages',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[700]),
+                ),
               Row(
                 children: [
                   TextButton.icon(
@@ -257,8 +258,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           ),
         ),
       ],
-    );
-  }
+    ],
+  );
+}
 
   Widget _buildSettingsTab() {
     return ListView(

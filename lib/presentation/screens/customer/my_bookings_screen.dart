@@ -8,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
 import 'tracking_screen.dart';
+import 'rating_screen.dart';
 
 class MyBookingsScreen extends StatelessWidget {
   const MyBookingsScreen({super.key});
@@ -56,30 +57,34 @@ class MyBookingsScreen extends StatelessWidget {
                   ],
                 ),
               )
-            : FutureBuilder<List<Map<String, dynamic>>>(
-                future: JobService().getUserJobs(userId),
+            : StreamBuilder<List<Map<String, dynamic>>>(
+                stream: JobService().getUserJobsStream(userId),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
                   final allJobs = snapshot.data ?? [];
-                  
-                  // ✅ Active jobs: searching, assigned, enRoute, arrived, accepted
-                  final active = allJobs.where((j) =>
-                      j['status'] == 'searching' ||
-                      j['status'] == 'assigned' ||
-                      j['status'] == 'in_progress' ||
-                      j['status'] == 'accepted' ||
-                      j['status'] == 'enRoute' ||
-                      j['status'] == 'arrived').toList();
-                      
-                  // ✅ History: completed, paid, cancelled
-                  final history = allJobs.where((j) =>
-                      j['status'] == 'completed' || 
-                      j['status'] == 'paid' ||
-                      j['status'] == 'cancelled' ||
-                      j['status'] == 'delivered').toList();
+
+                  // ✅ History: completed, paid, cancelled, delivered
+                  final history = allJobs.where((j) {
+                    final status = (j['status'] ?? '').toString().toLowerCase();
+                    return status == 'completed' ||
+                        status == 'paid' ||
+                        status == 'cancelled' ||
+                        status == 'canceled' ||
+                        status == 'delivered';
+                  }).toList();
+
+                  // ✅ Active: All other non-history statuses (searching, assigned, pending, in_progress, accepted, enroute, arrived, etc.)
+                  final active = allJobs.where((j) {
+                    final status = (j['status'] ?? '').toString().toLowerCase();
+                    return !(status == 'completed' ||
+                        status == 'paid' ||
+                        status == 'cancelled' ||
+                        status == 'canceled' ||
+                        status == 'delivered');
+                  }).toList();
 
                   return TabBarView(
                     children: [
@@ -231,39 +236,122 @@ class MyBookingsScreen extends StatelessWidget {
                 ],
               ),
               
-              // ✅ TRACK BUTTON - For active orders
+              // ✅ TRACK & CANCEL BUTTONS - For active orders
               if (isActive && jobId.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _navigateToTracking(context, booking, jobId),
-                      icon: const Icon(Icons.location_on, size: 18),
-                      label: const Text('Track Order'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _confirmCancelJob(context, jobId, serviceName),
+                          icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.red),
+                          label: const Text('Cancel Order', style: TextStyle(color: Colors.red)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _navigateToTracking(context, booking, jobId),
+                          icon: const Icon(Icons.location_on, size: 16),
+                          label: const Text('Track Order'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               
-              // Completed badge
+              // Completed & Rating Action Button
               if (isCompleted)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Row(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
                     children: [
-                      const Icon(Icons.check_circle, size: 16, color: Colors.green),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'Service Completed',
-                        style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.check_circle, size: 16, color: Colors.green),
+                              SizedBox(width: 4),
+                              Text(
+                                'Service Completed',
+                                style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                          if (booking['rating'] != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.star, size: 14, color: Colors.amber),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${booking['rating']}/5',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 40,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final washerId = booking['washerId'];
+                            if (washerId != null && washerId.toString().isNotEmpty) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RatingScreen(
+                                    jobId: jobId,
+                                    washerId: washerId.toString(),
+                                    serviceName: serviceName,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Provider information not found.')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.star, size: 16),
+                          label: Text(
+                            booking['rating'] != null ? 'Edit Review' : 'Rate & Review Provider',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber.shade700,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -296,6 +384,78 @@ class MyBookingsScreen extends StatelessWidget {
           price: price,
           washerId: washerId,
         ),
+      ),
+    );
+  }
+
+  void _confirmCancelJob(BuildContext context, String jobId, String serviceName) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Cancel Order?'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to cancel your $serviceName booking?'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Reason for cancellation (optional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep Order'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final reason = reasonController.text.trim().isNotEmpty
+                  ? reasonController.text.trim()
+                  : 'Customer cancelled order';
+
+              try {
+                await JobService().cancelJob(jobId: jobId, reason: reason, cancelledBy: 'Customer');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Order cancelled successfully. SMS & Email notifications sent.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to cancel order: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Yes, Cancel Order'),
+          ),
+        ],
       ),
     );
   }

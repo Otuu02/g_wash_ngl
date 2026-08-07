@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/admin_service.dart';
+import 'admin_transactions_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -32,7 +33,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final AdminService _adminService = AdminService();
   
   // Settings Controllers
-  final TextEditingController _commissionController = TextEditingController(text: '10');
+  final TextEditingController _commissionController = TextEditingController(text: '5');
   final TextEditingController _radiusController = TextEditingController(text: '15');
   final TextEditingController _subscriptionPriceController = TextEditingController(text: '5000');
   final TextEditingController _minWithdrawalController = TextEditingController(text: '10000');
@@ -392,6 +393,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const AdminUsersScreen(),
                 const AdminWashersScreen(),
                 const AdminJobsScreen(),
+                const AdminTransactionsScreen(),
               ],
             ),
       bottomNavigationBar: BottomNavigationBar(
@@ -405,6 +407,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Users'),
           BottomNavigationBarItem(icon: Icon(Icons.emoji_transportation), label: 'Washers'),
           BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: 'Jobs'),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: 'Financials'),
         ],
       ),
     );

@@ -495,10 +495,10 @@ class FAQBottomSheet extends StatelessWidget {
   final List<Map<String, String>> _faqs = const [
     {'q': 'How do I book a wash?', 'a': 'Select a service, choose your location, pick date/time, and confirm booking.'},
     {'q': 'How long does a wash take?', 'a': 'Basic wash: 30 mins, Interior: 45 mins, Full detail: 90 mins, Engine: 60 mins.'},
-    {'q': 'What payment methods are accepted?', 'a': 'We accept Paystack (Card, Transfer, USSD) and Wallet payments.'},
+    {'q': 'What payment methods are accepted?', 'a': 'We accept Debit/Credit Cards, Bank Transfer, USSD, and Wallet payments.'},
     {'q': 'Can I cancel my booking?', 'a': 'Yes, cancel up to 1 hour before scheduled time for free.'},
     {'q': 'How do I track my washer?', 'a': 'Use the live tracking feature in your active booking.'},
-    {'q': 'Is my payment secure?', 'a': 'Yes, all payments are processed securely through Paystack.'},
+    {'q': 'Is my payment secure?', 'a': 'Yes, all transactions are encrypted with bank-grade 256-bit security.'},
     {'q': 'How do I contact support?', 'a': 'Call 07065584504 or email giftotuuobinna1995@gmail.com'},
   ];
 

@@ -44,9 +44,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   String _paymentStatus = 'pending';
   
   final List<Map<String, dynamic>> _paymentMethods = [
-    {'id': 'card', 'name': 'Card Payment', 'icon': Icons.credit_card, 'color': Colors.blue},
-    {'id': 'transfer', 'name': 'Bank Transfer', 'icon': Icons.account_balance, 'color': Colors.green},
-    {'id': 'wallet', 'name': 'Wallet', 'icon': Icons.wallet, 'color': Colors.purple},
+    {'id': 'card', 'name': 'Debit / Credit Card', 'icon': Icons.credit_card, 'color': Colors.indigo},
+    {'id': 'bank_transfer', 'name': 'Bank Transfer', 'icon': Icons.account_balance, 'color': Colors.green},
+    {'id': 'wallet', 'name': 'G Wash Wallet', 'icon': Icons.account_balance_wallet, 'color': Colors.purple},
     {'id': 'ussd', 'name': 'USSD', 'icon': Icons.phone_android, 'color': Colors.orange},
     {'id': 'qr', 'name': 'QR Code', 'icon': Icons.qr_code, 'color': Colors.teal},
   ];

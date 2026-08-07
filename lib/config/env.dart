@@ -53,10 +53,53 @@ class Env {
   
   // Helper getters
   static String get apiUrl => config['apiUrl'];
-  static String get paystackPublicKey => config['paystackPublicKey'];
+  static String get paystackPublicKey => const String.fromEnvironment(
+        'PAYSTACK_PUBLIC_KEY',
+        defaultValue: 'pk_test_xxxxxxxxxxxxxxxxxxxx',
+      );
   static String get googleMapsApiKey => const String.fromEnvironment(
         'GOOGLE_MAPS_API_KEY',
         defaultValue: 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
+      );
+  static String get cloudinaryCloudName => const String.fromEnvironment(
+        'CLOUDINARY_CLOUD_NAME',
+        defaultValue: 'dijqk2arj',
+      );
+  static String get cloudinaryApiKey => const String.fromEnvironment(
+        'CLOUDINARY_API_KEY',
+        defaultValue: '862473269516361',
+      );
+  static String get cloudinaryApiSecret => const String.fromEnvironment(
+        'CLOUDINARY_API_SECRET',
+        defaultValue: '4JpMPFJbMlHE3qulwj0_oe_8lJI',
+      );
+  static String get twilioAccountSid => const String.fromEnvironment(
+        'TWILIO_ACCOUNT_SID',
+        defaultValue: 'AC_DEMO_ACCOUNT_SID',
+      );
+  static String get twilioAuthToken => const String.fromEnvironment(
+        'TWILIO_AUTH_TOKEN',
+        defaultValue: 'DEMO_AUTH_TOKEN',
+      );
+  static String get twilioPhoneNumber => const String.fromEnvironment(
+        'TWILIO_PHONE_NUMBER',
+        defaultValue: '+15005550006',
+      );
+  static String get gmailUser => const String.fromEnvironment(
+        'GMAIL_USER',
+        defaultValue: 'gwashng@gmail.com',
+      );
+  static String get gmailAppPassword => const String.fromEnvironment(
+        'GMAIL_APP_PASSWORD',
+        defaultValue: '',
+      );
+  static String get smtpHost => const String.fromEnvironment(
+        'SMTP_HOST',
+        defaultValue: 'smtp.gmail.com',
+      );
+  static int get smtpPort => const int.fromEnvironment(
+        'SMTP_PORT',
+        defaultValue: 587,
       );
   static bool get enableLogging => config['enableLogging'];
   static bool get enableCrashReporting => config['enableCrashReporting'];

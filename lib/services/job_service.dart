@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../config/env.dart';
 import 'app_notification_service.dart';
+import 'communication_service.dart';
 
 class JobService extends ChangeNotifier {
   static final JobService _instance = JobService._internal();
@@ -12,6 +13,7 @@ class JobService extends ChangeNotifier {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AppNotificationService _notificationService = AppNotificationService();
+  final CommunicationService _communicationService = CommunicationService();
 
   // ============================================================
   // FIND NEAREST PROVIDER
@@ -229,6 +231,9 @@ class JobService extends ChangeNotifier {
   // ============================================================
   // CREATE JOB IN FIRESTORE
   // ============================================================
+  // ============================================================
+  // CREATE JOB IN FIRESTORE
+  // ============================================================
   Future<Map<String, dynamic>> createJob({
     required String customerId,
     required String customerName,
@@ -238,17 +243,45 @@ class JobService extends ChangeNotifier {
     required String location,
     required double latitude,
     required double longitude,
+    String? customerPhone,
+    String? customerEmail,
     DateTime? scheduledDate,
     String? scheduledTime,
     String? assignedWasherId,
     String? assignedWasherName,
+    String? providerPhone,
+    String? providerEmail,
     Map<String, dynamic>? additionalInfo,
   }) async {
     try {
-      final isDirectAssign = assignedWasherId != null && assignedWasherId.isNotEmpty;
+      String resolvedWasherId = assignedWasherId ?? '';
+      String resolvedWasherName = assignedWasherName ?? '';
+      String resolvedWasherPhone = providerPhone ?? '';
+      String resolvedWasherEmail = providerEmail ?? '';
+
+      // If no provider explicitly passed, resolve top provider for category
+      if (resolvedWasherId.isEmpty || resolvedWasherPhone.isEmpty) {
+        final providers = await getProvidersByCategory(
+          category: serviceCategory,
+          userLat: latitude,
+          userLng: longitude,
+          limit: 5,
+        );
+        if (providers.isNotEmpty) {
+          final topProvider = providers.first;
+          resolvedWasherId = topProvider['id'] ?? resolvedWasherId;
+          resolvedWasherName = topProvider['name'] ?? resolvedWasherName;
+          resolvedWasherPhone = topProvider['phone'] ?? resolvedWasherPhone;
+          resolvedWasherEmail = topProvider['email'] ?? resolvedWasherEmail;
+        }
+      }
+
+      final isDirectAssign = resolvedWasherId.isNotEmpty;
       final jobData = {
         'customerId': customerId,
         'customerName': customerName,
+        'customerPhone': customerPhone ?? '',
+        'customerEmail': customerEmail ?? '',
         'serviceCategory': serviceCategory,
         'serviceName': serviceName,
         'price': price,
@@ -258,8 +291,10 @@ class JobService extends ChangeNotifier {
         'scheduledDate': scheduledDate?.toIso8601String(),
         'scheduledTime': scheduledTime,
         'status': isDirectAssign ? 'assigned' : 'searching',
-        'washerId': assignedWasherId ?? '',
-        'washerName': assignedWasherName ?? 'Assigned Provider',
+        'washerId': resolvedWasherId,
+        'washerName': resolvedWasherName.isNotEmpty ? resolvedWasherName : 'Assigned Provider',
+        'washerPhone': resolvedWasherPhone,
+        'washerEmail': resolvedWasherEmail,
         'paymentStatus': 'pending',
         'additionalInfo': additionalInfo ?? {},
         'createdAt': FieldValue.serverTimestamp(),
@@ -268,6 +303,20 @@ class JobService extends ChangeNotifier {
 
       final docRef = await _firestore.collection('jobs').add(jobData);
       print('✅ Job created with ID: ${docRef.id}');
+
+      // ✅ DISPATCH SMS (Twilio), EMAIL (Gmail SMTP) & POPUP OVERLAYS to Customer and Provider
+      await _communicationService.sendBookingNotifications(
+        jobId: docRef.id,
+        customerName: customerName,
+        customerPhone: customerPhone ?? '',
+        customerEmail: customerEmail ?? '',
+        serviceName: serviceName,
+        location: location,
+        price: price,
+        providerName: resolvedWasherName,
+        providerPhone: resolvedWasherPhone,
+        providerEmail: resolvedWasherEmail,
+      );
 
       return {
         'id': docRef.id,
@@ -287,42 +336,90 @@ class JobService extends ChangeNotifier {
     required String providerId,
   }) async {
     try {
-      // Get provider details
+      // Get provider details from washers collection or users collection fallback
+      Map<String, dynamic> providerData = {};
       final providerDoc = await _firestore.collection('washers').doc(providerId).get();
-      if (!providerDoc.exists) {
-        throw Exception('Provider not found');
+      if (providerDoc.exists) {
+        providerData = providerDoc.data()!;
+      } else {
+        final userDoc = await _firestore.collection('users').doc(providerId).get();
+        if (userDoc.exists) {
+          providerData = userDoc.data()!;
+        }
       }
 
-      final providerData = providerDoc.data()!;
+      final pName = providerData['name'] ?? providerData['fullName'] ?? providerData['userName'] ?? 'Service Provider';
+      final pPhone = providerData['phone'] ?? providerData['phoneNumber'] ?? '';
+      final pEmail = providerData['email'] ?? '';
 
-      // Update job
-      await _firestore.collection('jobs').doc(jobId).update({
-        'washerId': providerId,
-        'washerName': providerData['name'] ?? 'Unknown',
-        'washerPhone': providerData['phone'] ?? '',
-        'status': 'assigned',
-        'assignedAt': FieldValue.serverTimestamp(),
+      Map<String, dynamic> jobData = {};
+
+      // 🔒 ATOMIC TRANSACTION: Prevent race conditions when 100+ washers attempt to accept the same job concurrently
+      await _firestore.runTransaction((transaction) async {
+        final jobRef = _firestore.collection('jobs').doc(jobId);
+        final snapshot = await transaction.get(jobRef);
+        
+        if (!snapshot.exists) {
+          throw Exception('Job not found.');
+        }
+
+        jobData = snapshot.data() ?? {};
+        final currentStatus = jobData['status'];
+        final currentWasherId = jobData['washerId'];
+
+        // Guard against double assignment
+        if (currentWasherId != null && currentWasherId.toString().isNotEmpty && currentWasherId != providerId) {
+          throw Exception('Job has already been accepted by another service provider.');
+        }
+        if (currentStatus == 'completed' || currentStatus == 'cancelled') {
+          throw Exception('Job is no longer active.');
+        }
+
+        transaction.update(jobRef, {
+          'washerId': providerId,
+          'washerName': pName,
+          'washerPhone': pPhone,
+          'washerEmail': pEmail,
+          'status': 'assigned',
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'assignedAt': FieldValue.serverTimestamp(),
+        });
       });
 
-      // Update provider stats
-      await _firestore.collection('washers').doc(providerId).update({
-        'pendingJobs': FieldValue.increment(1),
-        'lastJobAssigned': FieldValue.serverTimestamp(),
-      });
+      final cName = jobData['customerName'] ?? 'Customer';
+      final cPhone = jobData['customerPhone'] ?? '';
+      final cEmail = jobData['customerEmail'] ?? '';
+      final sName = jobData['serviceName'] ?? 'Service';
 
-      // ✅ SEND NOTIFICATION: Provider Assigned
-      _notificationService.addNotification(
-        title: '✅ Provider Assigned!',
-        message: '${providerData['name'] ?? 'A provider'} has been assigned to your job.',
-        type: 'booking',
+      // Update provider stats if record exists in washers collection
+      try {
+        await _firestore.collection('washers').doc(providerId).set({
+          'pendingJobs': FieldValue.increment(1),
+          'lastJobAssigned': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('ℹ️ Provider stats update notice: $e');
+      }
+
+      // ✅ SEND NOTIFICATION & SMS/EMAIL TO CUSTOMER AND PROVIDER
+      await _communicationService.sendProviderAssignedNotifications(
         jobId: jobId,
+        customerName: cName,
+        customerPhone: cPhone,
+        customerEmail: cEmail,
+        providerName: pName,
+        serviceName: sName,
+        eta: '15 mins',
+        providerPhone: pPhone,
+        providerEmail: pEmail,
       );
 
       return {
         'jobId': jobId,
         'washerId': providerId,
-        'washerName': providerData['name'] ?? 'Unknown',
-        'washerPhone': providerData['phone'] ?? '',
+        'washerName': pName,
+        'washerPhone': pPhone,
+        'washerEmail': pEmail,
         'status': 'assigned',
         'assignedAt': DateTime.now().toIso8601String(),
       };
@@ -368,7 +465,7 @@ class JobService extends ChangeNotifier {
 
       // ✅ SEND NOTIFICATION: Job Completed
       _notificationService.addNotification(
-        title: '🎉 Order Delivered!',
+        title: 'Order Delivered',
         message: 'Your $serviceName service has been completed successfully. Please make payment.',
         type: 'booking',
         jobId: jobId,
@@ -378,7 +475,7 @@ class JobService extends ChangeNotifier {
       if (context != null) {
         _notificationService.notify(
           context: context,
-          title: '🎉 Order Completed!',
+          title: 'Order Completed',
           message: 'Please complete payment for your $serviceName service.',
           type: 'booking',
           icon: Icons.check_circle,
@@ -406,6 +503,7 @@ class JobService extends ChangeNotifier {
   Future<Map<String, dynamic>> cancelJob({
     required String jobId,
     required String reason,
+    String cancelledBy = 'User',
   }) async {
     try {
       // Get job details
@@ -422,22 +520,33 @@ class JobService extends ChangeNotifier {
       await _firestore.collection('jobs').doc(jobId).update({
         'status': 'cancelled',
         'cancelledReason': reason,
+        'cancelledBy': cancelledBy,
         'cancelledAt': FieldValue.serverTimestamp(),
       });
 
       // Update provider stats if assigned
       if (washerId != null) {
-        await _firestore.collection('washers').doc(washerId).update({
-          'pendingJobs': FieldValue.increment(-1),
-        });
+        try {
+          await _firestore.collection('washers').doc(washerId).update({
+            'pendingJobs': FieldValue.increment(-1),
+          });
+        } catch (e) {
+          debugPrint('ℹ️ Washer pending jobs increment notice: $e');
+        }
       }
 
-      // ✅ SEND NOTIFICATION: Job Cancelled
-      _notificationService.addNotification(
-        title: '❌ Order Cancelled',
-        message: 'Your $serviceName service has been cancelled. Reason: $reason',
-        type: 'booking',
+      // ✅ SEND MULTI-CHANNEL NOTIFICATIONS (PUSH, SMS, EMAIL) TO CUSTOMER & WASHER
+      await _communicationService.sendCancellationNotifications(
         jobId: jobId,
+        serviceName: serviceName,
+        reason: reason,
+        cancelledBy: cancelledBy,
+        customerName: jobData['customerName'],
+        customerPhone: jobData['customerPhone'],
+        customerEmail: jobData['customerEmail'],
+        providerName: jobData['washerName'],
+        providerPhone: jobData['washerPhone'],
+        providerEmail: jobData['washerEmail'],
       );
 
       return {
@@ -538,19 +647,29 @@ class JobService extends ChangeNotifier {
   // ============================================================
   // GET USER JOBS (Customer)
   // ============================================================
+  // GET USER JOBS (Customer) - Future
+  // ============================================================
   Future<List<Map<String, dynamic>>> getUserJobs(String userId) async {
     try {
-      final snapshot = await _firestore
+      final snapshot1 = await _firestore
           .collection('jobs')
           .where('customerId', isEqualTo: userId)
           .get();
 
-      final list = snapshot.docs.map((doc) {
-        return {
-          'id': doc.id,
-          ...doc.data(),
-        };
-      }).toList();
+      final snapshot2 = await _firestore
+          .collection('jobs')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      final Map<String, Map<String, dynamic>> jobMap = {};
+      for (var doc in snapshot1.docs) {
+        jobMap[doc.id] = {'id': doc.id, ...doc.data()};
+      }
+      for (var doc in snapshot2.docs) {
+        jobMap[doc.id] = {'id': doc.id, ...doc.data()};
+      }
+
+      final list = jobMap.values.toList();
 
       list.sort((a, b) {
         final aTime = a['createdAt'] as Timestamp?;
@@ -564,6 +683,33 @@ class JobService extends ChangeNotifier {
       print('❌ Error getting user jobs: $e');
       return [];
     }
+  }
+
+  // ============================================================
+  // GET USER JOBS (Customer) - Real-time Stream
+  // ============================================================
+  Stream<List<Map<String, dynamic>>> getUserJobsStream(String userId) {
+    return _firestore
+        .collection('jobs')
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs
+          .where((doc) {
+            final data = doc.data();
+            return data['customerId'] == userId || data['userId'] == userId;
+          })
+          .map((doc) => {'id': doc.id, ...doc.data()})
+          .toList();
+
+      list.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null || bTime == null) return 0;
+        return bTime.compareTo(aTime);
+      });
+
+      return list;
+    });
   }
 
   // ============================================================

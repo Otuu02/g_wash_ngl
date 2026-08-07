@@ -7,8 +7,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/cloudinary_service.dart';
 import '../welcome_screen.dart';
 
 class WasherProfileScreen extends StatefulWidget {
@@ -28,6 +30,92 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
   Map<String, dynamic> _washerData = {};
   String _washerId = '';
   String _profileImageUrl = '';
+
+  Future<void> _pickAndUploadProfileImage() async {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await showModalBottomSheet<XFile?>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Change Washer Profile Picture',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.primary),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+                Navigator.pop(context, file);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+              title: const Text('Take a Photo'),
+              onTap: () async {
+                final file = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+                Navigator.pop(context, file);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (image == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+            SizedBox(width: 12),
+            Text('Uploading profile photo to Cloudinary...'),
+          ],
+        ),
+        duration: Duration(seconds: 10),
+      ),
+    );
+
+    try {
+      final cloudinaryService = CloudinaryService();
+      final photoUrl = await cloudinaryService.uploadImage(imageFile: image, folder: 'washer_profiles');
+
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        await authService.updateProfilePicture(photoUrl);
+        setState(() {
+          _profileImageUrl = photoUrl;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Profile photo updated successfully! 🎉'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Upload failed: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   // Service names mapping
   final Map<String, String> _serviceNames = {
@@ -204,7 +292,13 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
           elevation: 1,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, '/washer-dashboard');
+            }
+          },
           ),
         ),
         body: const Center(
@@ -270,7 +364,13 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
         elevation: 1,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacementNamed(context, '/washer-dashboard');
+            }
+          },
         ),
         actions: [
           IconButton(
@@ -293,63 +393,82 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 child: Column(
                   children: [
                     // Profile Image
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.primary,
-                          width: 3,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: ClipOval(
-                        child: _profileImageUrl.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: _profileImageUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: Colors.grey.shade200,
-                                  child: const Icon(
-                                    Icons.person,
-                                    size: 40,
-                                    color: Colors.grey,
-                                  ),
+                    GestureDetector(
+                      onTap: _pickAndUploadProfileImage,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.primary,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
                                 ),
-                                errorWidget: (context, url, error) => Container(
-                                  color: Colors.grey.shade200,
-                                  child: Center(
-                                    child: Text(
-                                      name.isNotEmpty ? name[0].toUpperCase() : 'W',
-                                      style: const TextStyle(
-                                        fontSize: 40,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.primary,
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: _profileImageUrl.isNotEmpty
+                                  ? CachedNetworkImage(
+                                      imageUrl: _profileImageUrl,
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => Container(
+                                        color: Colors.grey.shade200,
+                                        child: const Icon(
+                                          Icons.person,
+                                          size: 40,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                      errorWidget: (context, url, error) => Container(
+                                        color: Colors.grey.shade200,
+                                        child: Center(
+                                          child: Text(
+                                            name.isNotEmpty ? name[0].toUpperCase() : 'W',
+                                            style: const TextStyle(
+                                              fontSize: 40,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      color: Colors.grey.shade200,
+                                      child: Center(
+                                        child: Text(
+                                          name.isNotEmpty ? name[0].toUpperCase() : 'W',
+                                          style: const TextStyle(
+                                            fontSize: 40,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                color: Colors.grey.shade200,
-                                child: Center(
-                                  child: Text(
-                                    name.isNotEmpty ? name[0].toUpperCase() : 'W',
-                                    style: const TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
                               ),
+                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 16),

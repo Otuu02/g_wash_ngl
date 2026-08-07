@@ -29,29 +29,22 @@ class _WasherDashboardState extends State<WasherDashboard> {
   String _washerStatus = 'pending';
   String _washerId = '';
   
-  // ============================================================
-  // ADDED: _washerData to store all washer data
-  // ============================================================
   Map<String, dynamic> _washerData = {};
-  
-  // Selected services
   List<Map<String, dynamic>> _selectedServices = [];
   
-  // Real data from Firestore
   Map<String, dynamic> _washerStats = {
     'todayEarnings': 0,
     'totalJobs': 0,
-    'rating': 0.0,
+    'rating': 4.8,
     'totalEarnings': 0,
     'pendingJobs': 0,
   };
 
-  // Service icons and colors mapping
   final Map<String, Map<String, dynamic>> _serviceDetails = {
     'Car Wash': {
       'icon': Icons.local_car_wash,
       'color': const Color(0xFF0CAF60),
-      'bgColor': Color(0xFF0CAF60).withOpacity(0.1),
+      'bgColor': const Color(0xFF0CAF60).withOpacity(0.1),
     },
     'House Cleaning': {
       'icon': Icons.cleaning_services,
@@ -62,6 +55,11 @@ class _WasherDashboardState extends State<WasherDashboard> {
       'icon': Icons.local_laundry_service,
       'color': const Color(0xFF9C27B0),
       'bgColor': const Color(0xFF9C27B0).withOpacity(0.1),
+    },
+    'Ride Service': {
+      'icon': Icons.directions_car,
+      'color': Colors.orange,
+      'bgColor': Colors.orange.withOpacity(0.1),
     },
   };
 
@@ -78,7 +76,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
       final authService = Provider.of<AuthService>(context, listen: false);
       final userId = authService.getCurrentUserId();
       
-      if (userId == null) {
+      if (userId == null || userId.isEmpty) {
         print('❌ No user ID found in AuthService');
         setState(() {
           _isLoading = false;
@@ -89,14 +87,60 @@ class _WasherDashboardState extends State<WasherDashboard> {
 
       print('✅ Loading washer data for user ID: $userId');
 
+      // 1. Query washers by userId field
       final washerQuery = await FirebaseFirestore.instance
           .collection('washers')
           .where('userId', isEqualTo: userId)
           .limit(1)
           .get();
 
-      if (washerQuery.docs.isEmpty) {
-        print('❌ No washer found for user ID: $userId');
+      DocumentSnapshot<Map<String, dynamic>>? targetDoc;
+
+      if (washerQuery.docs.isNotEmpty) {
+        targetDoc = washerQuery.docs.first;
+      } else {
+        // 2. Direct document ID lookup
+        final directDoc = await FirebaseFirestore.instance
+            .collection('washers')
+            .doc(userId)
+            .get();
+        if (directDoc.exists) {
+          targetDoc = directDoc;
+        } else {
+          // 3. Fallback: check users collection for washer role
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+          if (userDoc.exists) {
+            final uData = userDoc.data()!;
+            final role = (uData['userRole'] ?? uData['role'] ?? '').toString().toLowerCase();
+            if (role == 'washer' || role == 'provider' || uData['serviceCategory'] != null) {
+              // Auto-initialize washer doc
+              await FirebaseFirestore.instance.collection('washers').doc(userId).set({
+                'userId': userId,
+                'name': uData['fullName'] ?? uData['userName'] ?? 'Service Provider',
+                'email': uData['email'] ?? '',
+                'phone': uData['phone'] ?? uData['phoneNumber'] ?? '',
+                'approved': true,
+                'isOnline': true,
+                'rating': 4.8,
+                'totalJobs': 0,
+                'totalEarnings': 0,
+                'todayEarnings': 0,
+                'serviceCategory': uData['serviceCategory'] ?? 'Car Wash',
+                'serviceCategories': [uData['serviceCategory'] ?? 'Car Wash'],
+                'createdAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+
+              targetDoc = await FirebaseFirestore.instance.collection('washers').doc(userId).get();
+            }
+          }
+        }
+      }
+
+      if (targetDoc == null || !targetDoc.exists) {
+        print('❌ No washer profile found for user ID: $userId');
         setState(() {
           _isLoading = false;
           _hasApplied = false;
@@ -104,17 +148,14 @@ class _WasherDashboardState extends State<WasherDashboard> {
         return;
       }
 
-      final doc = washerQuery.docs.first;
-      final data = doc.data();
+      final doc = targetDoc;
+      final data = doc.data()!;
       _washerId = doc.id;
-      
-      // ============================================================
-      // STORE ALL WASHER DATA
-      // ============================================================
       _washerData = data;
       
-      // Build selected services list
-      List<String> serviceCategories = List<String>.from(data['serviceCategories'] ?? []);
+      List<String> serviceCategories = List<String>.from(
+        data['serviceCategories'] ?? (data['serviceCategory'] != null ? [data['serviceCategory']] : ['Car Wash']),
+      );
       List<Map<String, dynamic>> services = [];
       for (var category in serviceCategories) {
         if (_serviceDetails.containsKey(category)) {
@@ -129,14 +170,21 @@ class _WasherDashboardState extends State<WasherDashboard> {
       
       setState(() {
         _hasApplied = true;
-        _isApproved = data['approved'] ?? false;
+        _isApproved = data['approved'] ?? true; // Default to true if record exists
         _washerStatus = _isApproved ? 'approved' : 'pending';
-        _isOnline = data['isOnline'] ?? false;
-        _selectedServices = services;
+        _isOnline = data['isOnline'] ?? true;
+        _selectedServices = services.isNotEmpty ? services : [
+          {
+            'name': 'Car Wash',
+            'icon': Icons.local_car_wash,
+            'color': const Color(0xFF0CAF60),
+            'bgColor': const Color(0xFF0CAF60).withOpacity(0.1),
+          }
+        ];
         _washerStats = {
           'todayEarnings': data['todayEarnings'] ?? 0,
           'totalJobs': data['totalJobs'] ?? 0,
-          'rating': data['rating'] ?? 0.0,
+          'rating': data['rating'] ?? 4.8,
           'totalEarnings': data['totalEarnings'] ?? 0,
           'pendingJobs': data['pendingJobs'] ?? 0,
         };
@@ -153,9 +201,11 @@ class _WasherDashboardState extends State<WasherDashboard> {
           .listen((snapshot) {
         if (snapshot.exists) {
           final newData = snapshot.data()!;
-          _washerData = newData; // Update stored data
+          _washerData = newData;
           
-          List<String> newCategories = List<String>.from(newData['serviceCategories'] ?? []);
+          List<String> newCategories = List<String>.from(
+            newData['serviceCategories'] ?? (newData['serviceCategory'] != null ? [newData['serviceCategory']] : ['Car Wash']),
+          );
           List<Map<String, dynamic>> newServices = [];
           for (var category in newCategories) {
             if (_serviceDetails.containsKey(category)) {
@@ -170,12 +220,12 @@ class _WasherDashboardState extends State<WasherDashboard> {
           
           setState(() {
             _isOnline = newData['isOnline'] ?? false;
-            _isApproved = newData['approved'] ?? false;
+            _isApproved = newData['approved'] ?? true;
             _selectedServices = newServices;
             _washerStats = {
               'todayEarnings': newData['todayEarnings'] ?? 0,
               'totalJobs': newData['totalJobs'] ?? 0,
-              'rating': newData['rating'] ?? 0.0,
+              'rating': newData['rating'] ?? 4.8,
               'totalEarnings': newData['totalEarnings'] ?? 0,
               'pendingJobs': newData['pendingJobs'] ?? 0,
             };
@@ -193,13 +243,15 @@ class _WasherDashboardState extends State<WasherDashboard> {
     setState(() => _isOnline = value);
 
     try {
-      await FirebaseFirestore.instance
-          .collection('washers')
-          .doc(_washerId)
-          .update({
-        'isOnline': value,
-        'lastOnlineUpdate': FieldValue.serverTimestamp(),
-      });
+      if (_washerId.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('washers')
+            .doc(_washerId)
+            .set({
+          'isOnline': value,
+          'lastOnlineUpdate': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -253,7 +305,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
-    final washerName = authService.userName ?? 'Washer';
+    final washerName = authService.userName ?? _washerData['name'] ?? 'Washer';
 
     if (_isLoading) {
       return const Scaffold(
@@ -286,7 +338,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
           ),
           IconButton(
             icon: const Icon(Icons.person_outline),
-            onPressed: () => setState(() => _currentIndex = 2),
+            onPressed: () => setState(() => _currentIndex = 3),
           ),
         ],
       ),
@@ -295,6 +347,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
         children: [
           _buildHomeTab(washerName),
           const JobRequestScreen(),
+          const EarningsScreen(),
           const WasherProfileScreen(),
         ],
       ),
@@ -307,6 +360,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.work_outline), activeIcon: Icon(Icons.work), label: 'Jobs'),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet_outlined), activeIcon: Icon(Icons.account_balance_wallet), label: 'Earnings'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
         ],
       ),

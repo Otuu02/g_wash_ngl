@@ -33,11 +33,31 @@ class AdminService {
         }
       }
       
+      double totalPlatformRevenue = 0.0;
+      double totalWasherPayouts = 0.0;
+      
+      try {
+        final platformDoc = await _firestore.collection('platform_financials').doc('stats').get();
+        if (platformDoc.exists) {
+          final pData = platformDoc.data()!;
+          totalPlatformRevenue = (pData['totalPlatformRevenue'] ?? 0.0).toDouble();
+          totalWasherPayouts = (pData['totalWasherPayouts'] ?? 0.0).toDouble();
+        } else {
+          totalPlatformRevenue = revenue * 0.05;
+          totalWasherPayouts = revenue * 0.95;
+        }
+      } catch (e) {
+        totalPlatformRevenue = revenue * 0.05;
+        totalWasherPayouts = revenue * 0.95;
+      }
+      
       return {
         'totalUsers': users.size,
         'totalWashers': washers.size,
         'totalJobs': jobs.size,
         'totalRevenue': revenue,
+        'totalPlatformRevenue': totalPlatformRevenue,
+        'totalWasherPayouts': totalWasherPayouts,
         'pendingWashers': washers.docs.where((w) => w['approved'] != true).length,
         'activeJobs': activeJobs,
         'completedJobs': completedJobs,
