@@ -30,17 +30,7 @@ class PaymentService {
 
     try {
       final String paystackSecretKey = Env.paystackSecretKey;
-
-      if (paystackSecretKey.isEmpty || paystackSecretKey.contains('xxxxxxxx')) {
-        debugPrint('ℹ️ Using Paystack Test Sandbox Gateway Mode for $reference');
-        return {
-          'success': true,
-          'simulated': true,
-          'authorization_url': 'https://checkout.paystack.com/sandbox-$reference',
-          'access_code': 'sandbox-$reference',
-          'reference': reference,
-        };
-      }
+      debugPrint('💳 Initializing Live Paystack Transaction for $email (Ref: $reference)');
 
       final response = await http.post(
         Uri.parse('https://api.paystack.co/transaction/initialize'),
@@ -61,42 +51,30 @@ class PaymentService {
         }),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['status'] == true && data['data'] != null) {
-          final authUrl = data['data']['authorization_url'];
-          final accessCode = data['data']['access_code'];
-          return {
-            'success': true,
-            'authorization_url': authUrl,
-            'access_code': accessCode,
-            'reference': reference,
-          };
-        }
-      }
-
-      // If invalid secret key or 401 unauthorized
-      if (response.statusCode == 401 || response.body.contains('Invalid key') || response.body.contains('invalid')) {
-        debugPrint('ℹ️ Paystack API test key fallback mode activated for $reference');
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['status'] == true && data['data'] != null) {
+        final authUrl = data['data']['authorization_url'];
+        final accessCode = data['data']['access_code'];
+        debugPrint('✅ Paystack Live Checkout URL generated: $authUrl');
         return {
           'success': true,
-          'simulated': true,
-          'authorization_url': 'https://checkout.paystack.com/sandbox-$reference',
-          'access_code': 'sandbox-$reference',
+          'authorization_url': authUrl,
+          'access_code': accessCode,
           'reference': reference,
         };
       }
 
-      final errData = jsonDecode(response.body);
-      throw Exception(errData['message'] ?? 'Failed to initialize Paystack transaction');
-    } catch (e) {
-      debugPrint('❌ Paystack Initialization Notice: $e');
+      final errMsg = data['message'] ?? 'Failed to initialize Paystack transaction';
+      debugPrint('❌ Paystack Initialize Failed: $errMsg');
       return {
-        'success': true,
-        'simulated': true,
-        'authorization_url': 'https://checkout.paystack.com/sandbox-$reference',
-        'access_code': 'sandbox-$reference',
-        'reference': reference,
+        'success': false,
+        'error': errMsg,
+      };
+    } catch (e) {
+      debugPrint('❌ Paystack Initialization Error: $e');
+      return {
+        'success': false,
+        'error': e.toString().replaceAll('Exception: ', ''),
       };
     }
   }
@@ -117,21 +95,6 @@ class PaymentService {
   }) async {
     try {
       final String paystackSecretKey = Env.paystackSecretKey;
-
-      if (paystackSecretKey.isEmpty || paystackSecretKey.contains('xxxxxxxx') || reference.startsWith('GWASH-')) {
-        // Direct successful process for sandbox / test reference
-        return await processPayment(
-          jobId: jobId,
-          userId: userId,
-          userName: userName,
-          serviceName: serviceName,
-          amount: amount,
-          location: location,
-          paymentMethod: paymentMethod,
-          cardLast4: cardLast4 ?? '4242',
-          paystackTransactionRef: reference,
-        );
-      }
 
       final response = await http.get(
         Uri.parse('https://api.paystack.co/transaction/verify/$reference'),
@@ -162,35 +125,26 @@ class PaymentService {
               cardLast4: last4,
               paystackTransactionRef: txRef,
             );
+          } else {
+            return {
+              'success': false,
+              'error': 'Paystack payment status is "$txStatus". Please complete payment in checkout window.',
+            };
           }
         }
       }
 
-      // Fallback verification for test mode
-      return await processPayment(
-        jobId: jobId,
-        userId: userId,
-        userName: userName,
-        serviceName: serviceName,
-        amount: amount,
-        location: location,
-        paymentMethod: paymentMethod,
-        cardLast4: cardLast4 ?? '4242',
-        paystackTransactionRef: reference,
-      );
+      final errData = jsonDecode(response.body);
+      return {
+        'success': false,
+        'error': errData['message'] ?? 'Could not verify Paystack payment.',
+      };
     } catch (e) {
-      debugPrint('❌ Paystack Verification Fallback: $e');
-      return await processPayment(
-        jobId: jobId,
-        userId: userId,
-        userName: userName,
-        serviceName: serviceName,
-        amount: amount,
-        location: location,
-        paymentMethod: paymentMethod,
-        cardLast4: cardLast4 ?? '4242',
-        paystackTransactionRef: reference,
-      );
+      debugPrint('❌ Paystack Verification Exception: $e');
+      return {
+        'success': false,
+        'error': e.toString().replaceAll('Exception: ', ''),
+      };
     }
   }
 
