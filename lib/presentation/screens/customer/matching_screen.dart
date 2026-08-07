@@ -4,23 +4,36 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../services/job_service.dart';
+import '../../../services/auth_service.dart';
 import 'tracking_screen.dart';
 
 class MatchingScreen extends StatefulWidget {
-  final String jobId;
+  final String? jobId;
   final String serviceCategory;
   final String serviceName;
-  final int price;
+  final int? price;
   final String location;
+  final double? latitude;
+  final double? longitude;
+  final DateTime? scheduledDate;
+  final String? scheduledTime;
 
   const MatchingScreen({
     super.key,
-    required this.jobId,
+    this.jobId,
     required this.serviceCategory,
     required this.serviceName,
-    required this.price,
+    this.price,
     required this.location,
+    this.latitude,
+    this.longitude,
+    this.scheduledDate,
+    this.scheduledTime,
   });
 
   @override
@@ -237,6 +250,32 @@ class _MatchingScreenState extends State<MatchingScreen> {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
+  int _getProviderPrice(Map<String, dynamic> provider) {
+    if (provider['price'] != null && provider['price'] is num && (provider['price'] as num) > 0) {
+      return (provider['price'] as num).toInt();
+    }
+    // Rate per service type
+    switch (widget.serviceName) {
+      case 'Standard Ride': return 2500;
+      case 'SUV Ride': return 4000;
+      case 'Luxury Ride': return 7000;
+      case 'Van Ride': return 5500;
+      case 'Exterior Wash': return 3500;
+      case 'Interior Cleaning': return 5500;
+      case 'Full Detailing': return 12000;
+      case 'Engine Wash': return 8000;
+      case 'Standard Cleaning': return 15000;
+      case 'Deep Cleaning': return 25000;
+      case 'Move In/Out': return 35000;
+      case 'Office Cleaning': return 20000;
+      case 'Wash & Fold': return 2500;
+      case 'Wash & Iron': return 4000;
+      case 'Dry Cleaning': return 5500;
+      case 'Ironing Only': return 1800;
+      default: return widget.price ?? 3000;
+    }
+  }
+
   void _selectProvider(Map<String, dynamic> provider) async {
     setState(() {
       _selectedWasherId = provider['id'];
@@ -244,44 +283,78 @@ class _MatchingScreenState extends State<MatchingScreen> {
     });
 
     try {
-      // Update job with selected provider
-      await FirebaseFirestore.instance
-          .collection('jobs')
-          .doc(widget.jobId)
-          .update({
-        'washerId': provider['id'],
-        'washerName': provider['name'],
-        'washerRating': provider['rating'],
-        'washerPhone': provider['phone'] ?? '',
-        'status': 'assigned',
-        'assignedAt': FieldValue.serverTimestamp(),
-        'washerImage': provider['profileImage'] ?? '',
-      });
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = FirebaseAuth.instance.currentUser;
+      final uid = user?.uid ?? authService.userId ?? '';
+
+      final customerName = authService.userName ?? 'Customer';
+      final customerPhone = authService.userPhone ?? (user?.phoneNumber ?? '');
+      final customerEmail = authService.userEmail ?? (user?.email ?? '');
+
+      final int finalPrice = _getProviderPrice(provider);
+      String createdJobId = widget.jobId ?? '';
+
+      if (createdJobId.isEmpty) {
+        // Create job in Firestore assigned directly to selected provider!
+        final result = await JobService().createJob(
+          customerId: uid,
+          customerName: customerName,
+          customerPhone: customerPhone,
+          customerEmail: customerEmail,
+          serviceCategory: widget.serviceCategory,
+          serviceName: widget.serviceName,
+          price: finalPrice,
+          location: widget.location,
+          latitude: widget.latitude ?? 6.5244,
+          longitude: widget.longitude ?? 3.3792,
+          scheduledDate: widget.scheduledDate ?? DateTime.now(),
+          scheduledTime: widget.scheduledTime ?? '9:00 AM',
+          assignedWasherId: provider['id'],
+          assignedWasherName: provider['name'],
+          providerPhone: provider['phone'] ?? '',
+        );
+        createdJobId = result['id'];
+      } else {
+        // Update existing job document
+        await FirebaseFirestore.instance
+            .collection('jobs')
+            .doc(createdJobId)
+            .update({
+          'washerId': provider['id'],
+          'washerName': provider['name'],
+          'washerRating': provider['rating'],
+          'washerPhone': provider['phone'] ?? '',
+          'price': finalPrice,
+          'status': 'assigned',
+          'assignedAt': FieldValue.serverTimestamp(),
+          'washerImage': provider['profileImage'] ?? '',
+        });
+      }
 
       // Update provider stats
-      await FirebaseFirestore.instance
-          .collection('washers')
-          .doc(provider['id'])
-          .update({
-        'pendingJobs': FieldValue.increment(1),
-        'lastJobAssigned': FieldValue.serverTimestamp(),
+      try {
+        await FirebaseFirestore.instance
+            .collection('washers')
+            .doc(provider['id'])
+            .update({
+          'pendingJobs': FieldValue.increment(1),
+          'lastJobAssigned': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        debugPrint('ℹ️ Provider stat update info: $e');
+      }
+
+      setState(() {
+        _isAssigning = false;
       });
 
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TrackingScreen(
-              jobId: widget.jobId,
-              washerName: provider['name'],
-              pickupAddress: widget.location,
-              pickupLocation: const LatLng(6.5244, 3.3792),
-              serviceName: widget.serviceName,
-              price: widget.price,
-              washerId: provider['id'],
-              washerImage: provider['profileImage'],
-            ),
-          ),
+        _showBookingSuccessDialog(
+          jobId: createdJobId,
+          providerName: provider['name'],
+          providerImage: provider['profileImage'],
+          price: finalPrice,
+          providerId: provider['id'],
         );
       }
     } catch (e) {
@@ -290,13 +363,146 @@ class _MatchingScreenState extends State<MatchingScreen> {
         _isAssigning = false;
         _selectedWasherId = null;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error booking service: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  void _showBookingSuccessDialog({
+    required String jobId,
+    required String providerName,
+    String? providerImage,
+    required int price,
+    required String providerId,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 60),
+            SizedBox(height: 12),
+            Text(
+              'Booking Confirmed! 🎉',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Text(
+                'Your service order has been placed with $providerName!',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.notifications_active, color: Colors.blue, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Booking request dispatched to $providerName.',
+                      style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.primary.withOpacity(0.15)),
+              ),
+              child: Column(
+                children: [
+                  _buildSuccessSummaryRow('Service', widget.serviceName),
+                  const Divider(height: 12),
+                  _buildSuccessSummaryRow('Category', widget.serviceCategory),
+                  const Divider(height: 12),
+                  _buildSuccessSummaryRow('Amount', '₦${NumberFormat('#,###').format(price)}'),
+                  const Divider(height: 12),
+                  _buildSuccessSummaryRow('Location', widget.location),
+                  const Divider(height: 12),
+                  _buildSuccessSummaryRow('Provider', providerName),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TrackingScreen(
+                      jobId: jobId,
+                      washerName: providerName,
+                      pickupAddress: widget.location,
+                      pickupLocation: LatLng(widget.latitude ?? 6.5244, widget.longitude ?? 3.3792),
+                      serviceName: widget.serviceName,
+                      price: price,
+                      washerId: providerId,
+                      washerImage: providerImage,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Proceed to Track & Pay →', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuccessSummaryRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -638,35 +844,50 @@ class _MatchingScreenState extends State<MatchingScreen> {
                                       ],
                                     ),
                                   ),
-                                  // Select Button
-                                  ElevatedButton(
-                                    onPressed: _isAssigning && isSelected
-                                        ? null
-                                        : () => _selectProvider(provider),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.1),
-                                      foregroundColor: isSelected ? Colors.white : AppColors.primary,
-                                      minimumSize: const Size(70, 36),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
+                                  // Price & Select Button
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        '₦${NumberFormat('#,###').format(_getProviderPrice(provider))}',
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
                                       ),
-                                    ),
-                                    child: _isAssigning && isSelected
-                                        ? const SizedBox(
-                                            height: 16,
-                                            width: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                            ),
-                                          )
-                                        : Text(
-                                            isSelected ? 'Selected' : 'Assign',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 13,
-                                            ),
+                                      const SizedBox(height: 6),
+                                      ElevatedButton(
+                                        onPressed: _isAssigning && isSelected
+                                            ? null
+                                            : () => _selectProvider(provider),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.1),
+                                          foregroundColor: isSelected ? Colors.white : AppColors.primary,
+                                          minimumSize: const Size(70, 34),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
                                           ),
+                                        ),
+                                        child: _isAssigning && isSelected
+                                            ? const SizedBox(
+                                                height: 16,
+                                                width: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                                ),
+                                              )
+                                            : Text(
+                                                isSelected ? 'Selected' : 'Select',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),

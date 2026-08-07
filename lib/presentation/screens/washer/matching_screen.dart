@@ -7,19 +7,27 @@ import '../../../core/constants/app_colors.dart';
 import '../customer/tracking_screen.dart';
 
 class MatchingScreen extends StatefulWidget {
-  final String jobId;
+  final String? jobId;
   final String serviceCategory;
   final String serviceName;
-  final int price;
+  final int? price;
   final String location;
+  final double? latitude;
+  final double? longitude;
+  final DateTime? scheduledDate;
+  final String? scheduledTime;
 
   const MatchingScreen({
     super.key,
-    required this.jobId,
+    this.jobId,
     required this.serviceCategory,
     required this.serviceName,
-    required this.price,
+    this.price,
     required this.location,
+    this.latitude,
+    this.longitude,
+    this.scheduledDate,
+    this.scheduledTime,
   });
 
   @override

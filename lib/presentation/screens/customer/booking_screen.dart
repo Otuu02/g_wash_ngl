@@ -8,7 +8,7 @@ import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
 import '../../../services/communication_service.dart';
 import '../../../services/location_service.dart';
-import '../washer/matching_screen.dart';
+import 'matching_screen.dart';
 
 class BookingScreen extends StatefulWidget {
   final String? selectedService;
@@ -129,20 +129,7 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  String get _actionButtonText {
-    switch (_selectedCategory) {
-      case 'Car Wash':
-        return 'Book Car Wash';
-      case 'House Cleaning':
-        return 'Book House Cleaning';
-      case 'Laundry':
-        return 'Book Laundry';
-      case 'Ride Service':
-        return 'Book Ride';
-      default:
-        return 'Book Now';
-    }
-  }
+  String get _actionButtonText => 'Proceed to Find Providers →';
 
   void _showServicePicker() {
     showModalBottomSheet(
@@ -174,7 +161,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       title: Text(service['name']),
-                      subtitle: Text('₦${NumberFormat('#,###').format(service['price'])} · ${service['duration']}'),
+                      subtitle: Text('${service['duration']} · ${service['description']}'),
                       trailing: isSelected
                           ? const Icon(Icons.check_circle, color: AppColors.primary)
                           : null,
@@ -626,10 +613,11 @@ class _BookingScreenState extends State<BookingScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '₦${NumberFormat('#,###').format(servicePrice)} · $serviceDuration',
+                                '$serviceDuration · On-demand provider rates',
                                 style: TextStyle(
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w600,
+                                  fontSize: 13,
                                 ),
                               ),
                               if (serviceDescription.isNotEmpty)
@@ -699,26 +687,34 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          height: 60,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            itemCount: 7,
-                            itemBuilder: (context, index) {
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            children: List.generate(7, (index) {
                               final date = DateTime.now().add(Duration(days: index));
                               final isSelected = _selectedDate.day == date.day &&
-                                  _selectedDate.month == date.month;
-                              final dayName = DateFormat('E').format(date);
-                              final dayNumber = date.day.toString();
+                                  _selectedDate.month == date.month &&
+                                  _selectedDate.year == date.year;
+
+                              String dayName;
+                              if (index == 0) {
+                                dayName = 'Today';
+                              } else if (index == 1) {
+                                dayName = 'Tomorrow';
+                              } else {
+                                dayName = DateFormat('EEE').format(date);
+                              }
+
                               return GestureDetector(
                                 onTap: () => setState(() => _selectedDate = date),
                                 child: Container(
-                                  width: 65,
+                                  width: 70,
+                                  height: 80,
                                   margin: const EdgeInsets.symmetric(horizontal: 4),
                                   decoration: BoxDecoration(
                                     color: isSelected ? AppColors.primary : AppColors.white,
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
                                       color: isSelected ? AppColors.primary : Colors.grey.shade300,
                                     ),
@@ -727,25 +723,26 @@ class _BookingScreenState extends State<BookingScreen> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        index == 0 ? 'Today' : index == 1 ? 'Tomorrow' : dayName,
+                                        dayName,
                                         style: TextStyle(
-                                          color: isSelected ? Colors.white : Colors.grey,
-                                          fontSize: 10,
+                                          color: isSelected ? Colors.white70 : Colors.grey.shade600,
+                                          fontSize: 11,
                                         ),
                                       ),
+                                      const SizedBox(height: 4),
                                       Text(
-                                        dayNumber,
+                                        '${date.day}',
                                         style: TextStyle(
                                           color: isSelected ? Colors.white : Colors.black87,
+                                          fontSize: 20,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 16,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                               );
-                            },
+                            }),
                           ),
                         ),
                         const Divider(height: 16),
@@ -804,7 +801,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: const Text(
-                            '💳 Payment will be made after service completion',
+                            '💳 Select provider and view exact rates on next step',
                             style: TextStyle(fontSize: 14),
                           ),
                         ),
@@ -814,11 +811,37 @@ class _BookingScreenState extends State<BookingScreen> {
 
                   const SizedBox(height: 32),
 
-                  // Book Button
+                  // Book / Find Providers Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isBooking || !isLoggedIn ? null : _bookService,
+                      onPressed: () {
+                        if (!isLoggedIn) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please login to find service providers'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          Navigator.pushNamed(context, '/login');
+                          return;
+                        }
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MatchingScreen(
+                              serviceCategory: _selectedCategory,
+                              serviceName: _selectedService,
+                              location: _selectedLocation,
+                              latitude: _latitude,
+                              longitude: _longitude,
+                              scheduledDate: _selectedDate,
+                              scheduledTime: _selectedTime,
+                            ),
+                          ),
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isLoggedIn ? AppColors.primary : Colors.grey,
                         foregroundColor: Colors.white,
@@ -827,22 +850,13 @@ class _BookingScreenState extends State<BookingScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: _isBooking
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Text(
-                              !isLoggedIn ? 'Please Login to Book' : _actionButtonText,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                      child: Text(
+                        !isLoggedIn ? 'Please Login to Book' : 'Proceed to Find Providers →',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
 
