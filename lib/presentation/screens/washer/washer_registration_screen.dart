@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/communication_service.dart';
 import 'washer_dashboard.dart';
 import '../auth/login_screen.dart';
 
@@ -371,6 +372,14 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       await authService.reloadUserData();
       await authService.refreshUserData();
       
+      // Dispatch Provider Welcome Email & SMS
+      CommunicationService().sendWelcomeNotifications(
+        userName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        role: 'Service Provider',
+      );
+
       await Future.delayed(const Duration(milliseconds: 500));
       
       if (mounted) {

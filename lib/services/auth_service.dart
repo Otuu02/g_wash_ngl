@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'communication_service.dart';
 
 class AuthService extends ChangeNotifier {
   bool _isLoggedIn = false;
@@ -294,6 +295,15 @@ class AuthService extends ChangeNotifier {
       _serviceCategory = null;
       await _saveUserState();
       notifyListeners();
+
+      // Dispatch Welcome Email & SMS
+      CommunicationService().sendWelcomeNotifications(
+        userName: name,
+        email: email,
+        phone: formattedPhone,
+        role: role,
+      );
+
       debugPrint('✅ User logged in after signup: $name (ID: $uid)');
       return true;
       

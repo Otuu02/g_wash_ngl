@@ -487,4 +487,84 @@ class CommunicationService {
       );
     }
   }
+
+  // ============================================================
+  // SEND WELCOME NOTIFICATIONS (ACCOUNT CREATION)
+  // ============================================================
+  Future<void> sendWelcomeNotifications({
+    required String userName,
+    required String email,
+    required String phone,
+    required String role,
+  }) async {
+    final smsMsg = 'Welcome to G Wash NG, $userName! Your $role account has been created successfully. Enjoy on-demand cleaning and services.';
+    final emailSubject = '🎉 Welcome to G Wash NG!';
+    final emailBody = '''
+<div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 12px; background-color: #ffffff;">
+  <div style="text-align: center; margin-bottom: 20px;">
+    <h1 style="color: #008080; margin: 0;">G Wash NG</h1>
+    <p style="color: #666; font-size: 14px;">On-Demand Wash & Cleaning Platform</p>
+  </div>
+  <h2 style="color: #222;">Welcome aboard, $userName!</h2>
+  <p style="font-size: 15px; line-height: 1.6;">Thank you for registering with <strong>G Wash NG</strong> as a <strong>${role.toUpperCase()}</strong>.</p>
+  <p style="font-size: 15px; line-height: 1.6;">You can now request or offer professional Car Wash, House Cleaning, Laundry, and Ride Services seamlessly across Nigeria.</p>
+  <div style="margin: 25px 0; text-align: center;">
+    <a href="https://gwashng.com" style="background-color: #008080; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Explore Platform</a>
+  </div>
+  <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+  <p style="font-size: 12px; color: #888; text-align: center;">Need assistance? Contact support@gwashng.com</p>
+</div>
+''';
+
+    _notificationService.notify(
+      title: '🎉 Welcome to G Wash NG!',
+      message: 'Your $role account was created successfully.',
+      type: 'welcome',
+    );
+
+    if (phone.isNotEmpty) {
+      await sendRealSms(phone: phone, message: smsMsg);
+    }
+    if (email.isNotEmpty) {
+      await sendRealEmail(
+        email: email,
+        subject: emailSubject,
+        body: smsMsg,
+        htmlBody: emailBody,
+      );
+    }
+  }
+
+  // ============================================================
+  // SEND RATING NOTIFICATIONS (CUSTOMER REVIEW LEFT)
+  // ============================================================
+  Future<void> sendRatingNotifications({
+    required String jobId,
+    required String customerName,
+    required double rating,
+    required String reviewText,
+    String? providerName,
+    String? providerPhone,
+    String? providerEmail,
+  }) async {
+    final msg = 'Customer $customerName left a rating of $rating ★ on your service (Job #$jobId). "${reviewText.isNotEmpty ? reviewText : 'Great service!'}"';
+
+    _notificationService.notify(
+      title: '⭐ New Rating & Review Received!',
+      message: msg,
+      type: 'rating',
+      jobId: jobId,
+    );
+
+    if (providerPhone != null && providerPhone.isNotEmpty) {
+      await sendRealSms(phone: providerPhone, message: msg);
+    }
+    if (providerEmail != null && providerEmail.isNotEmpty) {
+      await sendRealEmail(
+        email: providerEmail,
+        subject: '⭐ New Review Received - G Wash NG',
+        body: 'Hello ${providerName ?? 'Provider'},\n\n$msg\n\nThank you for maintaining quality service on G Wash NG!',
+      );
+    }
+  }
 }
