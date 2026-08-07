@@ -101,11 +101,11 @@ class _RatingScreenState extends State<RatingScreen> {
         final wPhone = washerData['phone'] ?? '';
         final wEmail = washerData['email'] ?? '';
 
-        final notificationMsg = 'New ${_rating.toStringAsFixed(0)}-Star Review from $customerName: "${commentText.isNotEmpty ? commentText : 'Great service!'}"';
+        final notificationMsg = '⭐ New ${_rating.toStringAsFixed(0)}-Star Review from $customerName: "${commentText.isNotEmpty ? commentText : 'Great service!'}"';
 
         // Dispatch System Push, SMS, Email
         AppNotificationService().notify(
-          title: 'New Rating & Review Received',
+          title: '⭐ New Rating & Review Received',
           message: notificationMsg,
           type: 'review',
         );
@@ -116,7 +116,7 @@ class _RatingScreenState extends State<RatingScreen> {
         if (wEmail.isNotEmpty) {
           await CommunicationService().sendRealEmail(
             email: wEmail,
-            subject: 'You received a new review - G Wash NG',
+            subject: '⭐ You received a new review - G Wash NG',
             body: notificationMsg,
           );
         }
