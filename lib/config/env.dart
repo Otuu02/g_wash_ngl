@@ -57,6 +57,10 @@ class Env {
         'PAYSTACK_PUBLIC_KEY',
         defaultValue: 'pk_test_xxxxxxxxxxxxxxxxxxxx',
       );
+  static String get paystackSecretKey => const String.fromEnvironment(
+        'PAYSTACK_SECRET_KEY',
+        defaultValue: 'sk_test_xxxxxxxxxxxxxxxxxxxx',
+      );
   static String get googleMapsApiKey => const String.fromEnvironment(
         'GOOGLE_MAPS_API_KEY',
         defaultValue: 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
