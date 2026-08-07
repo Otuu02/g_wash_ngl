@@ -154,7 +154,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
       if (snapshot.exists) {
         final data = snapshot.data()!;
         final status = data['status'] ?? 'searching';
-        final paymentStatus = data['paymentStatus'] ?? 'pending';
         
         _washerId = data['washerId'] ?? data['assignedWasherId'] ?? widget.washerId;
         
@@ -320,7 +319,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
       });
 
       setState(() {
-        _isServiceCompleted = true;
         _currentStep = 3;
         _isProcessing = false;
       });
@@ -434,7 +432,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
         if (result == true) {
           setState(() {
-            _isPaid = true;
             _currentStep = 4;
           });
           
