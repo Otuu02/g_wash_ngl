@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart' as fm;
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -754,134 +756,160 @@ class _TrackingScreenState extends State<TrackingScreen> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          // ============================================================
-          // MAP VIEW - Prominent Live Map with Real-Time Marker Animation
-          // ============================================================
-          Container(
-            height: 260,
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.bottom(40),
+          child: Column(
+            children: [
+              // ============================================================
+              // MAP VIEW - Prominent Live Map with OpenStreetMap Real-Time Tiles
+              // ============================================================
+              Container(
+                height: 230,
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(
-                children: [
-                  GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: _clientLocation,
-                      zoom: 14.5,
-                    ),
-                    markers: {
-                      Marker(
-                        markerId: const MarkerId('client'),
-                        position: _clientLocation,
-                        infoWindow: InfoWindow(title: 'Your Location', snippet: widget.pickupAddress),
-                        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-                      ),
-                      if (!isPaid && _washerId != null && _washerId!.isNotEmpty && (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived'))
-                        Marker(
-                          markerId: const MarkerId('provider'),
-                          position: _providerLocation,
-                          infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm > 0 ? _distanceKm.toStringAsFixed(1) : '1.5'} km away'),
-                          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Stack(
+                    children: [
+                      // OpenStreetMap live tile map engine - 100% working tiles without API keys!
+                      fm.FlutterMap(
+                        options: fm.MapOptions(
+                          initialCenter: ll.LatLng(_clientLocation.latitude, _clientLocation.longitude),
+                          initialZoom: 14.5,
                         ),
-                    },
-                    polylines: (!isPaid && _washerId != null && _washerId!.isNotEmpty && (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute'))
-                        ? {
-                            Polyline(
-                              polylineId: const PolylineId('route'),
-                              points: [_providerLocation, _clientLocation],
-                              color: AppColors.primary,
-                              width: 5,
-                            ),
-                          }
-                        : {},
-                    onMapCreated: (controller) => _mapController = controller,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    zoomControlsEnabled: true,
-                    mapToolbarEnabled: false,
-                    padding: const EdgeInsets.all(8),
-                  ),
-
-                  // Live Animated Indicator Overlay Banner
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.92),
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
                         children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived')
-                                  ? Colors.green
-                                  : Colors.orange,
-                              shape: BoxShape.circle,
-                            ),
+                          fm.TileLayer(
+                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.gwashng.g_wash_ng',
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              (_washerId == null || _washerId!.isEmpty || _jobStatus == 'searching' || _jobStatus == 'pending')
-                                  ? 'Searching for nearby service providers...'
-                                  : _jobStatus == 'assigned'
-                                      ? 'Awaiting acceptance from ${widget.washerName}...'
-                                      : _jobStatus == 'arrived'
-                                          ? 'Provider has arrived at your location'
-                                          : isCompleted
-                                              ? 'Service Completed'
-                                              : 'En Route • ${_distanceKm.toStringAsFixed(1)} km away • ETA: ${_etaMinutes > 0 ? _etaMinutes : 15} mins',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                          if (!isPaid && _washerId != null && _washerId!.isNotEmpty && (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute'))
+                            fm.PolylineLayer(
+                              polylines: [
+                                fm.Polyline(
+                                  points: [
+                                    ll.LatLng(_providerLocation.latitude, _providerLocation.longitude),
+                                    ll.LatLng(_clientLocation.latitude, _clientLocation.longitude),
+                                  ],
+                                  color: AppColors.primary,
+                                  strokeWidth: 4,
+                                ),
+                              ],
                             ),
+                          fm.MarkerLayer(
+                            markers: [
+                              // Customer Pin
+                              fm.Marker(
+                                point: ll.LatLng(_clientLocation.latitude, _clientLocation.longitude),
+                                width: 44,
+                                height: 44,
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                  ),
+                                  child: const Icon(Icons.location_on, color: Colors.white, size: 24),
+                                ),
+                              ),
+                              // Washer Pin
+                              if (!isPaid && _washerId != null && _washerId!.isNotEmpty && (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived'))
+                                fm.Marker(
+                                  point: ll.LatLng(_providerLocation.latitude, _providerLocation.longitude),
+                                  width: 44,
+                                  height: 44,
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      color: Colors.blue,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                                    ),
+                                    child: const Icon(Icons.directions_car, color: Colors.white, size: 24),
+                                  ),
+                                ),
+                            ],
                           ),
-                          if (_jobStatus == 'searching' || _jobStatus == 'pending' || _jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute')
-                            const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primary,
-                              ),
-                            ),
                         ],
                       ),
-                    ),
+
+                      // Live Animated Indicator Overlay Banner
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        right: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.95),
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived')
+                                      ? Colors.green
+                                      : Colors.orange,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  (_washerId == null || _washerId!.isEmpty || _jobStatus == 'searching' || _jobStatus == 'pending')
+                                      ? 'Searching for nearby service providers...'
+                                      : _jobStatus == 'assigned'
+                                          ? 'Awaiting acceptance from ${widget.washerName}...'
+                                          : _jobStatus == 'arrived'
+                                              ? 'Provider has arrived at your location'
+                                              : isCompleted
+                                                  ? 'Service Completed'
+                                                  : 'En Route • ${_distanceKm.toStringAsFixed(1)} km away • ETA: ${_etaMinutes > 0 ? _etaMinutes : 15} mins',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (_jobStatus == 'searching' || _jobStatus == 'pending' || _jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute')
+                                const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
           
           const SizedBox(height: 16),
           
@@ -1454,7 +1482,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
