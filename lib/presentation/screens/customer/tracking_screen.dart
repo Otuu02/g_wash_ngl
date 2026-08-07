@@ -41,8 +41,6 @@ class TrackingScreen extends StatefulWidget {
 
 class _TrackingScreenState extends State<TrackingScreen> {
   bool _isLoading = true;
-  bool _isServiceCompleted = false;
-  bool _isPaid = false;
   int _currentStep = 0;
   String _jobStatus = 'searching';
   String? _washerId;
@@ -176,7 +174,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
         setState(() {
           _jobStatus = status;
           _isLoading = false;
-          _isPaid = paymentStatus == 'paid';
           
           switch (status) {
             case 'pending':
@@ -212,14 +209,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
             case 'completed':
               _currentStep = 3;
               _currentLocation = 'Service completed! Please confirm and pay.';
-              _isServiceCompleted = true;
               _movementTimer?.cancel();
               break;
             case 'paid':
               _currentStep = 4;
               _currentLocation = 'Payment successful! Thank you.';
-              _isServiceCompleted = true;
-              _isPaid = true;
               _movementTimer?.cancel();
               break;
             case 'cancelled':
