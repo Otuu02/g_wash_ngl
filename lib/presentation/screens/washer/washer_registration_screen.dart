@@ -94,7 +94,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   String? _selectedVehicleType;
   double _workingRadius = 10;
   String? _selectedBank;
-  String _bankSearchQuery = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _agreeToTerms = false;
@@ -136,14 +135,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
     'Eyowo',
     'Paga',
   ];
-  
-  List<String> get _filteredBanks {
-    if (_bankSearchQuery.isEmpty) return _allBanks;
-    return _allBanks.where((bank) =>
-        bank.toLowerCase().contains(_bankSearchQuery.toLowerCase())).toList();
-  }
-
-  final List<String> _vehicleTypes = ['Motorcycle', 'Car', 'Van', 'Truck', 'SUV', 'Bicycle', 'Keke (Tricycle)'];
 
   // ============================================================
   // GET SUB-SERVICES FOR A MAIN CATEGORY
