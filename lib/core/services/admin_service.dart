@@ -24,8 +24,9 @@ class AdminService {
         final price = doc['price'] ?? 0;
         final paymentStatus = doc['paymentStatus'] ?? '';
         
-        if (status == 'completed' && paymentStatus == 'paid') {
-          revenue += price as int;
+        if (paymentStatus == 'paid' || status == 'paid' || status == 'completed') {
+          final p = (price is num) ? price.toInt() : 0;
+          revenue += p;
           completedJobs++;
         }
         if (status == 'assigned' || status == 'enRoute') {

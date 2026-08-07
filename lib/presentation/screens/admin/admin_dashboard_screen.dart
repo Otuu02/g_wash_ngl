@@ -26,10 +26,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _totalWashers = 0;
   int _totalJobs = 0;
   int _totalRevenue = 0;
+  double _totalPlatformRevenue = 0.0;
+  double _totalWasherPayouts = 0.0;
   int _pendingWashers = 0;
   int _activeJobs = 0;
   int _completedJobs = 0;
-  
+
   final AdminService _adminService = AdminService();
   
   // Settings Controllers
@@ -77,6 +79,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _totalWashers = stats['totalWashers'] ?? 0;
         _totalJobs = stats['totalJobs'] ?? 0;
         _totalRevenue = stats['totalRevenue'] ?? 0;
+        _totalPlatformRevenue = (stats['totalPlatformRevenue'] ?? 0.0).toDouble();
+        _totalWasherPayouts = (stats['totalWasherPayouts'] ?? 0.0).toDouble();
         _pendingWashers = stats['pendingWashers'] ?? 0;
         _activeJobs = stats['activeJobs'] ?? 0;
         _completedJobs = stats['completedJobs'] ?? 0;
@@ -468,11 +472,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             crossAxisCount: 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
+            childAspectRatio: 1.3,
             children: [
+              _buildStatCard('Admin 5% Revenue', '₦${NumberFormat('#,###').format(_totalPlatformRevenue)}', Icons.pie_chart, Colors.purple),
+              _buildStatCard('Washer 95% Share', '₦${NumberFormat('#,###').format(_totalWasherPayouts)}', Icons.savings, Colors.teal),
+              _buildStatCard('Gross Volume', '₦${NumberFormat('#,###').format(_totalRevenue)}', Icons.payments, Colors.indigo),
               _buildStatCard('Total Users', _totalUsers.toString(), Icons.people, Colors.blue),
               _buildStatCard('Total Washers', _totalWashers.toString(), Icons.emoji_transportation, Colors.green),
               _buildStatCard('Total Jobs', _totalJobs.toString(), Icons.bookmark, Colors.orange),
-              _buildStatCard('Revenue', '₦${NumberFormat('#,###').format(_totalRevenue)}', Icons.money, Colors.purple),
             ],
           ),
           
