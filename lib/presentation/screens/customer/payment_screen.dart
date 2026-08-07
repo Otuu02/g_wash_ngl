@@ -180,14 +180,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
     required String userId,
     required String userName,
   }) {
+    bool isVerifying = false;
+    String? verifyError;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
-          bool isVerifying = false;
-          String? verifyError;
-
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: const Row(
@@ -224,7 +224,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ],
                   ),
                 ),
-                if (verifyError != null) ...[
+                if (verifyError != null && verifyError!.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Text(verifyError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
                 ],
@@ -271,14 +271,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           Navigator.pop(context);
                           setState(() {
                             _isProcessing = false;
-                            _isPaymentSuccessful = true;
-                            _paymentStatus = 'completed';
                           });
                           _showPaymentSuccessDialog();
                         } else {
                           setModalState(() {
                             isVerifying = false;
-                            verifyError = result['error'] ?? 'Payment verification failed.';
+                            verifyError = (result['error'] ?? 'Payment verification failed.').toString();
                           });
                         }
                       },
@@ -295,52 +293,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
         },
       ),
     );
-  }
-
-  bool _validateCardDetails() {
-    final cardNumber = _cardNumberController.text.replaceAll(' ', '');
-    if (cardNumber.length < 16) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid 16-digit card number'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return false;
-    }
-
-    final expiry = _expiryController.text;
-    if (expiry.length < 5 || !expiry.contains('/')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter valid expiry date (MM/YY)'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return false;
-    }
-
-    if (_cvvController.text.length < 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid CVV'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return false;
-    }
-
-    if (_cardHolderController.text.isEmpty || _cardHolderController.text.length < 3) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter card holder name'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return false;
-    }
-
-    return true;
   }
 
   void _showPaymentSuccessDialog() {
