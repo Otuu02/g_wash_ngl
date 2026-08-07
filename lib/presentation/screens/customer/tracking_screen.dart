@@ -43,14 +43,14 @@ class _TrackingScreenState extends State<TrackingScreen> {
   bool _isLoading = true;
   bool _isServiceCompleted = false;
   bool _isPaid = false;
-  int _currentStep = 1;
-  String _jobStatus = 'assigned';
+  int _currentStep = 0;
+  String _jobStatus = 'searching';
   String? _washerId;
   String? _washerImageUrl;
   String? _lastStatus;
-  String _currentLocation = 'Your washer is on the way';
-  int _etaMinutes = 15;
-  double _distanceKm = 1.5;
+  String _currentLocation = 'Searching for nearby service providers...';
+  int _etaMinutes = 0;
+  double _distanceKm = 0.0;
   bool _isProcessing = false;
 
   GoogleMapController? _mapController;
@@ -72,7 +72,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
     _washerImageUrl = widget.washerImage;
     _listenToJobUpdates();
     _fetchWasherDetails();
-    _startMovementSimulation();
+    // Do NOT start movement simulation on unassigned jobs!
   }
 
   @override
@@ -86,9 +86,16 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   void _startMovementSimulation() {
     _movementTimer?.cancel();
+
+    // Only simulate or track movement if provider is actually assigned & active
+    final bool isAccepted = _washerId != null && _washerId!.isNotEmpty &&
+        (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute');
+
+    if (!isAccepted) return;
+
     _movementTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       if (!mounted) return;
-      if (_jobStatus == 'assigned' || _jobStatus == 'enRoute') {
+      if (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute') {
         final dLat = _clientLocation.latitude - _providerLocation.latitude;
         final dLng = _clientLocation.longitude - _providerLocation.longitude;
 
@@ -148,12 +155,15 @@ class _TrackingScreenState extends State<TrackingScreen> {
         .listen((snapshot) {
       if (snapshot.exists) {
         final data = snapshot.data()!;
-        final status = data['status'] ?? 'assigned';
+        final status = data['status'] ?? 'searching';
         final paymentStatus = data['paymentStatus'] ?? 'pending';
         
         _washerId = data['washerId'] ?? data['assignedWasherId'] ?? widget.washerId;
         
-        if (_washerId != null && _washerId!.isNotEmpty && _washerSubscription == null) {
+        final bool isAssigned = _washerId != null && _washerId!.isNotEmpty &&
+            (status == 'assigned' || status == 'accepted' || status == 'enRoute' || status == 'arrived' || status == 'completed' || status == 'paid');
+
+        if (isAssigned && _washerSubscription == null) {
           _listenToWasherLocation(_washerId!);
           _fetchWasherDetails();
         }
@@ -169,36 +179,52 @@ class _TrackingScreenState extends State<TrackingScreen> {
           _isPaid = paymentStatus == 'paid';
           
           switch (status) {
-            case 'assigned':
-              _currentStep = 1;
-              _currentLocation = 'Your washer is on the way';
+            case 'pending':
+            case 'searching':
+            case 'unassigned':
+              _currentStep = 0;
+              _currentLocation = 'Searching for nearby service providers...';
+              _etaMinutes = 0;
+              _distanceKm = 0.0;
+              _movementTimer?.cancel();
               break;
+            case 'assigned':
             case 'accepted':
               _currentStep = 1;
-              _currentLocation = 'Washer accepted your request';
+              _currentLocation = 'Provider accepted request! En route to pickup';
+              if (_distanceKm == 0.0) _distanceKm = 1.5;
+              if (_etaMinutes == 0) _etaMinutes = 15;
+              _startMovementSimulation();
               break;
             case 'enRoute':
               _currentStep = 1;
               _currentLocation = 'Your washer is on the way';
+              if (_distanceKm == 0.0) _distanceKm = 1.5;
+              if (_etaMinutes == 0) _etaMinutes = 15;
+              _startMovementSimulation();
               break;
             case 'arrived':
               _currentStep = 2;
               _currentLocation = 'Washer has arrived at your location';
               _etaMinutes = 0;
+              _movementTimer?.cancel();
               break;
             case 'completed':
               _currentStep = 3;
               _currentLocation = 'Service completed! Please confirm and pay.';
               _isServiceCompleted = true;
+              _movementTimer?.cancel();
               break;
             case 'paid':
               _currentStep = 4;
               _currentLocation = 'Payment successful! Thank you.';
               _isServiceCompleted = true;
               _isPaid = true;
+              _movementTimer?.cancel();
               break;
             case 'cancelled':
               _currentLocation = 'This job has been cancelled';
+              _movementTimer?.cancel();
               break;
           }
         });
@@ -712,15 +738,15 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         infoWindow: InfoWindow(title: 'Your Location', snippet: widget.pickupAddress),
                         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
                       ),
-                      if (!isPaid)
+                      if (!isPaid && _washerId != null && _washerId!.isNotEmpty && (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived'))
                         Marker(
                           markerId: const MarkerId('provider'),
                           position: _providerLocation,
-                          infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm.toStringAsFixed(1)} km away'),
+                          infoWindow: InfoWindow(title: 'Washer: ${widget.washerName}', snippet: '${_distanceKm > 0 ? _distanceKm.toStringAsFixed(1) : '1.5'} km away'),
                           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
                         ),
                     },
-                    polylines: !isPaid
+                    polylines: (!isPaid && _washerId != null && _washerId!.isNotEmpty && (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute'))
                         ? {
                             Polyline(
                               polylineId: const PolylineId('route'),
@@ -761,19 +787,21 @@ class _TrackingScreenState extends State<TrackingScreen> {
                           Container(
                             width: 10,
                             height: 10,
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
+                            decoration: BoxDecoration(
+                              color: (_washerId != null && _washerId!.isNotEmpty) ? Colors.green : Colors.orange,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              _jobStatus == 'arrived'
-                                  ? '📍 Provider has arrived at your location'
-                                  : isCompleted
-                                      ? '✅ Service Completed'
-                                      : '🚗 En Route • ${_distanceKm.toStringAsFixed(1)} km away • ETA: $_etaMinutes mins',
+                              (_washerId == null || _washerId!.isEmpty || _jobStatus == 'searching' || _jobStatus == 'pending')
+                                  ? 'Searching for nearby service providers...'
+                                  : _jobStatus == 'arrived'
+                                      ? 'Provider has arrived at your location'
+                                      : isCompleted
+                                          ? 'Service Completed'
+                                          : 'En Route • ${_distanceKm.toStringAsFixed(1)} km away • ETA: ${_etaMinutes > 0 ? _etaMinutes : 15} mins',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
@@ -782,7 +810,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (_jobStatus == 'assigned' || _jobStatus == 'enRoute')
+                          if (_jobStatus == 'searching' || _jobStatus == 'pending' || _jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute')
                             const SizedBox(
                               width: 14,
                               height: 14,
@@ -803,27 +831,33 @@ class _TrackingScreenState extends State<TrackingScreen> {
           const SizedBox(height: 16),
           
           // ============================================================
-          // STATUS CARD - Clean, like second screenshot
+          // STATUS CARD - Dynamic for searching vs assigned
           // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: (_washerId != null && _washerId!.isNotEmpty) 
+                    ? Colors.green.withOpacity(0.1) 
+                    : Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.green.withOpacity(0.2)),
+                border: Border.all(
+                  color: (_washerId != null && _washerId!.isNotEmpty) 
+                      ? Colors.green.withOpacity(0.2) 
+                      : Colors.orange.withOpacity(0.2),
+                ),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.green,
+                      color: (_washerId != null && _washerId!.isNotEmpty) ? Colors.green : Colors.orange,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.directions_car,
+                    child: Icon(
+                      (_washerId != null && _washerId!.isNotEmpty) ? Icons.directions_car : Icons.search,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -833,9 +867,9 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Washer On The Way',
-                          style: TextStyle(
+                        Text(
+                          (_washerId != null && _washerId!.isNotEmpty) ? 'Washer On The Way' : 'Searching For Provider',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -853,21 +887,25 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.2),
+                      color: (_washerId != null && _washerId!.isNotEmpty) 
+                          ? Colors.green.withOpacity(0.2) 
+                          : Colors.orange.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.timer,
-                          color: Colors.green,
+                        Icon(
+                          (_washerId != null && _washerId!.isNotEmpty) ? Icons.timer : Icons.hourglass_top,
+                          color: (_washerId != null && _washerId!.isNotEmpty) ? Colors.green : Colors.orange.shade800,
                           size: 14,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '$_etaMinutes mins',
-                          style: const TextStyle(
-                            color: Colors.green,
+                          (_washerId != null && _washerId!.isNotEmpty && _etaMinutes > 0) 
+                              ? '$_etaMinutes mins' 
+                              : 'Searching',
+                          style: TextStyle(
+                            color: (_washerId != null && _washerId!.isNotEmpty) ? Colors.green : Colors.orange.shade800,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
