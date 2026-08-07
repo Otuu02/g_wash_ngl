@@ -1,6 +1,8 @@
 // lib/presentation/screens/customer/payment_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
@@ -74,7 +76,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final userId = authService.userId ?? '';
-      final userEmail = authService.currentUser?.email ?? 'customer@gwashng.com';
+      final userEmail = FirebaseAuth.instance.currentUser?.email ?? 'customer@gwashng.com';
       final userName = authService.userName ?? 'Customer';
 
       final paymentService = PaymentService();
