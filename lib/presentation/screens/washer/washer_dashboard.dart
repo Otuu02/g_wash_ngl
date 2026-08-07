@@ -1,7 +1,4 @@
-// FILE: lib/presentation/screens/washer/washer_dashboard.dart
-// PURPOSE: Main dashboard for washers - shows services, earnings, and job requests
-// UPDATED: All features working with real data from Firestore
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +25,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
   bool _hasApplied = false;
   String _washerStatus = 'pending';
   String _washerId = '';
+  StreamSubscription<QuerySnapshot>? _jobsSubscription;
   
   Map<String, dynamic> _washerData = {};
   List<Map<String, dynamic>> _selectedServices = [];
@@ -193,13 +191,13 @@ class _WasherDashboardState extends State<WasherDashboard> {
 
       print('✅ Washer data loaded: $_washerId');
 
-      // Listen to real-time updates
+      // Listen to real-time washer doc updates
       FirebaseFirestore.instance
           .collection('washers')
           .doc(_washerId)
           .snapshots()
           .listen((snapshot) {
-        if (snapshot.exists) {
+        if (snapshot.exists && mounted) {
           final newData = snapshot.data()!;
           _washerData = newData;
           
@@ -222,21 +220,264 @@ class _WasherDashboardState extends State<WasherDashboard> {
             _isOnline = newData['isOnline'] ?? false;
             _isApproved = newData['approved'] ?? true;
             _selectedServices = newServices;
-            _washerStats = {
-              'todayEarnings': newData['todayEarnings'] ?? 0,
-              'totalJobs': newData['totalJobs'] ?? 0,
-              'rating': newData['rating'] ?? 4.8,
-              'totalEarnings': newData['totalEarnings'] ?? 0,
-              'pendingJobs': newData['pendingJobs'] ?? 0,
-            };
           });
         }
       });
+
+      // Listen to real-time jobs for dynamic stats calculation
+      _listenToRealtimeJobs(_washerId);
 
     } catch (e) {
       print('❌ Error loading washer data: $e');
       setState(() => _isLoading = false);
     }
+  }
+
+  void _listenToRealtimeJobs(String washerId) {
+    _jobsSubscription?.cancel();
+    _jobsSubscription = FirebaseFirestore.instance
+        .collection('jobs')
+        .where('washerId', isEqualTo: washerId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!mounted) return;
+
+      int todayEarnings = 0;
+      int totalEarnings = 0;
+      int totalJobs = 0;
+      int pendingJobs = 0;
+
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        final price = (data['price'] ?? 0) as num;
+        final washerShare = (price * 0.95).round(); // 95% washer share
+
+        if (status == 'completed' || status == 'paid') {
+          totalJobs++;
+          totalEarnings += washerShare;
+
+          DateTime? jobDate;
+          if (data['completedAt'] != null && data['completedAt'] is Timestamp) {
+            jobDate = (data['completedAt'] as Timestamp).toDate();
+          } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
+            jobDate = (data['createdAt'] as Timestamp).toDate();
+          }
+
+          if (jobDate != null && jobDate.isAfter(todayStart)) {
+            todayEarnings += washerShare;
+          }
+        } else if (status == 'assigned' || status == 'pending' || status == 'in_progress' || status == 'accepted') {
+          pendingJobs++;
+        }
+      }
+
+      final dynamic rawBalance = _washerData['availableBalance'] ?? _washerData['balance'];
+      final int availableBalance = rawBalance != null && rawBalance is num ? rawBalance.toInt() : totalEarnings;
+
+      setState(() {
+        _washerStats = {
+          'todayEarnings': todayEarnings,
+          'totalJobs': totalJobs,
+          'rating': _washerData['rating'] ?? 4.8,
+          'totalEarnings': totalEarnings,
+          'pendingJobs': pendingJobs,
+          'availableBalance': availableBalance,
+        };
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _jobsSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _showWithdrawDialog() {
+    final double availableBalance = ((_washerStats['availableBalance'] ?? _washerStats['totalEarnings'] ?? 0) as num).toDouble();
+    final String washerName = _washerData['name'] ?? 'Service Provider';
+
+    final TextEditingController amountCtrl = TextEditingController(text: availableBalance > 0 ? availableBalance.toInt().toString() : '5000');
+    final TextEditingController accountNumCtrl = TextEditingController(text: (_washerData['accountNumber'] ?? '').toString());
+    final TextEditingController accountNameCtrl = TextEditingController(text: (_washerData['accountName'] ?? washerName).toString());
+    String selectedBank = (_washerData['bankName'] ?? 'GTBank').toString();
+
+    final List<String> banks = [
+      'GTBank', 'Access Bank', 'Zenith Bank', 'First Bank', 'UBA', 'Kuda Bank', 'OPay', 'PalmPay', 'Moniepoint', 'Stanbic IBTC', 'Wema Bank'
+    ];
+
+    if (!banks.contains(selectedBank)) {
+      selectedBank = 'GTBank';
+    }
+
+    bool isSubmitting = false;
+    String? withdrawError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            top: 20,
+            left: 20,
+            right: 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Withdraw Earnings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('Available: ₦${NumberFormat('#,###').format(availableBalance)}', style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Withdrawal Amount (₦)',
+                    prefixText: '₦ ',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedBank,
+                  decoration: const InputDecoration(labelText: 'Select Bank', border: OutlineInputBorder()),
+                  items: banks.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setModalState(() => selectedBank = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountNumCtrl,
+                  keyboardType: TextInputType.number,
+                  maxLength: 10,
+                  decoration: const InputDecoration(
+                    labelText: 'Account Number',
+                    border: OutlineInputBorder(),
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: accountNameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Account Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (withdrawError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(withdrawError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final int? amount = int.tryParse(amountCtrl.text.trim());
+                            final String accNum = accountNumCtrl.text.trim();
+                            final String accName = accountNameCtrl.text.trim();
+
+                            if (amount == null || amount < 1000) {
+                              setModalState(() => withdrawError = 'Minimum withdrawal amount is ₦1,000');
+                              return;
+                            }
+                            if (amount > availableBalance && availableBalance > 0) {
+                              setModalState(() => withdrawError = 'Amount exceeds available balance');
+                              return;
+                            }
+                            if (accNum.length < 10) {
+                              setModalState(() => withdrawError = 'Please enter valid 10-digit account number');
+                              return;
+                            }
+
+                            setModalState(() {
+                              isSubmitting = true;
+                              withdrawError = null;
+                            });
+
+                            try {
+                              // Save withdrawal request in Firestore
+                              await FirebaseFirestore.instance.collection('withdrawals').add({
+                                'washerId': _washerId,
+                                'washerName': washerName,
+                                'amount': amount,
+                                'bankName': selectedBank,
+                                'accountNumber': accNum,
+                                'accountName': accName,
+                                'status': 'processing',
+                                'reference': 'GWASH-WD-${DateTime.now().millisecondsSinceEpoch}',
+                                'createdAt': FieldValue.serverTimestamp(),
+                              });
+
+                              // Deduct from available balance in washers collection
+                              await FirebaseFirestore.instance.collection('washers').doc(_washerId).set({
+                                'availableBalance': FieldValue.increment(-amount),
+                                'bankName': selectedBank,
+                                'accountNumber': accNum,
+                                'accountName': accName,
+                              }, SetOptions(merge: true));
+
+                              if (mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('✅ Withdrawal of ₦${NumberFormat('#,###').format(amount)} initiated to $selectedBank!'),
+                                    backgroundColor: Colors.green,
+                                    duration: const Duration(seconds: 4),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setModalState(() {
+                                isSubmitting = false;
+                                withdrawError = 'Error processing withdrawal: $e';
+                              });
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Withdraw Funds via Paystack Payout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _toggleOnlineStatus(bool value) async {
@@ -740,13 +981,26 @@ class _WasherDashboardState extends State<WasherDashboard> {
               children: [
                 Expanded(
                   child: _buildActionCard(
+                    'Withdraw Funds',
+                    Icons.account_balance_wallet,
+                    AppColors.primary,
+                    _showWithdrawDialog,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionCard(
                     'View Earnings',
-                    Icons.money,
+                    Icons.payments,
                     Colors.green,
                     () => setState(() => _currentIndex = 1),
                   ),
                 ),
-                const SizedBox(width: 12),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
                 Expanded(
                   child: _buildActionCard(
                     'My Profile',
@@ -755,11 +1009,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
                     () => setState(() => _currentIndex = 2),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
+                const SizedBox(width: 12),
                 Expanded(
                   child: _buildActionCard(
                     'Subscription Info',
@@ -776,20 +1026,6 @@ class _WasherDashboardState extends State<WasherDashboard> {
                       } else {
                         _showInfoDialog('Subscription', 'No active subscription');
                       }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildActionCard(
-                    'Support',
-                    Icons.support_agent,
-                    Colors.orange,
-                    () {
-                      _showInfoDialog(
-                        'Support',
-                        'Email: support@gwashng.com\nPhone: +234 800 000 0000\n\nAvailable 24/7',
-                      );
                     },
                   ),
                 ),
