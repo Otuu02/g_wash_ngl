@@ -156,9 +156,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ============================================================
   String _getTagline() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Clean starts here ☀️';
-    if (hour < 17) return 'Fresh vibes, anytime 🌟';
-    return 'Your clean, your way 🌙';
+    if (hour < 12) return 'Clean starts here';
+    if (hour < 17) return 'Fresh vibes, anytime';
+    return 'Your clean, your way';
   }
 
   @override
@@ -515,7 +515,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
                         ),
                         Text(
-                          '$userName ✨',
+                          userName,
                           style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white),
                         ),
                         const SizedBox(height: 4),

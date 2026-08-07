@@ -49,7 +49,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Job Accepted Successfully! Customer notified.'),
+            content: Text('Job Accepted Successfully! Customer notified.'),
             backgroundColor: Colors.green,
           ),
         );

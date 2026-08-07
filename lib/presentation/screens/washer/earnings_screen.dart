@@ -164,19 +164,19 @@ class _EarningsScreenState extends State<EarningsScreen> {
                             final amt = double.tryParse(_amountController.text) ?? 0;
                             if (amt < 10000) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('❌ Minimum withdrawal amount is ₦10,000!'), backgroundColor: Colors.red),
+                                const SnackBar(content: Text('Minimum withdrawal amount is ₦10,000!'), backgroundColor: Colors.red),
                               );
                               return;
                             }
                             if (amt > availableBalance) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('❌ Requested amount exceeds available balance!'), backgroundColor: Colors.red),
+                                const SnackBar(content: Text('Requested amount exceeds available balance!'), backgroundColor: Colors.red),
                               );
                               return;
                             }
                             if (_accountNumberController.text.trim().length < 10) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('❌ Please enter a valid 10-digit account number!'), backgroundColor: Colors.red),
+                                const SnackBar(content: Text('Please enter a valid 10-digit account number!'), backgroundColor: Colors.red),
                               );
                               return;
                             }

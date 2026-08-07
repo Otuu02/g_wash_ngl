@@ -76,7 +76,7 @@ class ProfileScreen extends StatelessWidget {
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('✅ Profile photo updated successfully! 🎉'),
+              content: Text('Profile photo updated successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -87,7 +87,7 @@ class ProfileScreen extends StatelessWidget {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Upload failed: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text('Upload failed: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -368,7 +368,7 @@ class ProfileScreen extends StatelessWidget {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('✅ Profile updated successfully!'),
+                    content: Text('Profile updated successfully!'),
                     backgroundColor: Colors.green,
                   ),
                 );
