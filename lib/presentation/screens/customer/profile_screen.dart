@@ -261,7 +261,7 @@ class ProfileScreen extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.emoji_transportation, color: Colors.white),
               title: const Text('Become a Washer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              subtitle: const Text('Start earning by washing cars', style: TextStyle(color: Colors.white70)),
+              subtitle: const Text('Join our network of professional service providers and start earning', style: TextStyle(color: Colors.white70)),
               trailing: const Icon(Icons.arrow_forward, color: Colors.white),
               onTap: () {
                 Navigator.push(

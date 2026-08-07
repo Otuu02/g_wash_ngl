@@ -1,7 +1,6 @@
-// FILE: lib/presentation/screens/customer/payment_methods_screen.dart
-// PURPOSE: Manage payment methods - FULLY WORKING with consistent green theme
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/helpers.dart';
 
@@ -13,24 +12,43 @@ class PaymentMethodsScreen extends StatefulWidget {
 }
 
 class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
-  List<Map<String, dynamic>> _paymentMethods = [
-    {
-      'id': '1',
-      'type': 'visa',
-      'name': 'VISA',
-      'last4': '4242',
-      'expiry': '12/25',
-      'isDefault': true,
-    },
-    {
-      'id': '2',
-      'type': 'mastercard',
-      'name': 'Mastercard',
-      'last4': '8888',
-      'expiry': '08/26',
-      'isDefault': false,
-    },
-  ];
+  static const String _storageKey = 'saved_customer_payment_methods';
+  List<Map<String, dynamic>> _paymentMethods = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCards();
+  }
+
+  Future<void> _loadSavedCards() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? jsonStr = prefs.getString(_storageKey);
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final List<dynamic> rawList = jsonDecode(jsonStr);
+        setState(() {
+          _paymentMethods = rawList.map((item) => Map<String, dynamic>.from(item)).toList();
+        });
+      } else {
+        setState(() {
+          _paymentMethods = [];
+        });
+      }
+    } catch (e) {
+      debugPrint('ℹ️ Error loading saved cards: $e');
+    }
+  }
+
+  Future<void> _saveCards() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String jsonStr = jsonEncode(_paymentMethods);
+      await prefs.setString(_storageKey, jsonStr);
+    } catch (e) {
+      debugPrint('ℹ️ Error saving cards: $e');
+    }
+  }
 
   void _addPaymentMethod() {
     showModalBottomSheet(
@@ -45,15 +63,17 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
 
   void _addCard(Map<String, dynamic> card) {
     setState(() {
+      final bool isFirstCard = _paymentMethods.isEmpty;
       _paymentMethods.add({
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
         'type': card['type'],
         'name': card['name'],
         'last4': card['last4'],
         'expiry': card['expiry'],
-        'isDefault': false,
+        'isDefault': isFirstCard,
       });
     });
+    _saveCards();
     Helpers.showSnackBar(context, message: 'Card added successfully!', isSuccess: true);
   }
 
@@ -63,7 +83,20 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
         method['isDefault'] = method['id'] == id;
       }
     });
+    _saveCards();
     Helpers.showSnackBar(context, message: 'Default payment method updated', isSuccess: true);
+  }
+
+  void _unsetDefaultPayment(String id) {
+    setState(() {
+      for (var method in _paymentMethods) {
+        if (method['id'] == id) {
+          method['isDefault'] = false;
+        }
+      }
+    });
+    _saveCards();
+    Helpers.showSnackBar(context, message: 'Default status removed', isSuccess: true);
   }
 
   void _removePayment(String id) {
@@ -86,6 +119,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
               setState(() {
                 _paymentMethods.removeWhere((method) => method['id'] == id);
               });
+              _saveCards();
               Navigator.pop(context);
               Helpers.showSnackBar(context, message: 'Card removed', isSuccess: true);
             },
@@ -170,14 +204,15 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   }
 
   Widget _buildPaymentCard(Map<String, dynamic> method) {
+    final isDefault = method['isDefault'] == true;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: method['isDefault'] ? AppColors.primary : AppColors.grey200,
-          width: method['isDefault'] ? 2 : 1,
+          color: isDefault ? AppColors.primary : AppColors.grey200,
+          width: isDefault ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -188,6 +223,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
         ],
       ),
       child: ListTile(
+        onTap: () => _setDefaultPayment(method['id']),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: Container(
           width: 50,
@@ -217,7 +253,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            if (method['isDefault']) ...[
+            if (isDefault) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -244,7 +280,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
         trailing: PopupMenuButton(
           icon: const Icon(Icons.more_vert, color: AppColors.primary),
           itemBuilder: (context) => [
-            if (!method['isDefault'])
+            if (!isDefault)
               const PopupMenuItem(
                 value: 'default',
                 child: Row(
@@ -252,6 +288,17 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                     Icon(Icons.check_circle, color: AppColors.primary, size: 20),
                     SizedBox(width: 12),
                     Text('Set as Default'),
+                  ],
+                ),
+              )
+            else
+              const PopupMenuItem(
+                value: 'unset',
+                child: Row(
+                  children: [
+                    Icon(Icons.remove_circle_outline, color: Colors.orange, size: 20),
+                    SizedBox(width: 12),
+                    Text('Unset Default'),
                   ],
                 ),
               ),
@@ -269,6 +316,8 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
           onSelected: (value) {
             if (value == 'default') {
               _setDefaultPayment(method['id']);
+            } else if (value == 'unset') {
+              _unsetDefaultPayment(method['id']);
             } else if (value == 'remove') {
               _removePayment(method['id']);
             }
