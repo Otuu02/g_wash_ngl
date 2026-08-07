@@ -27,9 +27,15 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
       final String? jsonStr = prefs.getString(_storageKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final List<dynamic> rawList = jsonDecode(jsonStr);
+        final filteredList = rawList
+            .map((item) => Map<String, dynamic>.from(item))
+            .where((card) => card['last4'] != '4242' && card['last4'] != '8888')
+            .toList();
+        
         setState(() {
-          _paymentMethods = rawList.map((item) => Map<String, dynamic>.from(item)).toList();
+          _paymentMethods = filteredList;
         });
+        await prefs.setString(_storageKey, jsonEncode(filteredList));
       } else {
         setState(() {
           _paymentMethods = [];

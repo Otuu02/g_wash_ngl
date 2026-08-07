@@ -413,12 +413,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     width: 2,
                   ),
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.person,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
+                child: ClipOval(
+                  child: authService.photoURL != null && authService.photoURL!.isNotEmpty
+                      ? Image.network(
+                          authService.photoURL!,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Center(
+                            child: Icon(Icons.person, color: AppColors.primary, size: 20),
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(Icons.person, color: AppColors.primary, size: 20),
+                        ),
                 ),
               ),
             ),
