@@ -190,7 +190,12 @@ class _LoginScreenState extends State<LoginScreen> {
         }, SetOptions(merge: true));
 
         final authService = Provider.of<AuthService>(context, listen: false);
-        authService.setGoogleUser(user.displayName ?? 'User', user.email ?? user.uid);
+        await authService.setGoogleUser(
+          user.displayName ?? 'User',
+          user.email ?? '${user.uid}@gmail.com',
+          photoURL: user.photoURL,
+          phone: user.phoneNumber,
+        );
         
         if (mounted) {
           Navigator.pushReplacementNamed(context, '/home');

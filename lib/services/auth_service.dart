@@ -577,17 +577,50 @@ class AuthService extends ChangeNotifier {
   // ============================================================
   // GOOGLE SIGN-IN - Set user after Google authentication
   // ============================================================
-  void setGoogleUser(String name, String email) {
+  Future<void> setGoogleUser(String name, String email, {String? photoURL, String? phone}) async {
     _isLoggedIn = true;
     _userName = name.isNotEmpty ? name : 'Google User';
-    _userPhone = '';
+    _userPhone = phone ?? '';
     _userEmail = email;
     _userId = FirebaseAuth.instance.currentUser?.uid ?? DateTime.now().millisecondsSinceEpoch.toString();
     _userRole = 'customer';
     _serviceCategory = null;
-    _saveUserState();
+
+    if (photoURL != null && photoURL.isNotEmpty) {
+      _photoURL = photoURL;
+    }
+
+    final uid = _userId!;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final bool isNewUser = !userDoc.exists;
+
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'name': _userName,
+        'email': _userEmail,
+        'photoURL': _photoURL ?? '',
+        'role': 'customer',
+        'isBlocked': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (isNewUser) 'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (isNewUser && email.isNotEmpty) {
+        CommunicationService().sendWelcomeNotifications(
+          userName: _userName!,
+          email: email,
+          phone: _userPhone ?? '',
+          role: 'customer',
+        );
+      }
+    } catch (e) {
+      debugPrint('ℹ️ Google user Firestore sync notice: $e');
+    }
+
+    await _saveUserState();
     notifyListeners();
-    print('✅ Google user set: $name ($email)');
+    debugPrint('✅ Google user set: $name ($email)');
   }
 
   // ============================================================
