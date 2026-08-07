@@ -1,6 +1,8 @@
-// lib/services/payment_service.dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../config/env.dart';
 import 'app_notification_service.dart';
 import 'communication_service.dart';
 
@@ -12,6 +14,144 @@ class PaymentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final AppNotificationService _notificationService = AppNotificationService();
   final CommunicationService _communicationService = CommunicationService();
+
+  // ============================================================
+  // INITIALIZE REAL PAYSTACK TRANSACTION (LIVE GATEWAY)
+  // ============================================================
+  Future<Map<String, dynamic>> initializePaystackTransaction({
+    required String email,
+    required int amount,
+    required String jobId,
+    required String userId,
+    required String serviceName,
+  }) async {
+    try {
+      final String paystackSecretKey = Env.paystackPublicKey;
+
+      final reference = 'GWASH-${DateTime.now().millisecondsSinceEpoch}';
+      final int amountInKobo = amount * 100; // Paystack requires amount in kobo
+
+      final response = await http.post(
+        Uri.parse('https://api.paystack.co/transaction/initialize'),
+        headers: {
+          'Authorization': 'Bearer $paystackSecretKey',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email.isNotEmpty ? email : 'customer@gwashng.com',
+          'amount': amountInKobo,
+          'reference': reference,
+          'callback_url': 'https://standard.paystack.co/close',
+          'metadata': {
+            'jobId': jobId,
+            'userId': userId,
+            'serviceName': serviceName,
+            'custom_fields': [
+              {
+                'display_name': 'Service',
+                'variable_name': 'service',
+                'value': serviceName,
+              },
+              {
+                'display_name': 'Job ID',
+                'variable_name': 'job_id',
+                'value': jobId,
+              }
+            ]
+          }
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == true && data['data'] != null) {
+          final authUrl = data['data']['authorization_url'];
+          final accessCode = data['data']['access_code'];
+          return {
+            'success': true,
+            'authorization_url': authUrl,
+            'access_code': accessCode,
+            'reference': reference,
+          };
+        }
+      }
+      
+      final errData = jsonDecode(response.body);
+      throw Exception(errData['message'] ?? 'Failed to initialize Paystack transaction');
+    } catch (e) {
+      debugPrint('❌ Paystack Initialization Error: $e');
+      return {
+        'success': false,
+        'error': e.toString().replaceAll('Exception: ', ''),
+      };
+    }
+  }
+
+  // ============================================================
+  // VERIFY REAL PAYSTACK TRANSACTION (LIVE VERIFICATION)
+  // ============================================================
+  Future<Map<String, dynamic>> verifyPaystackTransaction({
+    required String reference,
+    required String jobId,
+    required String userId,
+    required String userName,
+    required String serviceName,
+    required int amount,
+    required String location,
+    required String paymentMethod,
+    String? cardLast4,
+  }) async {
+    try {
+      final String paystackSecretKey = Env.paystackPublicKey;
+
+      final response = await http.get(
+        Uri.parse('https://api.paystack.co/transaction/verify/$reference'),
+        headers: {
+          'Authorization': 'Bearer $paystackSecretKey',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == true && data['data'] != null) {
+          final txStatus = data['data']['status'];
+          final txRef = data['data']['reference'] ?? reference;
+          final String? last4 = data['data']['authorization'] != null 
+              ? data['data']['authorization']['last4'] 
+              : cardLast4;
+
+          if (txStatus == 'success') {
+            return await processPayment(
+              jobId: jobId,
+              userId: userId,
+              userName: userName,
+              serviceName: serviceName,
+              amount: amount,
+              location: location,
+              paymentMethod: paymentMethod,
+              cardLast4: last4,
+              paystackTransactionRef: txRef,
+            );
+          } else {
+            return {
+              'success': false,
+              'error': 'Paystack transaction status is "$txStatus". Payment was not completed.',
+            };
+          }
+        }
+      }
+
+      final errData = jsonDecode(response.body);
+      throw Exception(errData['message'] ?? 'Failed to verify Paystack transaction');
+    } catch (e) {
+      debugPrint('❌ Paystack Verification Error: $e');
+      return {
+        'success': false,
+        'error': e.toString().replaceAll('Exception: ', ''),
+      };
+    }
+  }
 
   // ============================================================
   // PROCESS PAYMENT - WITH PAYSTACK 5% PLATFORM FEE SPLIT (95% TO WASHER)

@@ -66,12 +66,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Future<void> _processPayment() async {
-    if (_selectedPaymentMethod == 'card') {
-      if (!_validateCardDetails()) {
-        return;
-      }
-    }
-
     setState(() {
       _isProcessing = true;
       _paymentStatus = 'processing';
@@ -80,28 +74,75 @@ class _PaymentScreenState extends State<PaymentScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final userId = authService.userId ?? '';
+      final userEmail = authService.currentUser?.email ?? 'customer@gwashng.com';
+      final userName = authService.userName ?? 'Customer';
 
       final paymentService = PaymentService();
-      final result = await paymentService.processPayment(
+
+      if (_selectedPaymentMethod == 'wallet') {
+        final result = await paymentService.processWalletPayment(
+          jobId: widget.jobId,
+          userId: userId,
+          userName: userName,
+          serviceName: widget.serviceName,
+          amount: widget.amount,
+          location: widget.location,
+        );
+
+        if (result['success'] == true) {
+          setState(() {
+            _isProcessing = false;
+            _isPaymentSuccessful = true;
+            _paymentStatus = 'completed';
+          });
+          _showPaymentSuccessDialog();
+        } else {
+          setState(() {
+            _isProcessing = false;
+            _paymentStatus = 'failed';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Wallet Payment Failed: ${result['error']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // 💳 REAL PAYSTACK GATEWAY (Card, Bank Transfer, USSD, QR Code)
+      final initResult = await paymentService.initializePaystackTransaction(
+        email: userEmail,
+        amount: widget.amount,
         jobId: widget.jobId,
         userId: userId,
-        userName: authService.userName ?? 'Customer',
         serviceName: widget.serviceName,
-        amount: widget.amount,
-        location: widget.location,
-        paymentMethod: _selectedPaymentMethod,
-        cardLast4: _selectedPaymentMethod == 'card' 
-            ? _cardNumberController.text.substring(_cardNumberController.text.length - 4)
-            : null,
       );
 
-      if (result['success'] == true) {
+      if (initResult['success'] == true && initResult['authorization_url'] != null) {
+        final authUrl = initResult['authorization_url'] as String;
+        final reference = initResult['reference'] as String;
+
         setState(() {
           _isProcessing = false;
-          _isPaymentSuccessful = true;
-          _paymentStatus = 'completed';
         });
-        _showPaymentSuccessDialog();
+
+        // Launch Real Paystack Gateway Checkout URL
+        final Uri url = Uri.parse(authUrl);
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        }
+
+        // Show Paystack Verification Modal Dialog
+        if (mounted) {
+          _showPaystackVerificationDialog(
+            reference: reference,
+            authUrl: authUrl,
+            userId: userId,
+            userName: userName,
+          );
+        }
       } else {
         setState(() {
           _isProcessing = false;
@@ -109,7 +150,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment failed: ${result['error']}'),
+            content: Text('Paystack Gateway Error: ${initResult['error'] ?? 'Could not initialize payment'}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
@@ -129,6 +170,129 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
     }
+  }
+
+  void _showPaystackVerificationDialog({
+    required String reference,
+    required String authUrl,
+    required String userId,
+    required String userName,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          bool isVerifying = false;
+          String? verifyError;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.lock, color: AppColors.primary),
+                SizedBox(width: 8),
+                Text('Paystack Checkout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your Paystack secure checkout has launched for ₦${NumberFormat('#,###').format(widget.amount)}.',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ref: $reference', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary)),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Complete your card/transfer payment on Paystack, then tap "Verify Payment" below.',
+                        style: TextStyle(fontSize: 12, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                ),
+                if (verifyError != null) ...[
+                  const SizedBox(height: 10),
+                  Text(verifyError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              ),
+              OutlinedButton(
+                onPressed: () async {
+                  final Uri url = Uri.parse(authUrl);
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: const Text('Re-open Checkout'),
+              ),
+              ElevatedButton(
+                onPressed: isVerifying
+                    ? null
+                    : () async {
+                        setModalState(() {
+                          isVerifying = true;
+                          verifyError = null;
+                        });
+
+                        final paymentService = PaymentService();
+                        final result = await paymentService.verifyPaystackTransaction(
+                          reference: reference,
+                          jobId: widget.jobId,
+                          userId: userId,
+                          userName: userName,
+                          serviceName: widget.serviceName,
+                          amount: widget.amount,
+                          location: widget.location,
+                          paymentMethod: _selectedPaymentMethod,
+                        );
+
+                        if (result['success'] == true) {
+                          Navigator.pop(context);
+                          setState(() {
+                            _isProcessing = false;
+                            _isPaymentSuccessful = true;
+                            _paymentStatus = 'completed';
+                          });
+                          _showPaymentSuccessDialog();
+                        } else {
+                          setModalState(() {
+                            isVerifying = false;
+                            verifyError = result['error'] ?? 'Payment verification failed.';
+                          });
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: isVerifying
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Verify Payment'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   bool _validateCardDetails() {
