@@ -380,7 +380,7 @@ class JobService extends ChangeNotifier {
           'washerName': pName,
           'washerPhone': pPhone,
           'washerEmail': pEmail,
-          'status': 'assigned',
+          'status': 'accepted',
           'acceptedAt': FieldValue.serverTimestamp(),
           'assignedAt': FieldValue.serverTimestamp(),
         });

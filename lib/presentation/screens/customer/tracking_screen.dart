@@ -86,15 +86,15 @@ class _TrackingScreenState extends State<TrackingScreen> {
   void _startMovementSimulation() {
     _movementTimer?.cancel();
 
-    // Only simulate or track movement if provider is actually assigned & active
+    // Movement simulation & live tracking ONLY start when provider explicitly accepts the request!
     final bool isAccepted = _washerId != null && _washerId!.isNotEmpty &&
-        (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute');
+        (_jobStatus == 'accepted' || _jobStatus == 'enRoute');
 
     if (!isAccepted) return;
 
     _movementTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       if (!mounted) return;
-      if (_jobStatus == 'assigned' || _jobStatus == 'accepted' || _jobStatus == 'enRoute') {
+      if (_jobStatus == 'accepted' || _jobStatus == 'enRoute') {
         final dLat = _clientLocation.latitude - _providerLocation.latitude;
         final dLng = _clientLocation.longitude - _providerLocation.longitude;
 
@@ -186,6 +186,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
               _movementTimer?.cancel();
               break;
             case 'assigned':
+              _currentStep = 0;
+              _currentLocation = 'Request sent! Waiting for ${widget.washerName} to accept request...';
+              _etaMinutes = 0;
+              _distanceKm = 0.0;
+              _movementTimer?.cancel();
+              break;
             case 'accepted':
               _currentStep = 1;
               _currentLocation = 'Provider accepted request! En route to pickup';
@@ -833,7 +839,9 @@ class _TrackingScreenState extends State<TrackingScreen> {
                             width: 10,
                             height: 10,
                             decoration: BoxDecoration(
-                              color: (_washerId != null && _washerId!.isNotEmpty) ? Colors.green : Colors.orange,
+                              color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived')
+                                  ? Colors.green
+                                  : Colors.orange,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -842,11 +850,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
                             child: Text(
                               (_washerId == null || _washerId!.isEmpty || _jobStatus == 'searching' || _jobStatus == 'pending')
                                   ? 'Searching for nearby service providers...'
-                                  : _jobStatus == 'arrived'
-                                      ? 'Provider has arrived at your location'
-                                      : isCompleted
-                                          ? 'Service Completed'
-                                          : 'En Route • ${_distanceKm.toStringAsFixed(1)} km away • ETA: ${_etaMinutes > 0 ? _etaMinutes : 15} mins',
+                                  : _jobStatus == 'assigned'
+                                      ? 'Awaiting acceptance from ${widget.washerName}...'
+                                      : _jobStatus == 'arrived'
+                                          ? 'Provider has arrived at your location'
+                                          : isCompleted
+                                              ? 'Service Completed'
+                                              : 'En Route • ${_distanceKm.toStringAsFixed(1)} km away • ETA: ${_etaMinutes > 0 ? _etaMinutes : 15} mins',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
@@ -876,21 +886,25 @@ class _TrackingScreenState extends State<TrackingScreen> {
           const SizedBox(height: 16),
           
           // ============================================================
-          // STATUS CARD - Dynamic for searching vs assigned
+          // STATUS CARD - Dynamic for searching vs assigned vs accepted
           // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: (_washerId != null && _washerId!.isNotEmpty) 
+                color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived') 
                     ? Colors.green.withOpacity(0.1) 
-                    : Colors.orange.withOpacity(0.1),
+                    : (_jobStatus == 'assigned')
+                        ? Colors.blue.withOpacity(0.1)
+                        : Colors.orange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: (_washerId != null && _washerId!.isNotEmpty) 
+                  color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived') 
                       ? Colors.green.withOpacity(0.2) 
-                      : Colors.orange.withOpacity(0.2),
+                      : (_jobStatus == 'assigned')
+                          ? Colors.blue.withOpacity(0.2)
+                          : Colors.orange.withOpacity(0.2),
                 ),
               ),
               child: Row(
@@ -898,11 +912,19 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: (_washerId != null && _washerId!.isNotEmpty) ? Colors.green : Colors.orange,
+                      color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived') 
+                          ? Colors.green 
+                          : (_jobStatus == 'assigned')
+                              ? Colors.blue
+                              : Colors.orange,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      (_washerId != null && _washerId!.isNotEmpty) ? Icons.directions_car : Icons.search,
+                      (_jobStatus == 'accepted' || _jobStatus == 'enRoute' || _jobStatus == 'arrived') 
+                          ? Icons.directions_car 
+                          : (_jobStatus == 'assigned')
+                              ? Icons.hourglass_top
+                              : Icons.search,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -913,7 +935,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          (_washerId != null && _washerId!.isNotEmpty) ? 'Washer On The Way' : 'Searching For Provider',
+                          (_jobStatus == 'accepted' || _jobStatus == 'enRoute')
+                              ? 'Washer On The Way'
+                              : _jobStatus == 'assigned'
+                                  ? 'Awaiting Provider Confirmation'
+                                  : _jobStatus == 'arrived'
+                                      ? 'Provider Arrived'
+                                      : 'Searching For Provider',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -932,25 +960,37 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: (_washerId != null && _washerId!.isNotEmpty) 
+                      color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute') 
                           ? Colors.green.withOpacity(0.2) 
-                          : Colors.orange.withOpacity(0.2),
+                          : (_jobStatus == 'assigned')
+                              ? Colors.blue.withOpacity(0.2)
+                              : Colors.orange.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
                         Icon(
-                          (_washerId != null && _washerId!.isNotEmpty) ? Icons.timer : Icons.hourglass_top,
-                          color: (_washerId != null && _washerId!.isNotEmpty) ? Colors.green : Colors.orange.shade800,
+                          (_jobStatus == 'accepted' || _jobStatus == 'enRoute') ? Icons.timer : Icons.hourglass_top,
+                          color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute') 
+                              ? Colors.green 
+                              : (_jobStatus == 'assigned')
+                                  ? Colors.blue.shade800
+                                  : Colors.orange.shade800,
                           size: 14,
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          (_washerId != null && _washerId!.isNotEmpty && _etaMinutes > 0) 
+                          (_jobStatus == 'accepted' || _jobStatus == 'enRoute') && _etaMinutes > 0
                               ? '$_etaMinutes mins' 
-                              : 'Searching',
+                              : _jobStatus == 'assigned'
+                                  ? 'Awaiting'
+                                  : 'Searching',
                           style: TextStyle(
-                            color: (_washerId != null && _washerId!.isNotEmpty) ? Colors.green : Colors.orange.shade800,
+                            color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute') 
+                                ? Colors.green 
+                                : (_jobStatus == 'assigned')
+                                    ? Colors.blue.shade800
+                                    : Colors.orange.shade800,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
