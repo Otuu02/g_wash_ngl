@@ -295,7 +295,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
       String createdJobId = widget.jobId ?? '';
 
       if (createdJobId.isEmpty) {
-        // Create job in Firestore assigned directly to selected provider!
+        // Create job in Firestore assigned directly to selected provider with status pending_acceptance
         final result = await JobService().createJob(
           customerId: uid,
           customerName: customerName,
@@ -314,22 +314,18 @@ class _MatchingScreenState extends State<MatchingScreen> {
           providerPhone: provider['phone'] ?? '',
         );
         createdJobId = result['id'];
-      } else {
-        // Update existing job document
-        await FirebaseFirestore.instance
-            .collection('jobs')
-            .doc(createdJobId)
-            .update({
-          'washerId': provider['id'],
-          'washerName': provider['name'],
-          'washerRating': provider['rating'],
-          'washerPhone': provider['phone'] ?? '',
-          'price': finalPrice,
-          'status': 'assigned',
-          'assignedAt': FieldValue.serverTimestamp(),
-          'washerImage': provider['profileImage'] ?? '',
-        });
       }
+
+      // Explicitly set status to pending_acceptance for instant provider alert overlay
+      await FirebaseFirestore.instance
+          .collection('jobs')
+          .doc(createdJobId)
+          .update({
+        'status': 'pending_acceptance',
+        'washerId': provider['id'],
+        'washerName': provider['name'],
+        'price': finalPrice,
+      });
 
       // Update provider stats
       try {
@@ -344,18 +340,8 @@ class _MatchingScreenState extends State<MatchingScreen> {
         debugPrint('ℹ️ Provider stat update info: $e');
       }
 
-      setState(() {
-        _isAssigning = false;
-      });
-
       if (mounted) {
-        _showBookingSuccessDialog(
-          jobId: createdJobId,
-          providerName: provider['name'],
-          providerImage: provider['profileImage'],
-          price: finalPrice,
-          providerId: provider['id'],
-        );
+        _waitForProviderResponse(createdJobId, provider, finalPrice);
       }
     } catch (e) {
       print('❌ Error assigning provider: $e');
@@ -372,6 +358,108 @@ class _MatchingScreenState extends State<MatchingScreen> {
         );
       }
     }
+  }
+
+  void _waitForProviderResponse(String jobId, Map<String, dynamic> provider, int finalPrice) {
+    StreamSubscription<DocumentSnapshot>? subscription;
+    bool dialogOpen = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                const CircularProgressIndicator(color: AppColors.primary, strokeWidth: 4),
+                const SizedBox(height: 20),
+                Text(
+                  'Contacting ${provider['name']}...',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Waiting for service provider to accept your request. This takes just a few seconds!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.flash_on, color: AppColors.primary, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${widget.serviceName} • ₦${NumberFormat('#,###').format(finalPrice)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ).then((_) {
+      dialogOpen = false;
+      subscription?.cancel();
+    });
+
+    subscription = FirebaseFirestore.instance
+        .collection('jobs')
+        .doc(jobId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!snapshot.exists || !mounted) return;
+      final data = snapshot.data();
+      final status = (data?['status'] ?? '').toString().toLowerCase();
+
+      if (status == 'accepted' || status == 'assigned') {
+        subscription?.cancel();
+        if (dialogOpen && mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        setState(() {
+          _isAssigning = false;
+        });
+        _showBookingSuccessDialog(
+          jobId: jobId,
+          providerName: provider['name'],
+          providerImage: provider['profileImage'],
+          price: finalPrice,
+          providerId: provider['id'],
+        );
+      } else if (status == 'declined') {
+        subscription?.cancel();
+        if (dialogOpen && mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+        setState(() {
+          _isAssigning = false;
+          _selectedWasherId = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${provider['name']} was unavailable. Please select another provider.'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    });
   }
 
   void _showBookingSuccessDialog({

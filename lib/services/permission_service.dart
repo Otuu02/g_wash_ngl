@@ -370,7 +370,7 @@ class PermissionService {
           }
         }
       } catch (e) {
-        print('Error parsing OS version: $e');
+        debugPrint('Error parsing OS version: $e');
       }
     }
     return false;

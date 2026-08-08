@@ -1,4 +1,4 @@
-import 'dart:convert';
+
 
 class Env {
   // Private constructor
@@ -8,6 +8,7 @@ class Env {
   static Environment currentEnvironment = Environment.development;
   
   // Environment-specific configurations
+  // 🔒 SECURITY: No real API keys here — all injected via --dart-define at build time.
   static Map<String, dynamic> get config {
     switch (currentEnvironment) {
       case Environment.development:
@@ -22,8 +23,6 @@ class Env {
   // Development configuration
   static const Map<String, dynamic> _developmentConfig = {
     'apiUrl': 'https://dev-api.gwashng.com/v1',
-    'paystackPublicKey': 'pk_test_xxxxxxxxxxxxxxxxxxxx',
-    'googleMapsApiKey': 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
     'enableLogging': true,
     'enableCrashReporting': false,
     'enableAnalytics': false,
@@ -32,8 +31,6 @@ class Env {
   // Staging configuration (for testing before production)
   static const Map<String, dynamic> _stagingConfig = {
     'apiUrl': 'https://staging-api.gwashng.com/v1',
-    'paystackPublicKey': 'pk_test_xxxxxxxxxxxxxxxxxxxx',
-    'googleMapsApiKey': 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
     'enableLogging': true,
     'enableCrashReporting': true,
     'enableAnalytics': true,
@@ -42,55 +39,70 @@ class Env {
   // Production configuration (live app)
   static const Map<String, dynamic> _productionConfig = {
     'apiUrl': 'https://api.gwashng.com/v1',
-    'paystackPublicKey': 'pk_live_xxxxxxxxxxxxxxxxxxxx',
-    'googleMapsApiKey': 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
     'enableLogging': false,
     'enableCrashReporting': true,
     'enableAnalytics': true,
   };
   
-  // Helper getters
+  // ─────────────────────────────────────────────────────────────────────────
+  // 🔒 ALL SECRETS BELOW: Injected exclusively via --dart-define at build
+  //    time. defaultValue is intentionally empty — the app will fail loudly
+  //    if a key is missing rather than silently using an exposed credential.
+  //    See .env.example for all required keys.
+  // ─────────────────────────────────────────────────────────────────────────
+
   static String get apiUrl => config['apiUrl'];
+
+  // Paystack
   static String get paystackPublicKey => const String.fromEnvironment(
         'PAYSTACK_PUBLIC_KEY',
-        defaultValue: 'pk_live_09b608a9dbb55dc306523bb8cc157fa03efaf8e4',
+        defaultValue: '',
       );
   static String get paystackSecretKey {
+    // 🔒 Secret key MUST come from --dart-define=PAYSTACK_SECRET_KEY=sk_live_...
+    // It is never stored in source code.
     const fromEnv = String.fromEnvironment('PAYSTACK_SECRET_KEY');
-    if (fromEnv.isNotEmpty && !fromEnv.contains('configured')) return fromEnv;
-    return utf8.decode(base64.decode('c2tfbGl2ZV84NTg0YWYyZTkyYmFhOGM4ZjdmYTZiODJjYTZjZTJjNTM0YzQ1MmM1'));
+    return fromEnv;
   }
+
+  // Google Maps
   static String get googleMapsApiKey => const String.fromEnvironment(
         'GOOGLE_MAPS_API_KEY',
-        defaultValue: 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw',
+        defaultValue: '',
       );
+
+  // Cloudinary
   static String get cloudinaryCloudName => const String.fromEnvironment(
         'CLOUDINARY_CLOUD_NAME',
-        defaultValue: 'dijqk2arj',
+        defaultValue: '',
       );
   static String get cloudinaryApiKey => const String.fromEnvironment(
         'CLOUDINARY_API_KEY',
-        defaultValue: '862473269516361',
+        defaultValue: '',
       );
   static String get cloudinaryApiSecret => const String.fromEnvironment(
         'CLOUDINARY_API_SECRET',
-        defaultValue: '4JpMPFJbMlHE3qulwj0_oe_8lJI',
+        defaultValue: '',
       );
+
+  // Twilio SMS
   static String get twilioAccountSid => const String.fromEnvironment(
         'TWILIO_ACCOUNT_SID',
-        defaultValue: 'AC_DEMO_ACCOUNT_SID',
+        defaultValue: '',
       );
   static String get twilioAuthToken => const String.fromEnvironment(
         'TWILIO_AUTH_TOKEN',
-        defaultValue: 'DEMO_AUTH_TOKEN',
+        defaultValue: '',
       );
   static String get twilioPhoneNumber => const String.fromEnvironment(
         'TWILIO_PHONE_NUMBER',
-        defaultValue: '+15005550006',
+        defaultValue: '',
       );
+
+  // Gmail SMTP
   static String get gmailUser => const String.fromEnvironment(
         'GMAIL_USER',
-        defaultValue: 'gwashng@gmail.com',
+        defaultValue: '',
       );
   static String get gmailAppPassword => const String.fromEnvironment(
         'GMAIL_APP_PASSWORD',
@@ -104,6 +116,8 @@ class Env {
         'SMTP_PORT',
         defaultValue: 587,
       );
+
+  // Feature flags from environment config
   static bool get enableLogging => config['enableLogging'];
   static bool get enableCrashReporting => config['enableCrashReporting'];
   static bool get enableAnalytics => config['enableAnalytics'];

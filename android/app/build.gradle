@@ -48,6 +48,13 @@ android {
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
+
+        // 🔒 Inject Google Maps API key from --dart-define at build time.
+        // Build command: flutter build apk --dart-define=MAPS_API_KEY=AIzaSy...
+        // Falls back to empty string so the app fails loudly rather than exposing a key in source.
+        def mapsKey = project.hasProperty('MAPS_API_KEY') ? project.MAPS_API_KEY
+                     : (System.getenv('MAPS_API_KEY') ?: '')
+        manifestPlaceholders = [MAPS_API_KEY: mapsKey]
     }
 
     buildTypes {

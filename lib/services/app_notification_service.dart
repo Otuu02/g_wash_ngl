@@ -5,6 +5,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'web_push_helper.dart';
 import '../core/constants/app_colors.dart';
@@ -59,11 +62,15 @@ class AppNotificationService extends ChangeNotifier {
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
   bool _isLocalNotificationsInitialized = false;
+  String? _fcmToken;
+
+  String? get fcmToken => _fcmToken;
 
   AppNotificationService._internal() {
     loadSavedNotifications();
     requestPushPermission();
     _initLocalNotifications();
+    _initFCM();
   }
 
   Future<void> _initLocalNotifications() async {
@@ -81,11 +88,103 @@ class AppNotificationService extends ChangeNotifier {
         iOS: iosInit,
       );
 
-      await _flutterLocalNotificationsPlugin.initialize(initSettings);
+      await _flutterLocalNotificationsPlugin.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse details) {
+          debugPrint('ðŸ”” [Notification Tapped]: ${details.payload}');
+        },
+      );
+
+      // Create Android High-Priority Channel for Job Requests (Ringtone / Vibrates like Uber)
+      final androidPlugin = _flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'gwash_job_requests_channel',
+            'Incoming Job Requests',
+            description: 'High-priority real-time alerts for incoming service requests',
+            importance: Importance.max,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
+      }
+
       _isLocalNotificationsInitialized = true;
-      debugPrint('🔔 [Local System Push Notifications Initialized]');
+      debugPrint('ðŸ”” [Local System Push Notifications & High-Priority Channel Initialized]');
     } catch (e) {
-      debugPrint('❌ Error initializing local notifications plugin: $e');
+      debugPrint('âŒ Error initializing local notifications plugin: $e');
+    }
+  }
+
+  Future<void> _initFCM() async {
+    try {
+      if (Firebase.apps.isEmpty) {
+        debugPrint('â„¹ï¸ FCM init skipped (headless test mode)');
+        return;
+      }
+      final messaging = FirebaseMessaging.instance;
+      NotificationSettings settings = await messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: true,
+        provisional: false,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        debugPrint('ðŸ”” [FCM Push Permission Granted]');
+      }
+
+      _fcmToken = await messaging.getToken();
+      debugPrint('ðŸ”‘ [FCM Token Obtained]: $_fcmToken');
+
+      // Listen for FCM token refreshes
+      messaging.onTokenRefresh.listen((newToken) {
+        _fcmToken = newToken;
+        debugPrint('ðŸ”„ [FCM Token Refreshed]: $newToken');
+      });
+
+      // Foreground Message Handler
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('ðŸ“© [FCM Foreground Message Received]: ${message.notification?.title}');
+        final title = message.notification?.title ?? message.data['title'] ?? 'New Request';
+        final body = message.notification?.body ?? message.data['body'] ?? '';
+        final isJobRequest = message.data['type'] == 'incoming_job';
+        
+        _triggerNativeSystemPush(
+          title, 
+          body, 
+          isJobRequest: isJobRequest,
+          jobId: message.data['jobId'],
+        );
+        addNotification(
+          title: title, 
+          message: body, 
+          type: isJobRequest ? 'booking' : 'system',
+          jobId: message.data['jobId'],
+        );
+      });
+    } catch (e) {
+      debugPrint('â„¹ï¸ FCM setup info: $e');
+    }
+  }
+
+  /// Save or update FCM token in user's or washer's document in Firestore
+  Future<void> updateUserFCMToken(String userId, {bool isWasher = false}) async {
+    if (_fcmToken == null || _fcmToken!.isEmpty || userId.isEmpty) return;
+    try {
+      final collection = isWasher ? 'washers' : 'users';
+      await FirebaseFirestore.instance.collection(collection).doc(userId).set({
+        'fcmToken': _fcmToken,
+        'lastTokenUpdate': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('âœ… FCM token saved to $collection/$userId');
+    } catch (e) {
+      debugPrint('âŒ Error updating FCM token in Firestore: $e');
     }
   }
 
@@ -95,7 +194,12 @@ class AppNotificationService extends ChangeNotifier {
     }
   }
 
-  Future<void> _triggerNativeSystemPush(String title, String message) async {
+  Future<void> _triggerNativeSystemPush(
+    String title, 
+    String message, {
+    bool isJobRequest = false,
+    String? jobId,
+  }) async {
     // 1. Web Push
     if (kIsWeb) {
       triggerNativeWebPushNotification(title, message);
@@ -113,13 +217,16 @@ class AppNotificationService extends ChangeNotifier {
         htmlFormatBigText: true,
         contentTitle: '<b>$title</b>',
         htmlFormatContentTitle: true,
-        summaryText: 'G-Wash NG Alert',
+        summaryText: isJobRequest ? 'âš¡ Instant Request' : 'G-Wash NG Alert',
         htmlFormatSummaryText: true,
       );
 
+      final channelId = isJobRequest ? 'gwash_job_requests_channel' : 'gwash_updates_channel_v2';
+      final channelName = isJobRequest ? 'Incoming Job Requests' : 'G-Wash Order & Service Notifications';
+
       final androidDetails = AndroidNotificationDetails(
-        'gwash_updates_channel_v2',
-        'G-Wash Order & Service Notifications',
+        channelId,
+        channelName,
         channelDescription: 'Real-time order updates, provider status, and booking alerts',
         importance: Importance.max,
         priority: Priority.max,
@@ -127,8 +234,9 @@ class AppNotificationService extends ChangeNotifier {
         styleInformation: bigTextStyle,
         enableVibration: true,
         playSound: true,
+        fullScreenIntent: isJobRequest,
         visibility: NotificationVisibility.public,
-        category: AndroidNotificationCategory.message,
+        category: isJobRequest ? AndroidNotificationCategory.call : AndroidNotificationCategory.message,
         icon: '@mipmap/ic_launcher',
       );
 
@@ -150,9 +258,9 @@ class AppNotificationService extends ChangeNotifier {
         message,
         notificationDetails,
       );
-      debugPrint('📲 [System Push Notification Shown in Status Bar]: $title');
+      debugPrint('ðŸ“² [System Push Notification Shown in Status Bar]: $title');
     } catch (e) {
-      debugPrint('❌ Error showing native system push notification: $e');
+      debugPrint('âŒ Error showing native system push notification: $e');
     }
   }
 
@@ -173,7 +281,7 @@ class AppNotificationService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('❌ Error loading local notifications: $e');
+      debugPrint('âŒ Error loading local notifications: $e');
     }
   }
 
@@ -183,7 +291,7 @@ class AppNotificationService extends ChangeNotifier {
       final String jsonStr = jsonEncode(_notifications.map((n) => n.toJson()).toList());
       await prefs.setString(_storageKey, jsonStr);
     } catch (e) {
-      print('❌ Error saving local notifications: $e');
+      debugPrint('âŒ Error saving local notifications: $e');
     }
   }
 
@@ -256,7 +364,7 @@ class AppNotificationService extends ChangeNotifier {
       );
     }
 
-    debugPrint('📢 NOTIFICATION: $title - $message');
+    debugPrint('ðŸ“¢ NOTIFICATION: $title - $message');
   }
 
   // ============================================================

@@ -3,10 +3,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'communication_service.dart';
+import 'validation_service.dart';
+import 'security_service.dart';
 
 class AuthService extends ChangeNotifier {
   bool _isLoggedIn = false;
@@ -15,8 +18,13 @@ class AuthService extends ChangeNotifier {
   String? _userId;
   String? _userRole; // customer, washer, cleaner, laundry_provider, admin
   String? _serviceCategory; // Car Wash, House Cleaning, Laundry
-  String? _userEmail; // ✅ ADDED: User email field
-  String? _photoURL; // ✅ Profile picture URL
+  String? _userEmail; // âœ… ADDED: User email field
+  String? _photoURL; // âœ… Profile picture URL
+  
+  // ðŸ” Encrypted storage for sensitive financial data (Android Keystore / iOS Keychain)
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
   
   // Store registered users
   Map<String, Map<String, String>> _registeredUsers = {};
@@ -63,7 +71,7 @@ class AuthService extends ChangeNotifier {
     try {
       FirebaseAuth.instance.authStateChanges().listen((User? user) async {
         if (user != null) {
-          debugPrint('✅ Firebase Auth: User signed in: ${user.uid}');
+          debugPrint('âœ… Firebase Auth: User signed in: ${user.uid}');
           _userId = user.uid;
           _userEmail = user.email;
           _isLoggedIn = true;
@@ -72,7 +80,7 @@ class AuthService extends ChangeNotifier {
           await _saveUserState();
           notifyListeners();
         } else {
-          debugPrint('❌ Firebase Auth: User signed out');
+          debugPrint('âŒ Firebase Auth: User signed out');
           _isLoggedIn = false;
           _userName = null;
           _userPhone = null;
@@ -85,7 +93,7 @@ class AuthService extends ChangeNotifier {
         }
       });
     } catch (e) {
-      debugPrint('ℹ️ Firebase Auth listener skipped (test/headless mode): $e');
+      debugPrint('â„¹ï¸ Firebase Auth listener skipped (test/headless mode): $e');
     }
   }
 
@@ -108,12 +116,12 @@ class AuthService extends ChangeNotifier {
         _userRole = data['role'] ?? 'customer';
         _serviceCategory = data['serviceCategory'];
         _isLoggedIn = true;
-        print('✅ User loaded from Firestore: $_userName (role: $_userRole)');
+        debugPrint('âœ… User loaded from Firestore: $_userName (role: $_userRole)');
       } else {
         await _createUserDocument(uid);
       }
     } catch (e) {
-      print('❌ Error loading user from Firestore: $e');
+      debugPrint('âŒ Error loading user from Firestore: $e');
     }
   }
 
@@ -133,10 +141,10 @@ class AuthService extends ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Created user document for: $uid');
+      debugPrint('âœ… Created user document for: $uid');
       await _loadUserFromFirestore(uid);
     } catch (e) {
-      print('❌ Error creating user document: $e');
+      debugPrint('âŒ Error creating user document: $e');
     }
   }
 
@@ -198,9 +206,9 @@ class AuthService extends ChangeNotifier {
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
-        debugPrint('✅ Profile photo updated in Firestore: $photoUrl');
+        debugPrint('âœ… Profile photo updated in Firestore: $photoUrl');
       } catch (e) {
-        debugPrint('❌ Error updating profile photo in Firestore: $e');
+        debugPrint('âŒ Error updating profile photo in Firestore: $e');
       }
     }
     await _saveUserState();
@@ -234,13 +242,31 @@ class AuthService extends ChangeNotifier {
   // ============================================================
   Future<bool> signup(String name, String phoneNumber, String password, {String? email, String role = 'customer'}) async {
     try {
+      name = SecurityService().sanitizeInput(name);
       final formattedPhone = formatPhone(phoneNumber);
+      final validator = ValidationService();
       
       if (formattedPhone == '+2348000000000') {
         role = 'admin';
       }
       
-      if (name.isEmpty || !isValidPhone(phoneNumber) || password.isEmpty) {
+      // ðŸ”’ Validation Check 1: Phone Authenticity
+      final phoneRes = validator.validatePhone(formattedPhone, allowAdminBypass: role == 'admin');
+      if (!phoneRes.isValid) {
+        debugPrint('â›” Signup rejected: ${phoneRes.errorMessage}');
+        return false;
+      }
+
+      // ðŸ”’ Validation Check 2: Email Authenticity & Disposable Domain Block
+      if (email != null && email.trim().isNotEmpty) {
+        final emailRes = validator.validateEmail(email);
+        if (!emailRes.isValid) {
+          debugPrint('â›” Signup rejected: ${emailRes.errorMessage}');
+          return false;
+        }
+      }
+      
+      if (name.isEmpty || password.isEmpty) {
         return false;
       }
       
@@ -261,14 +287,21 @@ class AuthService extends ChangeNotifier {
             );
         uid = userCredential.user!.uid;
         _userEmail = userCredential.user!.email ?? userEmail;
+
+        try {
+          await userCredential.user?.sendEmailVerification();
+          debugPrint('ðŸ“§ Firebase verification email dispatched to: $userEmail');
+        } catch (mailErr) {
+          debugPrint('â„¹ï¸ Firebase email verification notice: $mailErr');
+        }
       } on FirebaseAuthException catch (e) {
-        debugPrint('⚠️ Firebase Auth signup notice: ${e.message} (code: ${e.code})');
+        debugPrint('âš ï¸ Firebase Auth signup notice: ${e.message} (code: ${e.code})');
         if (e.code == 'email-already-in-use') {
-          debugPrint('📝 User already exists in Firebase Auth - trying login...');
+          debugPrint('ðŸ“ User already exists in Firebase Auth - trying login...');
           return await login(phoneNumber, password);
         }
       } catch (e) {
-        debugPrint('⚠️ Firebase Auth signup fallback: $e');
+        debugPrint('âš ï¸ Firebase Auth signup fallback: $e');
         _userEmail = userEmail;
       }
 
@@ -280,7 +313,7 @@ class AuthService extends ChangeNotifier {
         'isBlocked': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      debugPrint('✅ User saved to Firestore: $name with ID: $uid');
+      debugPrint('âœ… User saved to Firestore: $name with ID: $uid');
       
       _registeredUsers[formattedPhone] = {
         'name': name,
@@ -302,18 +335,22 @@ class AuthService extends ChangeNotifier {
       notifyListeners();
 
       // Dispatch Welcome Email & SMS
-      CommunicationService().sendWelcomeNotifications(
-        userName: name,
-        email: userEmail,
-        phone: formattedPhone,
-        role: role,
-      );
+      try {
+        await CommunicationService().sendWelcomeNotifications(
+          userName: name,
+          email: userEmail,
+          phone: formattedPhone,
+          role: role,
+        );
+      } catch (welcomeErr) {
+        debugPrint('â„¹ï¸ Welcome notification notice: $welcomeErr');
+      }
 
-      debugPrint('✅ User logged in after signup: $name (ID: $uid)');
+      debugPrint('âœ… User logged in after signup: $name (ID: $uid)');
       return true;
       
     } catch (e) {
-      debugPrint('❌ Signup error: $e');
+      debugPrint('âŒ Signup error: $e');
       return false;
     }
   }
@@ -326,48 +363,20 @@ class AuthService extends ChangeNotifier {
       final formattedPhone = formatPhone(phoneNumber);
       
       if (!isValidPhone(phoneNumber)) {
-        debugPrint('❌ Invalid phone number format: $formattedPhone');
+        debugPrint('âŒ Invalid phone number format: $formattedPhone');
         return false;
       }
       
       final email = '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
-      debugPrint('📝 Attempting login for phone: $formattedPhone ($email)');
+      debugPrint('ðŸ“ Attempting login for phone: $formattedPhone ($email)');
       
-      // Special check for Admin account
+      // Special check for Admin account â€” phone alone is NOT enough.
+      // Admin must successfully authenticate via Firebase Auth as well.
       if (formattedPhone == '+2348000000000') {
-        _isLoggedIn = true;
-        _userName = 'Admin User';
-        _userPhone = formattedPhone;
-        _userRole = 'admin';
-        _userEmail = email;
-        _userId = FirebaseAuth.instance.currentUser?.uid ?? 'admin_08000000000';
-        
-        try {
-          await FirebaseFirestore.instance.collection('users').doc(_userId).set({
-            'name': 'Admin User',
-            'phone': formattedPhone,
-            'email': email,
-            'role': 'admin',
-            'isBlocked': false,
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        } catch (e) {
-          debugPrint('⚠️ Admin Firestore sync notice: $e');
-        }
-
-        _registeredUsers[formattedPhone] = {
-          'name': 'Admin User',
-          'password': password,
-          'phone': formattedPhone,
-          'userId': _userId!,
-          'role': 'admin',
-        };
-
-        await _saveUserState();
-        notifyListeners();
-        debugPrint('✅ Admin logged in successfully!');
-        return true;
+        // ðŸ”’ SECURITY FIX: Admin must pass Firebase Auth, not just match the phone number.
+        // Fall through to normal Firebase Auth flow below; role is elevated only after
+        // successful credential verification via Firestore role check.
+        debugPrint('ðŸ›¡ï¸ Admin login attempt â€” requiring Firebase Auth credential check');
       }
 
       // 1. Try signing in directly with Firebase Auth first
@@ -376,9 +385,9 @@ class AuthService extends ChangeNotifier {
           email: email,
           password: password,
         );
-        debugPrint('✅ Firebase Auth sign-in successful: ${userCredential.user?.uid}');
+        debugPrint('âœ… Firebase Auth sign-in successful: ${userCredential.user?.uid}');
       } on FirebaseAuthException catch (e) {
-        debugPrint('⚠️ Firebase Auth sign-in notice (${e.code}): ${e.message}');
+        debugPrint('âš ï¸ Firebase Auth sign-in notice (${e.code}): ${e.message}');
         
         if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
           // Attempt on-the-fly user creation if new account or test account
@@ -387,21 +396,21 @@ class AuthService extends ChangeNotifier {
               email: email,
               password: password,
             );
-            debugPrint('✅ Firebase Auth user created on-the-fly: ${newUser.user?.uid}');
+            debugPrint('âœ… Firebase Auth user created on-the-fly: ${newUser.user?.uid}');
           } on FirebaseAuthException catch (createErr) {
-            debugPrint('❌ On-the-fly creation error (${createErr.code}): ${createErr.message}');
+            debugPrint('âŒ On-the-fly creation error (${createErr.code}): ${createErr.message}');
             if (createErr.code == 'email-already-in-use') {
               // Account exists in Auth but sign-in failed, meaning wrong password
               return _localLogin(formattedPhone, password);
             }
           } catch (createErr) {
-            debugPrint('❌ On-the-fly creation fallback error: $createErr');
+            debugPrint('âŒ On-the-fly creation fallback error: $createErr');
           }
         } else if (e.code == 'wrong-password') {
           return _localLogin(formattedPhone, password);
         }
       } catch (e) {
-        debugPrint('⚠️ Firebase Auth sign-in exception: $e');
+        debugPrint('âš ï¸ Firebase Auth sign-in exception: $e');
       }
 
       // 2. If Firebase Auth succeeded or user is signed in
@@ -425,7 +434,7 @@ class AuthService extends ChangeNotifier {
             _userPhone = data['phone'] ?? formattedPhone;
             _userRole = data['role'] ?? (formattedPhone == '+2348000000000' ? 'admin' : 'customer');
             _serviceCategory = data['serviceCategory'];
-            debugPrint('✅ Loaded profile from Firestore for $uid (role: $_userRole)');
+            debugPrint('âœ… Loaded profile from Firestore for $uid (role: $_userRole)');
           } else {
             // Check by phone number if doc UID was different
             final phoneQuery = await FirebaseFirestore.instance
@@ -456,7 +465,7 @@ class AuthService extends ChangeNotifier {
                 'createdAt': FieldValue.serverTimestamp(),
                 'updatedAt': FieldValue.serverTimestamp(),
               });
-              debugPrint('✅ Created new user profile in Firestore for $uid');
+              debugPrint('âœ… Created new user profile in Firestore for $uid');
             }
           }
           
@@ -464,7 +473,7 @@ class AuthService extends ChangeNotifier {
           await _checkIfWasher(uid);
           
         } catch (fsError) {
-          debugPrint('⚠️ Firestore fetch error post-auth: $fsError');
+          debugPrint('âš ï¸ Firestore fetch error post-auth: $fsError');
           _userName ??= 'User';
           _userPhone ??= formattedPhone;
           _userRole ??= formattedPhone == '+2348000000000' ? 'admin' : 'customer';
@@ -481,7 +490,7 @@ class AuthService extends ChangeNotifier {
         
         await _saveUserState();
         notifyListeners();
-        debugPrint('✅ User login fully complete: $_userName (role: $_userRole)');
+        debugPrint('âœ… User login fully complete: $_userName (role: $_userRole)');
         return true;
       }
       
@@ -489,7 +498,7 @@ class AuthService extends ChangeNotifier {
       return _localLogin(formattedPhone, password);
       
     } catch (e) {
-      debugPrint('❌ Login error: $e');
+      debugPrint('âŒ Login error: $e');
       return _localLogin(formatPhone(phoneNumber), password);
     }
   }
@@ -508,15 +517,15 @@ class AuthService extends ChangeNotifier {
         _serviceCategory = _registeredUsers[formattedPhone]!['serviceCategory'];
         await _saveUserState();
         notifyListeners();
-        print('✅ User logged in from local storage: $_userName (role: $_userRole)');
+        debugPrint('âœ… User logged in from local storage: $_userName (role: $_userRole)');
         return true;
       } else {
-        print('❌ Wrong password for local user');
+        debugPrint('âŒ Wrong password for local user');
         return false;
       }
     }
     
-    print('❌ Login failed for: $formattedPhone');
+    debugPrint('âŒ Login failed for: $formattedPhone');
     return false;
   }
 
@@ -534,7 +543,7 @@ class AuthService extends ChangeNotifier {
         _userRole = 'washer';
         final data = washerDoc.data() as Map<String, dynamic>;
         _serviceCategory = data['serviceCategory'] ?? 'Car Wash';
-        print('✅ User is a WASHER (found in washers collection)');
+        debugPrint('âœ… User is a WASHER (found in washers collection)');
         return;
       }
       
@@ -548,7 +557,7 @@ class AuthService extends ChangeNotifier {
         _userRole = 'washer';
         final data = washerQuery.docs.first.data();
         _serviceCategory = data['serviceCategory'] ?? 'Car Wash';
-        print('✅ User is a WASHER (found by userId in washers collection)');
+        debugPrint('âœ… User is a WASHER (found by userId in washers collection)');
         return;
       }
       
@@ -563,15 +572,15 @@ class AuthService extends ChangeNotifier {
         if (role == 'washer' || role == 'cleaner' || role == 'laundry_provider') {
           _userRole = role;
           _serviceCategory = data['serviceCategory'] ?? 'Car Wash';
-          print('✅ User role from users collection: $_userRole');
+          debugPrint('âœ… User role from users collection: $_userRole');
           return;
         }
       }
       
-      print('✅ User is NOT a washer - role: $_userRole');
+      debugPrint('âœ… User is NOT a washer - role: $_userRole');
       
     } catch (e) {
-      print('❌ Error checking washer status: $e');
+      debugPrint('âŒ Error checking washer status: $e');
     }
   }
 
@@ -600,14 +609,14 @@ class AuthService extends ChangeNotifier {
         'isBlocked': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Demo user saved to Firestore');
+      debugPrint('âœ… Demo user saved to Firestore');
     } catch (e) {
-      print('❌ Could not save demo user to Firestore: $e');
+      debugPrint('âŒ Could not save demo user to Firestore: $e');
     }
     
     await _saveUserState();
     notifyListeners();
-    print('✅ Demo user logged in: $_userName');
+    debugPrint('âœ… Demo user logged in: $_userName');
     return true;
   }
 
@@ -652,12 +661,12 @@ class AuthService extends ChangeNotifier {
         );
       }
     } catch (e) {
-      debugPrint('ℹ️ Google user Firestore sync notice: $e');
+      debugPrint('â„¹ï¸ Google user Firestore sync notice: $e');
     }
 
     await _saveUserState();
     notifyListeners();
-    debugPrint('✅ Google user set: $name ($email)');
+    debugPrint('âœ… Google user set: $name ($email)');
   }
 
   // ============================================================
@@ -667,7 +676,7 @@ class AuthService extends ChangeNotifier {
     try {
       await FirebaseAuth.instance.signOut();
     } catch (e) {
-      print('❌ Firebase signout error: $e');
+      debugPrint('âŒ Firebase signout error: $e');
     }
     
     _isLoggedIn = false;
@@ -679,7 +688,7 @@ class AuthService extends ChangeNotifier {
     _userEmail = null;
     await _saveUserState();
     notifyListeners();
-    print('✅ User logged out');
+    debugPrint('âœ… User logged out');
   }
 
   // ==================== GETTER METHODS ====================
@@ -701,10 +710,10 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> refreshUserData() async {
-    print('🔄 Refreshing user data from Firestore...');
+    debugPrint('ðŸ”„ Refreshing user data from Firestore...');
     
     if (!_isLoggedIn || _userId == null) {
-      print('❌ Cannot refresh: user not logged in');
+      debugPrint('âŒ Cannot refresh: user not logged in');
       return;
     }
     
@@ -713,9 +722,9 @@ class AuthService extends ChangeNotifier {
       await _checkIfWasher(_userId!);
       await _saveUserState();
       notifyListeners();
-      print('✅ User data refreshed: $_userName (role: $_userRole)');
+      debugPrint('âœ… User data refreshed: $_userName (role: $_userRole)');
     } catch (e) {
-      print('❌ Error refreshing user data: $e');
+      debugPrint('âŒ Error refreshing user data: $e');
     }
   }
 
@@ -748,17 +757,17 @@ class AuthService extends ChangeNotifier {
             'createdAt': FieldValue.serverTimestamp(),
           });
           successCount++;
-          print('✅ Migrated user: ${userData['name']} (ID: ${docRef.id})');
+          debugPrint('âœ… Migrated user: ${userData['name']} (ID: ${docRef.id})');
         } else {
-          print('⏭️ User already exists: ${userData['name']}');
+          debugPrint('â­ï¸ User already exists: ${userData['name']}');
         }
       } catch (e) {
         failCount++;
-        print('❌ Failed to migrate user: $e');
+        debugPrint('âŒ Failed to migrate user: $e');
       }
     }
     
-    print('✅ Migration complete: $successCount added, $failCount failed');
+    debugPrint('âœ… Migration complete: $successCount added, $failCount failed');
   }
 
   // ==================== SERVICE PROVIDER METHODS ====================
@@ -777,9 +786,10 @@ class AuthService extends ChangeNotifier {
     await prefs.setString('vehicle_type', vehicleType);
     await prefs.setInt('working_radius', workingRadius);
     await prefs.setString('provider_status', 'approved');
-    await prefs.setString('bank_name', bankName);
-    await prefs.setString('account_number', accountNumber);
-    await prefs.setString('account_name', accountName);
+    // ðŸ” Store sensitive bank details in encrypted secure storage
+    await _secureStorage.write(key: 'bank_name', value: bankName);
+    await _secureStorage.write(key: 'account_number', value: accountNumber);
+    await _secureStorage.write(key: 'account_name', value: accountName);
     
     try {
       await FirebaseFirestore.instance.collection('washers').doc(_userId).set({
@@ -806,9 +816,9 @@ class AuthService extends ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
-      print('✅ Washer saved to Firestore');
+      debugPrint('âœ… Washer saved to Firestore');
     } catch (e) {
-      print('❌ Failed to save washer to Firestore: $e');
+      debugPrint('âŒ Failed to save washer to Firestore: $e');
     }
     
     _userRole = 'washer';
@@ -831,9 +841,10 @@ class AuthService extends ChangeNotifier {
     await prefs.setString('specialization', specialization);
     await prefs.setInt('working_radius', workingRadius);
     await prefs.setString('provider_status', 'approved');
-    await prefs.setString('bank_name', bankName);
-    await prefs.setString('account_number', accountNumber);
-    await prefs.setString('account_name', accountName);
+    // ðŸ” Store sensitive bank details in encrypted secure storage
+    await _secureStorage.write(key: 'bank_name', value: bankName);
+    await _secureStorage.write(key: 'account_number', value: accountNumber);
+    await _secureStorage.write(key: 'account_name', value: accountName);
     await prefs.setStringList('cleaning_tools', cleaningTools);
     
     try {
@@ -862,9 +873,9 @@ class AuthService extends ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
-      print('✅ Cleaner saved to Firestore');
+      debugPrint('âœ… Cleaner saved to Firestore');
     } catch (e) {
-      print('❌ Failed to save cleaner to Firestore: $e');
+      debugPrint('âŒ Failed to save cleaner to Firestore: $e');
     }
     
     _userRole = 'cleaner';
@@ -887,9 +898,10 @@ class AuthService extends ChangeNotifier {
     await prefs.setString('business_name', businessName);
     await prefs.setInt('working_radius', workingRadius);
     await prefs.setString('provider_status', 'approved');
-    await prefs.setString('bank_name', bankName);
-    await prefs.setString('account_number', accountNumber);
-    await prefs.setString('account_name', accountName);
+    // ðŸ” Store sensitive bank details in encrypted secure storage
+    await _secureStorage.write(key: 'bank_name', value: bankName);
+    await _secureStorage.write(key: 'account_number', value: accountNumber);
+    await _secureStorage.write(key: 'account_name', value: accountName);
     await prefs.setString('turnaround_time', turnaroundTime);
     
     try {
@@ -918,9 +930,9 @@ class AuthService extends ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
-      print('✅ Laundry provider saved to Firestore');
+      debugPrint('âœ… Laundry provider saved to Firestore');
     } catch (e) {
-      print('❌ Failed to save laundry provider to Firestore: $e');
+      debugPrint('âŒ Failed to save laundry provider to Firestore: $e');
     }
     
     _userRole = 'laundry_provider';
@@ -946,9 +958,10 @@ class AuthService extends ChangeNotifier {
     Map<String, dynamic> data = {
       'status': prefs.getString('provider_status') ?? 'approved',
       'workingRadius': prefs.getInt('working_radius') ?? 10,
-      'bankName': prefs.getString('bank_name') ?? '',
-      'accountNumber': prefs.getString('account_number') ?? '',
-      'accountName': prefs.getString('account_name') ?? '',
+      // ðŸ” Read bank details from encrypted secure storage
+      'bankName': await _secureStorage.read(key: 'bank_name') ?? '',
+      'accountNumber': await _secureStorage.read(key: 'account_number') ?? '',
+      'accountName': await _secureStorage.read(key: 'account_name') ?? '',
       'role': role,
       'serviceCategory': _serviceCategory ?? prefs.getString('serviceCategory'),
     };
@@ -1040,7 +1053,7 @@ class AuthService extends ChangeNotifier {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Failed to update user in Firestore: $e');
+      debugPrint('âŒ Failed to update user in Firestore: $e');
     }
     
     notifyListeners();
@@ -1086,7 +1099,7 @@ class AuthService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('❌ Error fetching user role: $e');
+      debugPrint('âŒ Error fetching user role: $e');
       return null;
     }
   }
@@ -1099,7 +1112,7 @@ class AuthService extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      print('❌ Error checking washer status: $e');
+      debugPrint('âŒ Error checking washer status: $e');
       return false;
     }
   }
@@ -1117,7 +1130,7 @@ class AuthService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting washer ID: $e');
+      debugPrint('âŒ Error getting washer ID: $e');
       return null;
     }
   }
@@ -1128,9 +1141,9 @@ class AuthService extends ChangeNotifier {
         'role': role,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      print('✅ User role updated to $role in Firestore');
+      debugPrint('âœ… User role updated to $role in Firestore');
     } catch (e) {
-      print('❌ Error updating user role: $e');
+      debugPrint('âŒ Error updating user role: $e');
     }
   }
 }

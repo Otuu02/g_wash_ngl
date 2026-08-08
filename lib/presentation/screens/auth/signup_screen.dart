@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/validation_service.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -29,18 +30,21 @@ class _SignupScreenState extends State<SignupScreen> {
       _showError('Please enter your name');
       return;
     }
-    if (_emailController.text.trim().isEmpty) {
-      _showError('Please enter your email address');
+    
+    // 🔒 Validation Check 1: Real Email & Disposable Domain Check
+    final emailRes = ValidationService().validateEmail(_emailController.text.trim());
+    if (!emailRes.isValid) {
+      _showError(emailRes.errorMessage ?? 'Invalid email address');
       return;
     }
-    if (!_emailController.text.trim().contains('@') || !_emailController.text.trim().contains('.')) {
-      _showError('Please enter a valid email address');
+
+    // 🔒 Validation Check 2: Authentic Phone Number Check
+    final phoneRes = ValidationService().validatePhone(_phoneController.text.trim());
+    if (!phoneRes.isValid) {
+      _showError(phoneRes.errorMessage ?? 'Invalid phone number');
       return;
     }
-    if (_phoneController.text.trim().isEmpty) {
-      _showError('Please enter your phone number');
-      return;
-    }
+
     if (_passwordController.text.isEmpty) {
       _showError('Please enter a password');
       return;

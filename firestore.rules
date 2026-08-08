@@ -18,7 +18,9 @@ service cloud.firestore {
 
     // User documents
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      // 🔒 Each user can only read their OWN profile.
+      // Admins can read all profiles.
+      allow read: if isOwner(userId) || isAdmin();
       // Allow user creation, but restrict updates to prevent changing 'role' to admin
       allow create: if isOwner(userId) && (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == 'customer');
       allow update: if isOwner(userId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) || isAdmin();
@@ -27,14 +29,22 @@ service cloud.firestore {
 
     // Washer / Service Provider profiles
     match /washers/{washerId} {
+      // 🔒 Washer profile is public-readable for matching (customer needs to see provider info).
+      // Only the washer or admin can write.
       allow read: if isAuthenticated();
       allow write: if isOwner(washerId) || isAdmin();
     }
 
     // Jobs collection
     match /jobs/{jobId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      // 🔒 Only the customer, the assigned provider, or an admin can read a job.
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.washerId == request.auth.uid ||
+        isAdmin()
+      );
+      // Any authenticated user can create a job (they become the customerId)
+      allow create: if isAuthenticated() && request.resource.data.customerId == request.auth.uid;
       allow update: if isAuthenticated() && (
         resource.data.customerId == request.auth.uid || 
         resource.data.washerId == request.auth.uid || 
@@ -54,8 +64,11 @@ service cloud.firestore {
 
     // Transactions collection
     match /transactions/{txnId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      // 🔒 Only the transaction owner or admin can read transaction records.
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
   }

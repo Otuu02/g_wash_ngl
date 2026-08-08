@@ -34,7 +34,7 @@ class SmtpEmailService {
 
     // 2. Mobile Native SMTP
     if (username.isEmpty || appPassword.isEmpty) {
-      debugPrint('📧 [Email Service Demo Mode] To: $recipient | Subject: $subject');
+      debugPrint('ðŸ“§ [Email Service Demo Mode] To: $recipient | Subject: $subject');
       return true;
     }
 
@@ -49,10 +49,10 @@ class SmtpEmailService {
 
     try {
       final sendReport = await send(message, smtpServer);
-      debugPrint('✅ [Gmail SMTP Email Sent]: ${sendReport.toString()}');
+      debugPrint('âœ… [Gmail SMTP Email Sent]: ${sendReport.toString()}');
       return true;
     } catch (e) {
-      debugPrint('ℹ️ [SMTP Native Exception - Trying HTTP Fallback]: $e');
+      debugPrint('â„¹ï¸ [SMTP Native Exception - Trying HTTP Fallback]: $e');
       return await _sendViaHttpApi(
         recipient: recipient,
         subject: subject,
@@ -90,14 +90,14 @@ class SmtpEmailService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('✅ [HTTP API Email Sent] To: $recipient');
+        debugPrint('âœ… [HTTP API Email Sent] To: $recipient');
         return true;
       } else {
-        debugPrint('📧 [Email API Logged] To: $recipient | Subject: $subject');
+        debugPrint('ðŸ“§ [Email API Logged] To: $recipient | Subject: $subject');
         return true;
       }
     } catch (e) {
-      debugPrint('📧 [Email Service Logged] To: $recipient | Subject: $subject');
+      debugPrint('ðŸ“§ [Email Service Logged] To: $recipient | Subject: $subject');
       return true;
     }
   }

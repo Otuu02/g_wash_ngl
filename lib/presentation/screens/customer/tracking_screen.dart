@@ -759,7 +759,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Padding(
-          padding: const EdgeInsets.bottom(40),
+          padding: const EdgeInsets.only(bottom: 40),
           child: Column(
             children: [
               // ============================================================
@@ -1282,16 +1282,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
               ],
             ),
           ),
+
+                const SizedBox(height: 16),
           
-          const Spacer(),
-          
-          // ============================================================
-          // ACTION BUTTONS
-          // ============================================================
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
+                // ============================================================
+                // ACTION BUTTONS
+                // ============================================================
                 // COMPLETE ORDER BUTTON
                 if (isCompleted && !isPaid)
                   SizedBox(
@@ -1387,15 +1383,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       ),
                     ),
                   ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
-          
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
+        ),
+      );
+    }
 
   Widget _buildProviderSimulationQuickBar() {
     return Container(
@@ -1482,7 +1476,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

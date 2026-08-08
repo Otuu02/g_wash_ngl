@@ -9,6 +9,8 @@ import 'job_request_screen.dart';
 import 'earnings_screen.dart';
 import 'washer_profile_screen.dart';
 import 'washer_registration_screen.dart';
+import 'incoming_job_dialog.dart';
+import '../../../services/app_notification_service.dart';
 
 class WasherDashboard extends StatefulWidget {
   const WasherDashboard({super.key});
@@ -224,7 +226,10 @@ class _WasherDashboardState extends State<WasherDashboard> {
         }
       });
 
-      // Listen to real-time jobs for dynamic stats calculation
+      // Save FCM Token for instant Push Notifications
+      AppNotificationService().updateUserFCMToken(_washerId, isWasher: true);
+
+      // Listen to real-time jobs for dynamic stats calculation & incoming popups
       _listenToRealtimeJobs(_washerId);
 
     } catch (e) {
@@ -232,6 +237,8 @@ class _WasherDashboardState extends State<WasherDashboard> {
       setState(() => _isLoading = false);
     }
   }
+
+  String? _activePromptJobId;
 
   void _listenToRealtimeJobs(String washerId) {
     _jobsSubscription?.cancel();
@@ -250,6 +257,8 @@ class _WasherDashboardState extends State<WasherDashboard> {
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
 
+      Map<String, dynamic>? pendingJobToPrompt;
+
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final status = (data['status'] ?? '').toString().toLowerCase();
@@ -258,6 +267,11 @@ class _WasherDashboardState extends State<WasherDashboard> {
         final washerShare = (data['providerShare'] != null && data['providerShare'] is num)
             ? (data['providerShare'] as num).round()
             : (price * 0.95).round(); // 95% washer share
+
+        // Check for incoming pending job request to prompt washer in real-time
+        if ((status == 'pending_acceptance' || (status == 'assigned' && data['acceptedAt'] == null)) && _isOnline) {
+          pendingJobToPrompt = {'id': doc.id, ...data};
+        }
 
         // STRICT CHECK: Money only counts if paymentStatus is 'paid'
         if ((status == 'completed' || status == 'paid') && paymentStatus == 'paid') {
@@ -276,7 +290,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
           if (jobDate != null && jobDate.isAfter(todayStart)) {
             todayEarnings += washerShare;
           }
-        } else if (status == 'assigned' || status == 'pending' || status == 'in_progress' || status == 'accepted') {
+        } else if (status == 'assigned' || status == 'pending' || status == 'in_progress' || status == 'accepted' || status == 'pending_acceptance') {
           pendingJobs++;
         }
       }
@@ -294,6 +308,31 @@ class _WasherDashboardState extends State<WasherDashboard> {
           'availableBalance': availableBalance,
         };
       });
+
+      // ⚡ POP INSTANT INCOMING JOB DIALOG OVERLAY (Duolingo/Uber style)
+      if (pendingJobToPrompt != null && _activePromptJobId != pendingJobToPrompt['id']) {
+        _activePromptJobId = pendingJobToPrompt['id'];
+        _showIncomingJobOverlay(pendingJobToPrompt);
+      }
+    });
+  }
+
+  void _showIncomingJobOverlay(Map<String, dynamic> job) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => IncomingJobDialog(
+        job: job,
+        washerId: _washerId,
+        onAccepted: () {
+          _activePromptJobId = null;
+        },
+        onDeclined: () {
+          _activePromptJobId = null;
+        },
+      ),
+    ).then((_) {
+      _activePromptJobId = null;
     });
   }
 

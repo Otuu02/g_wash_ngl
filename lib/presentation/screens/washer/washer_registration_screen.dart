@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/communication_service.dart';
+import '../../../services/validation_service.dart';
 import 'washer_dashboard.dart';
 import '../auth/login_screen.dart';
 
@@ -259,6 +260,22 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       return;
     }
 
+    // 🔒 Validation Check 1: Authentic Phone Number Check
+    final phoneRes = ValidationService().validatePhone(_phoneController.text.trim());
+    if (!phoneRes.isValid) {
+      _showError(phoneRes.errorMessage ?? 'Invalid phone number');
+      return;
+    }
+
+    // 🔒 Validation Check 2: Real Email & Disposable Domain Check (if email provided)
+    if (_emailController.text.trim().isNotEmpty) {
+      final emailRes = ValidationService().validateEmail(_emailController.text.trim());
+      if (!emailRes.isValid) {
+        _showError(emailRes.errorMessage ?? 'Invalid email address');
+        return;
+      }
+    }
+
     if (_accountNameController.text.trim().isEmpty) {
       _showError('Please enter your account name');
       return;
@@ -273,6 +290,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         _nameController.text.trim(),
         _phoneController.text.trim(),
         _passwordController.text.trim(),
+        email: _emailController.text.trim(),
         role: 'washer',
       );
 

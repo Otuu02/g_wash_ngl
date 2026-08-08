@@ -98,7 +98,7 @@ class LocationService extends ChangeNotifier {
         });
       }
     } catch (e) {
-      print('❌ Error updating location in Firestore: $e');
+      debugPrint('âŒ Error updating location in Firestore: $e');
     }
   }
 
@@ -115,7 +115,7 @@ class LocationService extends ChangeNotifier {
         'lastLocationUpdate': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Error updating washer location: $e');
+      debugPrint('âŒ Error updating washer location: $e');
     }
   }
 
@@ -152,7 +152,7 @@ class LocationService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('Geocoding error: $e');
+      debugPrint('Geocoding error: $e');
       return null;
     }
   }
@@ -196,7 +196,7 @@ class LocationService extends ChangeNotifier {
 
       return 'Lagos, Nigeria';
     } catch (e) {
-      print('Reverse geocoding error: $e');
+      debugPrint('Reverse geocoding error: $e');
       return 'Lagos, Nigeria';
     }
   }
@@ -236,7 +236,7 @@ class LocationService extends ChangeNotifier {
       }
       return [];
     } catch (e) {
-      print('Places search error: $e');
+      debugPrint('Places search error: $e');
       return [];
     }
   }
@@ -255,7 +255,7 @@ class LocationService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('Place details error: $e');
+      debugPrint('Place details error: $e');
       return null;
     }
   }
@@ -287,7 +287,7 @@ class LocationService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('Distance matrix error: $e');
+      debugPrint('Distance matrix error: $e');
       return null;
     }
   }
@@ -309,7 +309,7 @@ class LocationService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('Directions error: $e');
+      debugPrint('Directions error: $e');
       return null;
     }
   }
@@ -429,7 +429,7 @@ class LocationService extends ChangeNotifier {
       }
       return [];
     } catch (e) {
-      print('Autocomplete error: $e');
+      debugPrint('Autocomplete error: $e');
       return [];
     }
   }
@@ -455,7 +455,7 @@ class LocationService extends ChangeNotifier {
         }
       });
     } catch (e) {
-      print('❌ Error saving location to Firestore: $e');
+      debugPrint('âŒ Error saving location to Firestore: $e');
     }
   }
   
@@ -468,7 +468,7 @@ class LocationService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting saved location: $e');
+      debugPrint('âŒ Error getting saved location: $e');
       return null;
     }
   }

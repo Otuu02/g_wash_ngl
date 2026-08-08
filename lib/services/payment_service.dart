@@ -31,7 +31,7 @@ class PaymentService {
 
     try {
       final String paystackSecretKey = Env.paystackSecretKey;
-      debugPrint('💳 Initializing Live Paystack Transaction for $email (Ref: $reference)');
+      debugPrint('ðŸ’³ Initializing Live Paystack Transaction for $email (Ref: $reference)');
 
       final response = await http.post(
         Uri.parse('https://api.paystack.co/transaction/initialize'),
@@ -56,7 +56,7 @@ class PaymentService {
       if (response.statusCode == 200 && data['status'] == true && data['data'] != null) {
         final authUrl = data['data']['authorization_url'];
         final accessCode = data['data']['access_code'];
-        debugPrint('✅ Paystack Live Checkout URL generated: $authUrl');
+        debugPrint('âœ… Paystack Live Checkout URL generated: $authUrl');
         return {
           'success': true,
           'authorization_url': authUrl,
@@ -66,13 +66,13 @@ class PaymentService {
       }
 
       final errMsg = data['message'] ?? 'Failed to initialize Paystack transaction';
-      debugPrint('❌ Paystack Initialize Failed: $errMsg');
+      debugPrint('âŒ Paystack Initialize Failed: $errMsg');
       return {
         'success': false,
         'error': errMsg,
       };
     } catch (e) {
-      debugPrint('❌ Paystack Initialization Error: $e');
+      debugPrint('âŒ Paystack Initialization Error: $e');
       return {
         'success': false,
         'error': e.toString().replaceAll('Exception: ', ''),
@@ -141,7 +141,7 @@ class PaymentService {
         'error': errData['message'] ?? 'Could not verify Paystack payment.',
       };
     } catch (e) {
-      debugPrint('❌ Paystack Verification Exception: $e');
+      debugPrint('âŒ Paystack Verification Exception: $e');
       return {
         'success': false,
         'error': e.toString().replaceAll('Exception: ', ''),
@@ -164,7 +164,7 @@ class PaymentService {
     String? paystackTransactionRef,
   }) async {
     try {
-      // 🔒 SECURITY GUARD: Validate inputs
+      // ðŸ”’ SECURITY GUARD: Validate inputs
       if (amount <= 0 || jobId.isEmpty || userId.isEmpty) {
         throw ArgumentError('Invalid payment parameters: amount, jobId, and userId must be valid.');
       }
@@ -218,13 +218,13 @@ class PaymentService {
 
       // Notify customer and washer that payment is secured in Escrow
       _notificationService.addNotification(
-        title: '🔒 Payment Secured in Escrow',
-        message: 'Payment of ₦${NumberFormat('#,###').format(grossAmount)} for $serviceName is held safely in Escrow. The provider can now begin.',
+        title: 'ðŸ”’ Payment Secured in Escrow',
+        message: 'Payment of â‚¦${NumberFormat('#,###').format(grossAmount)} for $serviceName is held safely in Escrow. The provider can now begin.',
         type: 'payment',
         jobId: jobId,
       );
 
-      debugPrint('🔒 Paystack Payment held in Escrow: $jobId | Fee: ₦$platformFee | Washer Share: ₦$providerShare');
+      debugPrint('ðŸ”’ Paystack Payment held in Escrow: $jobId | Fee: â‚¦$platformFee | Washer Share: â‚¦$providerShare');
 
       return {
         'success': true,
@@ -236,10 +236,10 @@ class PaymentService {
         'isEscrow': true,
       };
     } catch (e) {
-      debugPrint('❌ Payment processing error: $e');
+      debugPrint('âŒ Payment processing error: $e');
       
       _notificationService.addNotification(
-        title: '❌ Payment Failed',
+        title: 'âŒ Payment Failed',
         message: 'Payment for $serviceName failed. Please try again.',
         type: 'payment',
         jobId: jobId,
@@ -257,7 +257,7 @@ class PaymentService {
   // ============================================================
   Future<Map<String, dynamic>> releaseEscrowPayment(String jobId) async {
     try {
-      debugPrint('🔓 Releasing Escrow Payment for Job: $jobId');
+      debugPrint('ðŸ”“ Releasing Escrow Payment for Job: $jobId');
 
       final paymentQuery = await _firestore
           .collection('payments')
@@ -280,7 +280,7 @@ class PaymentService {
 
         // Prevent double release
         if (pData['status'] == 'completed') {
-          debugPrint('ℹ️ Escrow funds already released for job: $jobId');
+          debugPrint('â„¹ï¸ Escrow funds already released for job: $jobId');
           return {'success': true, 'alreadyReleased': true};
         }
 
@@ -338,10 +338,10 @@ class PaymentService {
         providerShare: providerShare,
       );
 
-      debugPrint('✅ Escrow released successfully! Washer received ₦$providerShare | Admin ₦$platformFee');
+      debugPrint('âœ… Escrow released successfully! Washer received â‚¦$providerShare | Admin â‚¦$platformFee');
       return {'success': true, 'providerShare': providerShare, 'platformFee': platformFee};
     } catch (e) {
-      debugPrint('❌ Escrow Release Error: $e');
+      debugPrint('âŒ Escrow Release Error: $e');
       return {'success': false, 'error': e.toString()};
     }
   }
@@ -375,7 +375,7 @@ class PaymentService {
         paystackTransactionRef: paystackRef,
       );
     } catch (e) {
-      debugPrint('❌ Paystack error: $e');
+      debugPrint('âŒ Paystack error: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -423,7 +423,7 @@ class PaymentService {
         cardLast4: last4,
       );
     } catch (e) {
-      print('❌ Card payment error: $e');
+      debugPrint('âŒ Card payment error: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -464,7 +464,7 @@ class PaymentService {
         paymentMethod: 'bank_transfer',
       );
     } catch (e) {
-      print('❌ Bank transfer error: $e');
+      debugPrint('âŒ Bank transfer error: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -505,7 +505,7 @@ class PaymentService {
         paymentMethod: 'wallet',
       );
     } catch (e) {
-      print('❌ Wallet payment error: $e');
+      debugPrint('âŒ Wallet payment error: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -525,7 +525,7 @@ class PaymentService {
       }
       return 0;
     } catch (e) {
-      print('❌ Error getting wallet balance: $e');
+      debugPrint('âŒ Error getting wallet balance: $e');
       return 0;
     }
   }
@@ -570,7 +570,7 @@ class PaymentService {
         'amount': amount,
       };
     } catch (e) {
-      print('❌ Error funding wallet: $e');
+      debugPrint('âŒ Error funding wallet: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -596,7 +596,7 @@ class PaymentService {
         };
       }).toList();
     } catch (e) {
-      print('❌ Error getting payment history: $e');
+      debugPrint('âŒ Error getting payment history: $e');
       return [];
     }
   }
@@ -620,7 +620,7 @@ class PaymentService {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting payment: $e');
+      debugPrint('âŒ Error getting payment: $e');
       return null;
     }
   }
@@ -644,7 +644,7 @@ class PaymentService {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting payment by reference: $e');
+      debugPrint('âŒ Error getting payment by reference: $e');
       return null;
     }
   }
@@ -667,7 +667,7 @@ class PaymentService {
         };
       }).toList();
     } catch (e) {
-      print('❌ Error getting all payments: $e');
+      debugPrint('âŒ Error getting all payments: $e');
       return [];
     }
   }
@@ -708,7 +708,7 @@ class PaymentService {
         }).toList(),
       };
     } catch (e) {
-      print('❌ Error getting daily earnings: $e');
+      debugPrint('âŒ Error getting daily earnings: $e');
       return {
         'date': date,
         'total': 0,
@@ -754,7 +754,7 @@ class PaymentService {
         }).toList(),
       };
     } catch (e) {
-      print('❌ Error getting monthly earnings: $e');
+      debugPrint('âŒ Error getting monthly earnings: $e');
       return {
         'year': year,
         'month': month,
@@ -785,7 +785,7 @@ class PaymentService {
 
       return total;
     } catch (e) {
-      print('❌ Error getting total earnings: $e');
+      debugPrint('âŒ Error getting total earnings: $e');
       return 0;
     }
   }
@@ -821,7 +821,7 @@ class PaymentService {
       }
 
       _notificationService.addNotification(
-        title: '💳 Payment Refunded',
+        title: 'ðŸ’³ Payment Refunded',
         message: 'Your payment for ${paymentData['serviceName']} has been refunded. Reason: $reason',
         type: 'payment',
         jobId: jobId,
@@ -833,7 +833,7 @@ class PaymentService {
         'refundedAt': DateTime.now().toIso8601String(),
       };
     } catch (e) {
-      print('❌ Error refunding payment: $e');
+      debugPrint('âŒ Error refunding payment: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -849,13 +849,13 @@ class PaymentService {
       final payment = await getPaymentByReference(reference);
       return payment != null && payment['status'] == 'completed';
     } catch (e) {
-      print('❌ Error verifying payment: $e');
+      debugPrint('âŒ Error verifying payment: $e');
       return false;
     }
   }
 
   // ============================================================
-  // WASHER PAYOUT WITHDRAWAL REQUEST (MINIMUM ₦10,000 THRESHOLD)
+  // WASHER PAYOUT WITHDRAWAL REQUEST (MINIMUM â‚¦10,000 THRESHOLD)
   // ============================================================
   Future<Map<String, dynamic>> requestWasherPayout({
     required String washerId,
@@ -867,14 +867,14 @@ class PaymentService {
   }) async {
     try {
       if (amount < 10000) {
-        throw Exception('Minimum withdrawal amount threshold is ₦10,000.');
+        throw Exception('Minimum withdrawal amount threshold is â‚¦10,000.');
       }
 
       final payoutRef = _firestore.collection('payout_requests').doc();
       final payoutId = payoutRef.id;
       Map<String, dynamic> washerData = {};
 
-      // 🔒 ATOMIC TRANSACTION: Prevent race conditions & rapid multi-tapping withdrawal exploits
+      // ðŸ”’ ATOMIC TRANSACTION: Prevent race conditions & rapid multi-tapping withdrawal exploits
       await _firestore.runTransaction((transaction) async {
         final washerRef = _firestore.collection('washers').doc(washerId);
         final washerDoc = await transaction.get(washerRef);
@@ -887,7 +887,7 @@ class PaymentService {
         final currentBalance = (washerData['availableBalance'] ?? 0).toDouble();
 
         if (currentBalance < amount) {
-          throw Exception('Insufficient available balance. Your balance is ₦${currentBalance.toStringAsFixed(0)}.');
+          throw Exception('Insufficient available balance. Your balance is â‚¦${currentBalance.toStringAsFixed(0)}.');
         }
 
         // Atomically deduct balance & set bank info
@@ -931,7 +931,7 @@ class PaymentService {
         'amount': amount,
       };
     } catch (e) {
-      debugPrint('❌ Withdrawal request error: $e');
+      debugPrint('âŒ Withdrawal request error: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -951,7 +951,7 @@ class PaymentService {
 
       return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
     } catch (e) {
-      debugPrint('❌ Error fetching payout requests: $e');
+      debugPrint('âŒ Error fetching payout requests: $e');
       return [];
     }
   }

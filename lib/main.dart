@@ -40,6 +40,7 @@ import 'presentation/screens/auth/otp_screen.dart';
 // Services
 import 'services/auth_service.dart';
 import 'services/app_notification_service.dart';
+import 'services/security_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -319,6 +320,31 @@ class GWashApp extends StatelessWidget {
           },
           
           onGenerateRoute: (settings) {
+            // 🛡️ RouteGuard: Enforce authentication & RBAC for direct link/URL entry
+            final routeGuard = SecurityService().validateRouteAccess(
+              routeName: settings.name,
+              isLoggedIn: authService.isLoggedIn,
+              userRole: authService.userRole,
+            );
+
+            if (!routeGuard.isAllowed) {
+              debugPrint('🛡️ [Route Guard Direct Link Intercepted]: ${settings.name} -> ${routeGuard.reason}');
+              return MaterialPageRoute(
+                builder: (context) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(routeGuard.reason ?? 'Access restricted. Please log in.'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  });
+                  return _getHomeScreen(authService);
+                },
+              );
+            }
+
             if (settings.name == '/admin') {
               if (authService.isLoggedIn && authService.isAdmin) {
                 return MaterialPageRoute(

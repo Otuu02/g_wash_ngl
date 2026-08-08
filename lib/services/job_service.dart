@@ -61,7 +61,7 @@ class JobService extends ChangeNotifier {
       providers.sort((a, b) => a['distance'].compareTo(b['distance']));
       return providers.first;
     } catch (e) {
-      print('❌ Error finding nearest provider: $e');
+      debugPrint('âŒ Error finding nearest provider: $e');
       return null;
     }
   }
@@ -213,7 +213,7 @@ class JobService extends ChangeNotifier {
       providers.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
       return providers;
     } catch (e) {
-      print('❌ Error getting providers: $e');
+      debugPrint('âŒ Error getting providers: $e');
       return [
         {
           'id': 'provider_fallback_1',
@@ -303,9 +303,9 @@ class JobService extends ChangeNotifier {
       };
 
       final docRef = await _firestore.collection('jobs').add(jobData);
-      print('✅ Job created with ID: ${docRef.id}');
+      debugPrint('âœ… Job created with ID: ${docRef.id}');
 
-      // ✅ DISPATCH SMS (Twilio), EMAIL (Gmail SMTP) & POPUP OVERLAYS to Customer and Provider
+      // âœ… DISPATCH SMS (Twilio), EMAIL (Gmail SMTP) & POPUP OVERLAYS to Customer and Provider
       await _communicationService.sendBookingNotifications(
         jobId: docRef.id,
         customerName: customerName,
@@ -324,7 +324,7 @@ class JobService extends ChangeNotifier {
         ...jobData,
       };
     } catch (e) {
-      print('❌ Error creating job: $e');
+      debugPrint('âŒ Error creating job: $e');
       rethrow;
     }
   }
@@ -355,7 +355,7 @@ class JobService extends ChangeNotifier {
 
       Map<String, dynamic> jobData = {};
 
-      // 🔒 ATOMIC TRANSACTION: Prevent race conditions when 100+ washers attempt to accept the same job concurrently
+      // ðŸ”’ ATOMIC TRANSACTION: Prevent race conditions when 100+ washers attempt to accept the same job concurrently
       await _firestore.runTransaction((transaction) async {
         final jobRef = _firestore.collection('jobs').doc(jobId);
         final snapshot = await transaction.get(jobRef);
@@ -399,10 +399,10 @@ class JobService extends ChangeNotifier {
           'lastJobAssigned': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       } catch (e) {
-        debugPrint('ℹ️ Provider stats update notice: $e');
+        debugPrint('â„¹ï¸ Provider stats update notice: $e');
       }
 
-      // ✅ SEND NOTIFICATION & SMS/EMAIL TO CUSTOMER AND PROVIDER
+      // âœ… SEND NOTIFICATION & SMS/EMAIL TO CUSTOMER AND PROVIDER
       await _communicationService.sendProviderAssignedNotifications(
         jobId: jobId,
         customerName: cName,
@@ -425,7 +425,75 @@ class JobService extends ChangeNotifier {
         'assignedAt': DateTime.now().toIso8601String(),
       };
     } catch (e) {
-      print('❌ Error assigning provider: $e');
+      debugPrint('âŒ Error assigning provider: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================
+  // ACCEPT JOB REQUEST (WASHER ACTION)
+  // ============================================================
+  Future<void> acceptJobRequest(String jobId, String washerId) async {
+    try {
+      final jobRef = _firestore.collection('jobs').doc(jobId);
+      final snapshot = await jobRef.get();
+      if (!snapshot.exists) throw Exception('Job not found.');
+
+      final jobData = snapshot.data() ?? {};
+      final washerDoc = await _firestore.collection('washers').doc(washerId).get();
+      final washerName = washerDoc.data()?['name'] ?? jobData['washerName'] ?? 'Service Provider';
+
+      await jobRef.update({
+        'status': 'accepted',
+        'acceptedAt': FieldValue.serverTimestamp(),
+        'washerId': washerId,
+        'washerName': washerName,
+      });
+
+      // Send System Push Notification to Customer
+      _notificationService.addNotification(
+        title: 'ðŸŽ‰ Order Accepted!',
+        message: '$washerName accepted your ${jobData['serviceName'] ?? 'service'} request and is on their way!',
+        type: 'booking',
+        jobId: jobId,
+      );
+
+      debugPrint('âœ… Job $jobId accepted by $washerId');
+    } catch (e) {
+      debugPrint('âŒ Error accepting job request: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================
+  // DECLINE JOB REQUEST (WASHER ACTION)
+  // ============================================================
+  Future<void> declineJobRequest(String jobId, String washerId, {String? reason}) async {
+    try {
+      final jobRef = _firestore.collection('jobs').doc(jobId);
+      final snapshot = await jobRef.get();
+      if (!snapshot.exists) throw Exception('Job not found.');
+
+      final jobData = snapshot.data() ?? {};
+      final washerName = jobData['washerName'] ?? 'Provider';
+
+      await jobRef.update({
+        'status': 'declined',
+        'declinedAt': FieldValue.serverTimestamp(),
+        'declineReason': reason ?? 'Provider declined request',
+      });
+
+      // Notify Customer
+      _notificationService.addNotification(
+        title: 'âš ï¸ Provider Unavailable',
+        message: '$washerName is currently unavailable for your request. Please tap to pick another provider.',
+        type: 'booking',
+        jobId: jobId,
+      );
+
+      debugPrint('â›” Job $jobId declined by $washerId');
+    } catch (e) {
+      debugPrint('âŒ Error declining job request: $e');
       rethrow;
     }
   }
@@ -454,16 +522,16 @@ class JobService extends ChangeNotifier {
         'completedAt': FieldValue.serverTimestamp(),
       });
 
-      // 🔓 RELEASE ESCROW FUNDS TO WASHER & ADMIN
+      // ðŸ”“ RELEASE ESCROW FUNDS TO WASHER & ADMIN
       try {
         await PaymentService().releaseEscrowPayment(jobId);
       } catch (escrowErr) {
-        debugPrint('⚠️ Escrow release notice: $escrowErr');
+        debugPrint('âš ï¸ Escrow release notice: $escrowErr');
       }
 
-      // ✅ SEND NOTIFICATION: Service Delivered & Escrow Released
+      // âœ… SEND NOTIFICATION: Service Delivered & Escrow Released
       _notificationService.addNotification(
-        title: '🎉 Order Completed!',
+        title: 'ðŸŽ‰ Order Completed!',
         message: 'Your $serviceName service is complete. Held escrow funds have been released to the provider. Thank you!',
         type: 'booking',
         jobId: jobId,
@@ -490,7 +558,7 @@ class JobService extends ChangeNotifier {
         'price': price,
       };
     } catch (e) {
-      print('❌ Error completing job: $e');
+      debugPrint('âŒ Error completing job: $e');
       rethrow;
     }
   }
@@ -529,11 +597,11 @@ class JobService extends ChangeNotifier {
             'pendingJobs': FieldValue.increment(-1),
           });
         } catch (e) {
-          debugPrint('ℹ️ Washer pending jobs increment notice: $e');
+          debugPrint('â„¹ï¸ Washer pending jobs increment notice: $e');
         }
       }
 
-      // ✅ SEND MULTI-CHANNEL NOTIFICATIONS (PUSH, SMS, EMAIL) TO CUSTOMER & WASHER
+      // âœ… SEND MULTI-CHANNEL NOTIFICATIONS (PUSH, SMS, EMAIL) TO CUSTOMER & WASHER
       await _communicationService.sendCancellationNotifications(
         jobId: jobId,
         serviceName: serviceName,
@@ -554,7 +622,7 @@ class JobService extends ChangeNotifier {
         'cancelledAt': DateTime.now().toIso8601String(),
       };
     } catch (e) {
-      print('❌ Error cancelling job: $e');
+      debugPrint('âŒ Error cancelling job: $e');
       rethrow;
     }
   }
@@ -589,19 +657,19 @@ class JobService extends ChangeNotifier {
 
       switch (status) {
         case 'accepted':
-          title = '✅ Request Accepted!';
+          title = 'âœ… Request Accepted!';
           message = '$washerName has accepted your $serviceName request.';
           icon = Icons.thumb_up;
           color = Colors.blue;
           break;
         case 'enRoute':
-          title = '🚚 Provider On The Way!';
+          title = 'ðŸšš Provider On The Way!';
           message = '$washerName is heading to your location for $serviceName.';
           icon = Icons.directions_car;
           color = Colors.orange;
           break;
         case 'arrived':
-          title = '📍 Provider Has Arrived!';
+          title = 'ðŸ“ Provider Has Arrived!';
           message = '$washerName has arrived at your location for $serviceName.';
           icon = Icons.location_on;
           color = Colors.green;
@@ -617,9 +685,9 @@ class JobService extends ChangeNotifier {
         jobId: jobId,
       );
 
-      print('📢 Status update notification sent: $status');
+      debugPrint('ðŸ“¢ Status update notification sent: $status');
     } catch (e) {
-      print('❌ Error updating job status: $e');
+      debugPrint('âŒ Error updating job status: $e');
     }
   }
 
@@ -637,7 +705,7 @@ class JobService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting job details: $e');
+      debugPrint('âŒ Error getting job details: $e');
       return null;
     }
   }
@@ -678,7 +746,7 @@ class JobService extends ChangeNotifier {
 
       return list;
     } catch (e) {
-      print('❌ Error getting user jobs: $e');
+      debugPrint('âŒ Error getting user jobs: $e');
       return [];
     }
   }
@@ -736,7 +804,7 @@ class JobService extends ChangeNotifier {
 
       return list;
     } catch (e) {
-      print('❌ Error getting washer jobs: $e');
+      debugPrint('âŒ Error getting washer jobs: $e');
       return [];
     }
   }
@@ -777,7 +845,7 @@ class JobService extends ChangeNotifier {
 
       return list;
     } catch (e) {
-      print('❌ Error getting pending jobs: $e');
+      debugPrint('âŒ Error getting pending jobs: $e');
       return [];
     }
   }
@@ -806,7 +874,7 @@ class JobService extends ChangeNotifier {
         'todayEarnings': 0,
       };
     } catch (e) {
-      print('❌ Error getting provider stats: $e');
+      debugPrint('âŒ Error getting provider stats: $e');
       return {
         'totalJobs': 0,
         'totalEarnings': 0,
@@ -831,7 +899,7 @@ class JobService extends ChangeNotifier {
       });
       notifyListeners();
     } catch (e) {
-      print('❌ Error updating provider status: $e');
+      debugPrint('âŒ Error updating provider status: $e');
       rethrow;
     }
   }
@@ -850,7 +918,7 @@ class JobService extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting provider details: $e');
+      debugPrint('âŒ Error getting provider details: $e');
       return null;
     }
   }
@@ -870,7 +938,7 @@ class JobService extends ChangeNotifier {
         'lastLocationUpdate': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Error updating provider location: $e');
+      debugPrint('âŒ Error updating provider location: $e');
     }
   }
 
@@ -895,7 +963,7 @@ class JobService extends ChangeNotifier {
         };
       }).toList();
     } catch (e) {
-      print('❌ Error getting jobs by status: $e');
+      debugPrint('âŒ Error getting jobs by status: $e');
       return [];
     }
   }

@@ -44,6 +44,9 @@ ios/Flutter/Generated.xcconfig
 *.env
 
 # Firebase & Secret Keys
+# 🔒 firebase_options.dart contains Firebase API keys — never commit it.
+# Regenerate with: flutterfire configure
+lib/firebase_options.dart
 google-services.json
 GoogleService-Info.plist
 *.pem

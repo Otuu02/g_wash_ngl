@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,6 +24,17 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  // 🔐 Secure encrypted storage (AES-256 via Android Keystore / iOS Keychain)
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  // 🛡️ Brute-force login protection constants
+  static const int _maxLoginAttempts = 5;
+  static const int _lockoutMinutes = 15;
+  int _failedAttempts = 0;
+  DateTime? _lockoutUntil;
   bool _biometricEnabled = false;
   bool _rememberMe = false;
   final LocalAuthentication _localAuth = LocalAuthentication();
@@ -48,9 +60,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _loadSavedCredentials() async {
     try {
+      final phone = await _secureStorage.read(key: 'saved_phone');
+      final password = await _secureStorage.read(key: 'saved_password');
       final prefs = await SharedPreferences.getInstance();
-      final phone = prefs.getString('saved_phone');
-      final password = prefs.getString('saved_password');
       final remember = prefs.getBool('remember_me') ?? false;
 
       setState(() {
@@ -59,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _rememberMe = remember;
       });
     } catch (e) {
-      print('❌ Error loading saved credentials: $e');
+      debugPrint('❌ Error loading saved credentials: $e');
     }
   }
 
@@ -67,16 +79,17 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (_rememberMe) {
-        await prefs.setString('saved_phone', phone);
-        await prefs.setString('saved_password', password);
+        // 🔐 Save password encrypted in Android Keystore / iOS Keychain
+        await _secureStorage.write(key: 'saved_phone', value: phone);
+        await _secureStorage.write(key: 'saved_password', value: password);
         await prefs.setBool('remember_me', true);
       } else {
-        await prefs.remove('saved_phone');
-        await prefs.remove('saved_password');
+        await _secureStorage.delete(key: 'saved_phone');
+        await _secureStorage.delete(key: 'saved_password');
         await prefs.setBool('remember_me', false);
       }
     } catch (e) {
-      print('❌ Error saving credentials: $e');
+      debugPrint('❌ Error saving credentials: $e');
     }
   }
 
@@ -90,6 +103,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // 🛡️ Brute-force lockout check
+    if (_lockoutUntil != null && DateTime.now().isBefore(_lockoutUntil!)) {
+      final remaining = _lockoutUntil!.difference(DateTime.now()).inMinutes + 1;
+      _showError('Too many failed attempts. Try again in $remaining minute(s).');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     final authService = Provider.of<AuthService>(context, listen: false);
@@ -100,10 +120,19 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
+      _failedAttempts = 0;
+      _lockoutUntil = null;
       await _saveCredentials(phone, password);
       _navigateToHome(authService);
     } else {
-      _showError('Invalid phone number or password.');
+      _failedAttempts++;
+      if (_failedAttempts >= _maxLoginAttempts) {
+        _lockoutUntil = DateTime.now().add(const Duration(minutes: _lockoutMinutes));
+        _showError('Account locked for $_lockoutMinutes minutes after $_maxLoginAttempts failed attempts.');
+      } else {
+        final remaining = _maxLoginAttempts - _failedAttempts;
+        _showError('Invalid phone number or password. $remaining attempt(s) remaining.');
+      }
     }
   }
 
@@ -126,9 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (authenticated) {
         final authService = Provider.of<AuthService>(context, listen: false);
-        final prefs = await SharedPreferences.getInstance();
-        final phone = prefs.getString('saved_phone');
-        final password = prefs.getString('saved_password');
+        final phone = await _secureStorage.read(key: 'saved_phone');
+        final password = await _secureStorage.read(key: 'saved_password');
         
         if (phone != null && password != null) {
           final success = await authService.login(phone, password);

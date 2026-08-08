@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ImageUploadService {
-  // ✅ YOUR IMGBB API KEY
+  // âœ… YOUR IMGBB API KEY
   static const String apiKey = 'd06ac97ee8900090daf829a31655876c';
 
   static Future<String?> uploadImage({
@@ -12,8 +12,8 @@ class ImageUploadService {
     required String fileName,
   }) async {
     try {
-      print('📤 Uploading to imgBB...');
-      print('📄 File: $fileName');
+      debugPrint('ðŸ“¤ Uploading to imgBB...');
+      debugPrint('ðŸ“„ File: $fileName');
 
       // Read image as bytes
       final bytes = await image.readAsBytes();
@@ -42,21 +42,21 @@ class ImageUploadService {
 
       final data = jsonDecode(response.body);
 
-      print('📡 Response status: ${response.statusCode}');
+      debugPrint('ðŸ“¡ Response status: ${response.statusCode}');
 
       if (data['success'] == true) {
         final imageUrl = data['data']['url'];
         final thumbUrl = data['data']['thumb']['url'];
-        print('✅ Upload successful: $imageUrl');
-        print('✅ Thumb URL: $thumbUrl');
+        debugPrint('âœ… Upload successful: $imageUrl');
+        debugPrint('âœ… Thumb URL: $thumbUrl');
         return imageUrl;
       } else {
         final errorMsg = data['error']?['message'] ?? 'Unknown error';
-        print('❌ Upload failed: $errorMsg');
+        debugPrint('âŒ Upload failed: $errorMsg');
         return null;
       }
     } catch (e) {
-      print('❌ Upload error: $e');
+      debugPrint('âŒ Upload error: $e');
       return null;
     }
   }

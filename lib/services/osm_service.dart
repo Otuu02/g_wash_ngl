@@ -84,7 +84,7 @@ class OSMService {
       }
       return [];
     } catch (e) {
-      print('OSM street search error: $e');
+      debugPrint('OSM street search error: $e');
       return [];
     }
   }
@@ -113,7 +113,7 @@ class OSMService {
       }
       return [];
     } catch (e) {
-      print('OSM nearby search error: $e');
+      debugPrint('OSM nearby search error: $e');
       return [];
     }
   }
@@ -134,7 +134,7 @@ class OSMService {
       }
       return null;
     } catch (e) {
-      print('OSM reverse geocoding error: $e');
+      debugPrint('OSM reverse geocoding error: $e');
       return null;
     }
   }
@@ -154,7 +154,7 @@ class OSMService {
       }
       return null;
     } catch (e) {
-      print('OSM place details error: $e');
+      debugPrint('OSM place details error: $e');
       return null;
     }
   }
@@ -288,7 +288,7 @@ class LocationCache {
         'timestamp': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Error saving to Firestore cache: $e');
+      debugPrint('âŒ Error saving to Firestore cache: $e');
     }
   }
   
@@ -305,7 +305,7 @@ class LocationCache {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting from Firestore cache: $e');
+      debugPrint('âŒ Error getting from Firestore cache: $e');
       return null;
     }
   }

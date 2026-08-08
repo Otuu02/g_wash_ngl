@@ -24,8 +24,9 @@ class AppConfig {
   static const String paystackPublicKey = paystackPublicKeyTest;
   
   // ==================== GOOGLE MAPS CONFIGURATION ====================
-  // Google Maps API Key
-  static const String googleMapsApiKey = 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw';
+  // 🔒 API key is injected at build time via --dart-define=GOOGLE_MAPS_API_KEY=...
+  // Never hardcode API keys in source files tracked by git.
+  // Use Env.googleMapsApiKey at runtime instead of this constant.
   
   // ==================== ADMOB CONFIGURATION ====================
   // AdMob Ad Unit IDs (will add when ready to monetize)

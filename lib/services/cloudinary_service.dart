@@ -59,7 +59,7 @@ class CloudinaryService {
       );
       request.files.add(multipartFile);
 
-      debugPrint('☁️ Uploading image to Cloudinary ($cloudName)...');
+      debugPrint('â˜ï¸ Uploading image to Cloudinary ($cloudName)...');
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -69,7 +69,7 @@ class CloudinaryService {
         final String? secureUrl = responseData['secure_url'];
 
         if (secureUrl != null && secureUrl.isNotEmpty) {
-          debugPrint('✅ Cloudinary Upload Success: $secureUrl');
+          debugPrint('âœ… Cloudinary Upload Success: $secureUrl');
           return secureUrl;
         } else {
           throw Exception('No secure URL returned from Cloudinary response.');
@@ -80,7 +80,7 @@ class CloudinaryService {
         throw Exception('Cloudinary error: $errorMessage');
       }
     } catch (e) {
-      debugPrint('❌ Cloudinary Upload Error: $e');
+      debugPrint('âŒ Cloudinary Upload Error: $e');
       rethrow;
     }
   }
