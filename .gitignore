@@ -15,13 +15,14 @@ android/.idea/
 android/*.iml
 
 # ============================================================
-# ADD THESE - Fix Gradle cache issues
+# ADD THESE - Fix Gradle cache issues (NOT pubspec.lock)
 # ============================================================
 .gradle/
 android/UsersAdministrator.gradle/
 android/UsersAdministrator.gradle/**
-*.lock
+# Exclude android gradle locks, but NOT pubspec.lock
 android/**/*.lock
+!pubspec.lock
 
 # iOS
 ios/Pods/
