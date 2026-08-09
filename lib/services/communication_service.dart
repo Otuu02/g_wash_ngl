@@ -1,11 +1,8 @@
 // FILE: lib/services/communication_service.dart
 // PURPOSE: Send SMS (Twilio), Email (Gmail SMTP), and Push Notifications to Customers and Service Providers
 
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import '../config/env.dart';
 import 'app_notification_service.dart';
 import 'twilio_service.dart';
 import 'smtp_email_service.dart';

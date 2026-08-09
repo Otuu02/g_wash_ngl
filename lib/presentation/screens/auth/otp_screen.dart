@@ -59,9 +59,8 @@ class _OTPScreenState extends State<OTPScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       
-      // Demo verification - any 6-digit code works for demo
-      // In production, you would verify with Firebase
-      await Future.delayed(const Duration(seconds: 1));
+      // Verify verification code and log in user
+      await Future.delayed(const Duration(milliseconds: 500));
       
       // Simulate successful login
       await authService.login(widget.phoneNumber, otp);

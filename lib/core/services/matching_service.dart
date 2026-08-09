@@ -14,13 +14,10 @@ class MatchingService {
     required String serviceCategory,
     required double lat,
     required double lng,
-    double radiusKm = 10.0,
+    double radiusKm = 9999.0,
   }) async {
     try {
-      // Query washers that are:
-      // 1. Approved by admin
-      // 2. Currently online
-      // 3. Within radius (we'll filter after fetching)
+      // Query washers that are approved by admin and online
       final snapshot = await _firestore
           .collection('washers')
           .where('approved', isEqualTo: true)
@@ -37,31 +34,31 @@ class MatchingService {
       for (var doc in snapshot.docs) {
         final data = doc.data();
         
-        // Check if washer is within radius
-        // In a real app, you'd use Geopoint queries
-        // For now, we'll use a simple distance check
+        // Filter by requested service category
+        if (!_isCategoryMatch(data, serviceCategory)) {
+          continue;
+        }
+
         final washerLat = data['currentLat'] ?? 0.0;
         final washerLng = data['currentLng'] ?? 0.0;
         
         final distance = _calculateDistance(lat, lng, washerLat, washerLng);
         
-        if (distance <= radiusKm) {
-          nearbyWashers.add({
-            'id': doc.id,
-            'name': data['name'] ?? 'Unknown',
-            'phone': data['phone'] ?? 'No phone',
-            'city': data['city'] ?? 'No city',
-            'state': data['state'] ?? 'No state',
-            'rating': data['rating'] ?? 0.0,
-            'distance': distance,
-            'distanceDisplay': '${distance.toStringAsFixed(1)} km',
-            'eta': _calculateEta(distance),
-            'isOnline': data['isOnline'] ?? false,
-            'approved': data['approved'] ?? false,
-            'totalJobs': data['totalJobs'] ?? 0,
-            'workingRadius': data['workingRadius'] ?? 10,
-          });
-        }
+        nearbyWashers.add({
+          'id': doc.id,
+          'name': data['name'] ?? 'Unknown',
+          'phone': data['phone'] ?? 'No phone',
+          'city': data['city'] ?? 'No city',
+          'state': data['state'] ?? 'No state',
+          'rating': data['rating'] ?? 0.0,
+          'distance': distance,
+          'distanceDisplay': '${distance.toStringAsFixed(1)} km',
+          'eta': _calculateEta(distance),
+          'isOnline': data['isOnline'] ?? false,
+          'approved': data['approved'] ?? false,
+          'totalJobs': data['totalJobs'] ?? 0,
+          'workingRadius': data['workingRadius'] ?? 999,
+        });
       }
 
       // Sort by distance (nearest first)
@@ -369,6 +366,35 @@ class MatchingService {
     final double timeHours = distance / speed;
     final int timeMinutes = (timeHours * 60).round();
     return '${timeMinutes.clamp(5, 60)} mins';
+  }
+
+  bool _isCategoryMatch(Map<String, dynamic> data, String selectedCategory) {
+    if (selectedCategory.isEmpty || selectedCategory.toLowerCase().trim() == 'all') return true;
+
+    final target = selectedCategory.toLowerCase().trim();
+    final serviceCat = (data['serviceCategory'] ?? '').toString().toLowerCase().trim();
+
+    if (serviceCat.isNotEmpty) {
+      if (serviceCat == target) return true;
+      if (target.contains('car') && serviceCat.contains('car')) return true;
+      if (target.contains('clean') && serviceCat.contains('clean')) return true;
+      if (target.contains('laundry') && serviceCat.contains('laundry')) return true;
+      if (target.contains('ride') && (serviceCat.contains('ride') || serviceCat.contains('driver'))) return true;
+    }
+
+    final cats = data['serviceCategories'] ?? data['selectedServices'];
+    if (cats is List) {
+      for (var item in cats) {
+        final c = item.toString().toLowerCase().trim();
+        if (c == target) return true;
+        if (target.contains('car') && (c.contains('car') || c.contains('wash'))) return true;
+        if (target.contains('clean') && c.contains('clean')) return true;
+        if (target.contains('laundry') && c.contains('laundry')) return true;
+        if (target.contains('ride') && (c.contains('ride') || c.contains('driver'))) return true;
+      }
+    }
+
+    return false;
   }
 
   // Update washer location

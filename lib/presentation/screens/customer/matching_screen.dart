@@ -79,89 +79,150 @@ class _MatchingScreenState extends State<MatchingScreen> {
     });
   }
 
+  bool _isCategoryMatch(Map<String, dynamic> data, String selectedCategory) {
+    if (selectedCategory.isEmpty || selectedCategory.toLowerCase().trim() == 'all') return true;
+
+    final target = selectedCategory.toLowerCase().trim();
+    final serviceCat = (data['serviceCategory'] ?? '').toString().toLowerCase().trim();
+
+    if (serviceCat.isNotEmpty) {
+      if (serviceCat == target) return true;
+      if (target.contains('car') && serviceCat.contains('car')) return true;
+      if (target.contains('clean') && serviceCat.contains('clean')) return true;
+      if (target.contains('laundry') && serviceCat.contains('laundry')) return true;
+      if (target.contains('ride') && (serviceCat.contains('ride') || serviceCat.contains('driver'))) return true;
+    }
+
+    final cats = data['serviceCategories'] ?? data['selectedServices'];
+    if (cats is List) {
+      for (var item in cats) {
+        final c = item.toString().toLowerCase().trim();
+        if (c == target) return true;
+        if (target.contains('car') && (c.contains('car') || c.contains('wash'))) return true;
+        if (target.contains('clean') && c.contains('clean')) return true;
+        if (target.contains('laundry') && c.contains('laundry')) return true;
+        if (target.contains('ride') && (c.contains('ride') || c.contains('driver'))) return true;
+      }
+    }
+
+    return false;
+  }
+
   Future<void> _searchForWashers() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
+      List<Map<String, dynamic>> washers = [];
+      Set<String> processedIds = {};
+
+      // 1. Query washers collection
+      final washersSnapshot = await FirebaseFirestore.instance
           .collection('washers')
-          .where('isOnline', isEqualTo: true)
-          .where('approved', isEqualTo: true)
-          .limit(10)
           .get();
 
-      if (snapshot.docs.isNotEmpty) {
-        List<Map<String, dynamic>> washers = [];
+      for (var doc in washersSnapshot.docs) {
+        final data = doc.data();
 
-        for (var doc in snapshot.docs) {
-          final data = doc.data();
-          final userId = data['userId'] ?? doc.id;
-          
-          // Get user name
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .get();
-
-          String userName = 'Service Provider';
-          if (userDoc.exists) {
-            userName = userDoc.data()?['name'] ?? 'Service Provider';
-          }
-
-          // Get profile image
-          String? profileImage = data['profileImage'];
-          if (profileImage == null || profileImage.isEmpty) {
-            // Try to get from users collection
-            if (userDoc.exists) {
-              profileImage = userDoc.data()?['profileImage'];
-            }
-          }
-
-          // Cache the image
-          if (profileImage != null && profileImage.isNotEmpty) {
-            _providerImages[doc.id] = profileImage;
-          }
-
-          washers.add({
-            'id': doc.id,
-            'userId': userId,
-            'name': userName,
-            'phone': data['phone'] ?? '',
-            'vehicleType': data['vehicleType'] ?? 'Car',
-            'workingRadius': data['workingRadius'] ?? 10,
-            'rating': data['rating'] ?? 4.5,
-            'totalJobs': data['totalJobs'] ?? 0,
-            'totalEarnings': data['totalEarnings'] ?? 0,
-            'isOnline': data['isOnline'] ?? true,
-            'profileImage': profileImage,
-            'distance': _calculateDistance(data),
-            'eta': _calculateETA(data['workingRadius'] ?? 10),
-            'serviceCategories': data['serviceCategories'] ?? [],
-            'bio': data['bio'] ?? 'Professional service provider',
-          });
+        if (!_isCategoryMatch(data, widget.serviceCategory)) {
+          continue;
         }
 
-        // Sort by distance
-        washers.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
+        final userId = data['userId'] ?? doc.id;
+        processedIds.add(userId);
+        processedIds.add(doc.id);
 
-        setState(() {
-          _nearbyWashers = washers;
-          _isLoading = false;
-          _isSearching = false;
-        });
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
 
-        print('✅ Found ${washers.length} nearby providers');
-      } else {
-        // Demo providers if none in Firestore
-        setState(() {
-          _nearbyWashers = _getDemoProviders();
-          _isLoading = false;
-          _isSearching = false;
+        String userName = 'Service Provider';
+        if (userDoc.exists) {
+          userName = userDoc.data()?['name'] ?? userDoc.data()?['fullName'] ?? 'Service Provider';
+        } else if (data['name'] != null && data['name'].toString().isNotEmpty) {
+          userName = data['name'].toString();
+        }
+
+        String? profileImage = data['profileImage'];
+        if ((profileImage == null || profileImage.isEmpty) && userDoc.exists) {
+          profileImage = userDoc.data()?['profileImage'];
+        }
+
+        if (profileImage != null && profileImage.isNotEmpty) {
+          _providerImages[doc.id] = profileImage;
+        }
+
+        washers.add({
+          'id': doc.id,
+          'userId': userId,
+          'name': userName,
+          'phone': data['phone'] ?? (userDoc.exists ? (userDoc.data()?['phone'] ?? '') : ''),
+          'vehicleType': data['vehicleType'] ?? 'Car',
+          'workingRadius': data['workingRadius'] ?? 10,
+          'rating': data['rating'] ?? 4.8,
+          'totalJobs': data['totalJobs'] ?? 0,
+          'totalEarnings': data['totalEarnings'] ?? 0,
+          'isOnline': data['isOnline'] ?? true,
+          'profileImage': profileImage,
+          'distance': _calculateDistance(data),
+          'eta': _calculateETA(data['workingRadius'] ?? 10),
+          'serviceCategories': data['serviceCategories'] ?? [widget.serviceCategory],
+          'bio': data['bio'] ?? 'Professional ${widget.serviceCategory} provider',
         });
-        print('⚠️ No providers found in Firestore, using demo data');
       }
-    } catch (e) {
-      print('❌ Error searching for providers: $e');
+
+      // 2. Query users collection for registered provider users
+      final usersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', whereIn: ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider'])
+          .get();
+
+      for (var doc in usersSnapshot.docs) {
+        if (processedIds.contains(doc.id)) continue;
+        final data = doc.data();
+
+        if (!_isCategoryMatch(data, widget.serviceCategory)) {
+          continue;
+        }
+
+        final userName = data['name'] ?? data['fullName'] ?? 'Service Provider';
+        String? profileImage = data['profileImage'];
+
+        if (profileImage != null && profileImage.isNotEmpty) {
+          _providerImages[doc.id] = profileImage;
+        }
+
+        washers.add({
+          'id': doc.id,
+          'userId': doc.id,
+          'name': userName,
+          'phone': data['phone'] ?? '',
+          'vehicleType': data['vehicleType'] ?? 'Car',
+          'workingRadius': data['workingRadius'] ?? 10,
+          'rating': data['rating'] ?? 4.8,
+          'totalJobs': data['totalJobs'] ?? 0,
+          'totalEarnings': data['totalEarnings'] ?? 0,
+          'isOnline': data['isOnline'] ?? true,
+          'profileImage': profileImage,
+          'distance': _calculateDistance(data),
+          'eta': _calculateETA(data['workingRadius'] ?? 10),
+          'serviceCategories': data['serviceCategories'] ?? data['mainCategories'] ?? [widget.serviceCategory],
+          'bio': data['bio'] ?? 'Professional ${widget.serviceCategory} provider',
+        });
+      }
+
+      // Sort by distance
+      washers.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
+
       setState(() {
-        _nearbyWashers = _getDemoProviders();
+        _nearbyWashers = washers;
+        _isLoading = false;
+        _isSearching = false;
+      });
+
+      print('✅ Found ${washers.length} real Firestore providers for "${widget.serviceCategory}"');
+    } catch (e) {
+      print('❌ Error searching for real providers: $e');
+      setState(() {
+        _nearbyWashers = [];
         _isLoading = false;
         _isSearching = false;
       });
@@ -169,9 +230,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
   }
 
   double _calculateDistance(Map<String, dynamic> data) {
-    // Simulate distance based on working radius
     final radius = (data['workingRadius'] ?? 10) as int;
-    // Random distance between 0.3 and radius/2
     return (0.3 + (radius / 2) * (DateTime.now().millisecondsSinceEpoch % 100) / 100);
   }
 
@@ -180,67 +239,6 @@ class _MatchingScreenState extends State<MatchingScreen> {
     if (workingRadius < 10) return '5 mins';
     if (workingRadius < 15) return '8 mins';
     return '10 mins';
-  }
-
-  List<Map<String, dynamic>> _getDemoProviders() {
-    return [
-      {
-        'id': 'demo1',
-        'name': 'John Adebayo',
-        'rating': 4.8,
-        'vehicleType': 'Car',
-        'distance': 0.5,
-        'eta': '3 mins',
-        'isOnline': true,
-        'totalJobs': 150,
-        'totalEarnings': 450000,
-        'profileImage': null,
-        'bio': 'Professional car wash specialist with 5 years experience',
-        'serviceCategories': ['Car Wash', 'Detailing'],
-      },
-      {
-        'id': 'demo2',
-        'name': 'Mary Okonkwo',
-        'rating': 4.9,
-        'vehicleType': 'SUV',
-        'distance': 1.2,
-        'eta': '5 mins',
-        'isOnline': true,
-        'totalJobs': 200,
-        'totalEarnings': 600000,
-        'profileImage': null,
-        'bio': 'Expert in house cleaning and laundry services',
-        'serviceCategories': ['House Cleaning', 'Laundry'],
-      },
-      {
-        'id': 'demo3',
-        'name': 'Peter Eze',
-        'rating': 4.7,
-        'vehicleType': 'Van',
-        'distance': 2.0,
-        'eta': '8 mins',
-        'isOnline': true,
-        'totalJobs': 120,
-        'totalEarnings': 360000,
-        'profileImage': null,
-        'bio': 'Reliable ride service and car wash provider',
-        'serviceCategories': ['Ride Service', 'Car Wash'],
-      },
-      {
-        'id': 'demo4',
-        'name': 'Grace Daniel',
-        'rating': 4.6,
-        'vehicleType': 'Car',
-        'distance': 2.5,
-        'eta': '10 mins',
-        'isOnline': true,
-        'totalJobs': 80,
-        'totalEarnings': 240000,
-        'profileImage': null,
-        'bio': 'Specialized in laundry and dry cleaning',
-        'serviceCategories': ['Laundry', 'Dry Cleaning'],
-      },
-    ];
   }
 
   String _getInitials(String name) {

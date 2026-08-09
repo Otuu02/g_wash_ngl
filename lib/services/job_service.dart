@@ -45,15 +45,13 @@ class JobService extends ChangeNotifier {
         
         final distance = _calculateDistance(userLat, userLng, lat, lng);
         
-        if (distance <= radiusKm) {
-          providers.add({
-            'id': doc.id,
-            ...data,
-            'distance': distance,
-            'distanceDisplay': '${distance.toStringAsFixed(1)} km',
-            'eta': _calculateETA(distance, data['vehicleType'] ?? 'Motorcycle'),
-          });
-        }
+        providers.add({
+          'id': doc.id,
+          ...data,
+          'distance': distance,
+          'distanceDisplay': '${distance.toStringAsFixed(1)} km',
+          'eta': _calculateETA(distance, data['vehicleType'] ?? 'Motorcycle'),
+        });
       }
 
       if (providers.isEmpty) return null;
@@ -117,84 +115,31 @@ class JobService extends ChangeNotifier {
         }
       }
 
-      // If no providers found, provide fallback demo providers only in dev/debug mode
-      if (providers.isEmpty && (kDebugMode || Env.isDevelopment)) {
-        if (category == 'House Cleaning') {
-          providers = [
-            {
-              'id': 'provider_house_1',
-              'name': 'Grace Danjuma',
-              'phone': '+2348012345678',
-              'email': 'grace.danjuma@gwashng.com',
-              'rating': 4.9,
-              'vehicleType': 'Home Care Van',
-              'serviceCategory': 'House Cleaning',
-              'currentLat': (userLat ?? 6.5244) + 0.004,
-              'currentLng': (userLng ?? 3.3792) + 0.003,
-            },
-            {
-              'id': 'provider_house_2',
-              'name': 'Emmanuel Egbe',
-              'phone': '+2348023456789',
-              'email': 'emmanuel.egbe@gwashng.com',
-              'rating': 4.8,
-              'vehicleType': 'Cleaning Express',
-              'serviceCategory': 'House Cleaning',
-              'currentLat': (userLat ?? 6.5244) + 0.007,
-              'currentLng': (userLng ?? 3.3792) - 0.005,
-            },
-          ];
-        } else if (category == 'Laundry') {
-          providers = [
-            {
-              'id': 'provider_laundry_1',
-              'name': 'Fatima Bello',
-              'phone': '+2348034567890',
-              'email': 'fatima.bello@gwashng.com',
-              'rating': 4.9,
-              'vehicleType': 'Laundry Van',
-              'serviceCategory': 'Laundry',
-              'currentLat': (userLat ?? 6.5244) + 0.005,
-              'currentLng': (userLng ?? 3.3792) + 0.006,
-            },
-            {
-              'id': 'provider_laundry_2',
-              'name': 'Kenneth Obi',
-              'phone': '+2348045678901',
-              'email': 'kenneth.obi@gwashng.com',
-              'rating': 4.7,
-              'vehicleType': 'Motorcycle Express',
-              'serviceCategory': 'Laundry',
-              'currentLat': (userLat ?? 6.5244) - 0.006,
-              'currentLng': (userLng ?? 3.3792) + 0.004,
-            },
-          ];
-        } else {
-          // Default: Car Wash
-          providers = [
-            {
-              'id': 'provider_car_1',
-              'name': 'Samuel Okon',
-              'phone': '+2348012345678',
-              'email': 'samuel.okon@gwashng.com',
-              'rating': 4.9,
-              'vehicleType': 'Mobile Wash Rig',
-              'serviceCategory': 'Car Wash',
-              'currentLat': (userLat ?? 6.5244) + 0.005,
-              'currentLng': (userLng ?? 3.3792) + 0.005,
-            },
-            {
-              'id': 'provider_car_2',
-              'name': 'Blessing Adebayo',
-              'phone': '+2348023456789',
-              'email': 'blessing.adebayo@gwashng.com',
-              'rating': 4.8,
-              'vehicleType': 'Car Detailing Van',
-              'serviceCategory': 'Car Wash',
-              'currentLat': (userLat ?? 6.5244) + 0.008,
-              'currentLng': (userLng ?? 3.3792) - 0.006,
-            },
-          ];
+      // Also query users collection for provider roles if washers collection is empty
+      if (providers.isEmpty) {
+        final usersSnapshot = await _firestore
+            .collection('users')
+            .where('role', whereIn: ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider'])
+            .limit(limit)
+            .get();
+
+        for (var doc in usersSnapshot.docs) {
+          final data = doc.data();
+          final rawCategories = data['mainCategories'] ?? data['serviceCategories'] ?? data['selectedServices'] ?? [category];
+          final rawName = data['name'] ?? data['fullName'] ?? 'Service Provider';
+
+          providers.add({
+            'id': doc.id,
+            'userId': doc.id,
+            'name': rawName,
+            'phone': data['phone'] ?? '',
+            'email': data['email'] ?? '',
+            'rating': data['rating'] ?? 4.8,
+            'vehicleType': data['vehicleType'] ?? 'Motorcycle',
+            'serviceCategory': category,
+            'serviceCategories': rawCategories,
+            ...data,
+          });
         }
       }
 

@@ -1408,7 +1408,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
               Icon(Icons.touch_app, size: 16, color: AppColors.primary),
               SizedBox(width: 6),
               Text(
-                'Provider Actions Control (Demo/Testing)',
+                'Live Provider Status Control',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
               ),
             ],

@@ -244,7 +244,6 @@ class _WasherDashboardState extends State<WasherDashboard> {
     _jobsSubscription?.cancel();
     _jobsSubscription = FirebaseFirestore.instance
         .collection('jobs')
-        .where('washerId', isEqualTo: washerId)
         .snapshots()
         .listen((snapshot) {
       if (!mounted) return;
@@ -263,35 +262,47 @@ class _WasherDashboardState extends State<WasherDashboard> {
         final data = doc.data();
         final status = (data['status'] ?? '').toString().toLowerCase();
         final paymentStatus = (data['paymentStatus'] ?? '').toString().toLowerCase();
+        final jobWasherId = (data['washerId'] ?? '').toString();
         final price = (data['price'] ?? 0) as num;
         final washerShare = (data['providerShare'] != null && data['providerShare'] is num)
             ? (data['providerShare'] as num).round()
             : (price * 0.95).round(); // 95% washer share
 
-        // Check for incoming pending job request to prompt washer in real-time
-        if ((status == 'pending_acceptance' || (status == 'assigned' && data['acceptedAt'] == null)) && _isOnline) {
+        final isDirectForMe = (jobWasherId == washerId);
+        final isUnassignedBroadcast = (jobWasherId.isEmpty || jobWasherId == 'null' || jobWasherId == 'broadcast') &&
+            (status == 'searching' || status == 'pending' || status == 'pending_acceptance' || status == 'unassigned');
+
+        // ⚡ Pop instant request overlay:
+        // 1. Directly on the specific provider chosen by the client (isDirectForMe)
+        // 2. Broadcast to online providers if unassigned (isUnassignedBroadcast)
+        if ((isDirectForMe || isUnassignedBroadcast) &&
+            (status == 'pending_acceptance' || status == 'assigned' || status == 'searching' || status == 'pending' || status == 'unassigned') &&
+            data['acceptedAt'] == null) {
           pendingJobToPrompt = {'id': doc.id, ...data};
         }
 
-        // STRICT CHECK: Money only counts if paymentStatus is 'paid'
-        if ((status == 'completed' || status == 'paid') && paymentStatus == 'paid') {
-          totalJobs++;
-          totalEarnings += washerShare;
+        // Stats calculation for this washer
+        if (isDirectForMe) {
+          // STRICT CHECK: Money only counts if paymentStatus is 'paid'
+          if ((status == 'completed' || status == 'paid') && paymentStatus == 'paid') {
+            totalJobs++;
+            totalEarnings += washerShare;
 
-          DateTime? jobDate;
-          if (data['completedAt'] != null && data['completedAt'] is Timestamp) {
-            jobDate = (data['completedAt'] as Timestamp).toDate();
-          } else if (data['paidAt'] != null && data['paidAt'] is Timestamp) {
-            jobDate = (data['paidAt'] as Timestamp).toDate();
-          } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
-            jobDate = (data['createdAt'] as Timestamp).toDate();
-          }
+            DateTime? jobDate;
+            if (data['completedAt'] != null && data['completedAt'] is Timestamp) {
+              jobDate = (data['completedAt'] as Timestamp).toDate();
+            } else if (data['paidAt'] != null && data['paidAt'] is Timestamp) {
+              jobDate = (data['paidAt'] as Timestamp).toDate();
+            } else if (data['createdAt'] != null && data['createdAt'] is Timestamp) {
+              jobDate = (data['createdAt'] as Timestamp).toDate();
+            }
 
-          if (jobDate != null && jobDate.isAfter(todayStart)) {
-            todayEarnings += washerShare;
+            if (jobDate != null && jobDate.isAfter(todayStart)) {
+              todayEarnings += washerShare;
+            }
+          } else if (status == 'assigned' || status == 'pending' || status == 'in_progress' || status == 'accepted' || status == 'pending_acceptance') {
+            pendingJobs++;
           }
-        } else if (status == 'assigned' || status == 'pending' || status == 'in_progress' || status == 'accepted' || status == 'pending_acceptance') {
-          pendingJobs++;
         }
       }
 

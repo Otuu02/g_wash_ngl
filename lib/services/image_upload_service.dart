@@ -1,5 +1,6 @@
 // lib/services/image_upload_service.dart
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 

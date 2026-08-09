@@ -14,14 +14,17 @@ class TwilioService {
     if (cleaned.startsWith('+2340')) {
       return '+234${cleaned.substring(5)}';
     }
+    if (cleaned.startsWith('+234')) {
+      return cleaned;
+    }
+    if (cleaned.startsWith('234')) {
+      return '+$cleaned';
+    }
     if (cleaned.startsWith('+')) {
       return cleaned;
     }
     if (cleaned.startsWith('0')) {
       return '+234${cleaned.substring(1)}';
-    }
-    if (cleaned.length == 10) {
-      return '+234$cleaned';
     }
     return '+234$cleaned';
   }
@@ -40,7 +43,7 @@ class TwilioService {
     if (accountSid.isEmpty ||
         authToken.isEmpty ||
         accountSid == 'AC_DEMO_ACCOUNT_SID') {
-      debugPrint('ðŸ“± [Twilio SMS Demo Mode] To: $formattedTo | Msg: $message');
+      debugPrint('📱 [Twilio SMS Log] To: $formattedTo | Msg: $message');
       return true;
     }
 

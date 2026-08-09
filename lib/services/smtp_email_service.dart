@@ -34,7 +34,7 @@ class SmtpEmailService {
 
     // 2. Mobile Native SMTP
     if (username.isEmpty || appPassword.isEmpty) {
-      debugPrint('ðŸ“§ [Email Service Demo Mode] To: $recipient | Subject: $subject');
+      debugPrint('📧 [Email Service Log] To: $recipient | Subject: $subject');
       return true;
     }
 

@@ -1,4 +1,5 @@
 // lib/presentation/screens/customer/payment_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -130,13 +131,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
           _isProcessing = false;
         });
 
-        // Launch Real Paystack Gateway Checkout URL
-        final Uri url = Uri.parse(authUrl);
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-        }
+        // Launch Paystack Gateway in-app browser view
+        await _openPaystackUrl(authUrl);
 
-        // Show Paystack Verification Modal Dialog
+        // Show Paystack Real-Time Auto-Verification Dialog
         if (mounted) {
           _showPaystackVerificationDialog(
             reference: reference,
@@ -174,6 +172,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  Future<void> _openPaystackUrl(String authUrl) async {
+    final Uri url = Uri.parse(authUrl);
+    try {
+      if (await canLaunchUrl(url)) {
+        bool launched = await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+        if (!launched) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error launching Paystack URL: $e');
+      try {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+    }
+  }
+
   void _showPaystackVerificationDialog({
     required String reference,
     required String authUrl,
@@ -182,117 +197,160 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }) {
     bool isVerifying = false;
     String? verifyError;
+    Timer? pollTimer;
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setModalState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: const Row(
-              children: [
-                Icon(Icons.lock, color: AppColors.primary),
-                SizedBox(width: 8),
-                Text('Paystack Checkout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your Paystack secure checkout has launched for ₦${NumberFormat('#,###').format(widget.amount)}.',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Ref: $reference', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary)),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Complete your card/transfer payment on Paystack, then tap "Verify Payment" below.',
-                        style: TextStyle(fontSize: 12, color: Colors.black87),
-                      ),
-                    ],
-                  ),
-                ),
-                if (verifyError != null && verifyError!.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(verifyError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          // Auto-poll Paystack verification status in background
+          pollTimer ??= Timer.periodic(const Duration(seconds: 3), (timer) async {
+            if (isVerifying) return;
+            final paymentService = PaymentService();
+            final result = await paymentService.verifyPaystackTransaction(
+              reference: reference,
+              jobId: widget.jobId,
+              userId: userId,
+              userName: userName,
+              serviceName: widget.serviceName,
+              amount: widget.amount,
+              location: widget.location,
+              paymentMethod: _selectedPaymentMethod,
+            );
+
+            if (result['success'] == true) {
+              timer.cancel();
+              if (mounted) {
+                Navigator.of(dialogContext, rootNavigator: true).pop();
+                setState(() {
+                  _isProcessing = false;
+                });
+                _showPaymentSuccessDialog();
+              }
+            }
+          });
+
+          return WillPopScope(
+            onWillPop: () async {
+              pollTimer?.cancel();
+              return true;
+            },
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Row(
+                children: [
+                  Icon(Icons.lock, color: AppColors.primary),
+                  SizedBox(width: 8),
+                  Text('Paystack Checkout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Complete your payment of ₦${NumberFormat('#,###').format(widget.amount)} on the Paystack checkout screen.',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Ref: $reference', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary)),
+                        const SizedBox(height: 6),
+                        const Row(
+                          children: [
+                            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Auto-checking payment status in real-time...',
+                                style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (verifyError != null && verifyError!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(verifyError!, style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w500)),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    pollTimer?.cancel();
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                OutlinedButton(
+                  onPressed: () => _openPaystackUrl(authUrl),
+                  child: const Text('Re-open Paystack'),
+                ),
+                ElevatedButton(
+                  onPressed: isVerifying
+                      ? null
+                      : () async {
+                          setModalState(() {
+                            isVerifying = true;
+                            verifyError = null;
+                          });
+
+                          final paymentService = PaymentService();
+                          final result = await paymentService.verifyPaystackTransaction(
+                            reference: reference,
+                            jobId: widget.jobId,
+                            userId: userId,
+                            userName: userName,
+                            serviceName: widget.serviceName,
+                            amount: widget.amount,
+                            location: widget.location,
+                            paymentMethod: _selectedPaymentMethod,
+                          );
+
+                          if (result['success'] == true) {
+                            pollTimer?.cancel();
+                            if (mounted) {
+                              Navigator.of(dialogContext, rootNavigator: true).pop();
+                              setState(() {
+                                _isProcessing = false;
+                              });
+                              _showPaymentSuccessDialog();
+                            }
+                          } else {
+                            setModalState(() {
+                              isVerifying = false;
+                              verifyError = 'Payment not completed yet. Please finish paying on the Paystack screen or tap "Re-open Paystack".';
+                            });
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isVerifying
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('I Have Paid'),
+                ),
               ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-              ),
-              OutlinedButton(
-                onPressed: () async {
-                  final Uri url = Uri.parse(authUrl);
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                },
-                child: const Text('Re-open Checkout'),
-              ),
-              ElevatedButton(
-                onPressed: isVerifying
-                    ? null
-                    : () async {
-                        setModalState(() {
-                          isVerifying = true;
-                          verifyError = null;
-                        });
-
-                        final paymentService = PaymentService();
-                        final result = await paymentService.verifyPaystackTransaction(
-                          reference: reference,
-                          jobId: widget.jobId,
-                          userId: userId,
-                          userName: userName,
-                          serviceName: widget.serviceName,
-                          amount: widget.amount,
-                          location: widget.location,
-                          paymentMethod: _selectedPaymentMethod,
-                        );
-
-                        if (result['success'] == true) {
-                          Navigator.pop(context);
-                          setState(() {
-                            _isProcessing = false;
-                          });
-                          _showPaymentSuccessDialog();
-                        } else {
-                          setModalState(() {
-                            isVerifying = false;
-                            verifyError = (result['error'] ?? 'Payment verification failed.').toString();
-                          });
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: isVerifying
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Verify Payment'),
-              ),
-            ],
           );
         },
       ),
-    );
+    ).then((_) {
+      pollTimer?.cancel();
+    });
   }
 
   void _showPaymentSuccessDialog() {

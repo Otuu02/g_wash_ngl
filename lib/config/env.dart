@@ -54,68 +54,50 @@ class Env {
   static String get apiUrl => config['apiUrl'];
 
   // Paystack
-  static String get paystackPublicKey => const String.fromEnvironment(
-        'PAYSTACK_PUBLIC_KEY',
-        defaultValue: '',
-      );
-  static String get paystackSecretKey {
-    // 🔒 Secret key MUST come from --dart-define=PAYSTACK_SECRET_KEY=sk_live_...
-    // It is never stored in source code.
-    const fromEnv = String.fromEnvironment('PAYSTACK_SECRET_KEY');
-    return fromEnv;
-  }
+  static String get paystackPublicKey =>
+      const String.fromEnvironment('PAYSTACK_PUBLIC_KEY');
+
+  static String get paystackSecretKey =>
+      const String.fromEnvironment('PAYSTACK_SECRET_KEY');
 
   // Google Maps
-  static String get googleMapsApiKey => const String.fromEnvironment(
-        'GOOGLE_MAPS_API_KEY',
-        defaultValue: '',
-      );
+  static String get googleMapsApiKey =>
+      const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
 
   // Cloudinary
-  static String get cloudinaryCloudName => const String.fromEnvironment(
-        'CLOUDINARY_CLOUD_NAME',
-        defaultValue: '',
-      );
-  static String get cloudinaryApiKey => const String.fromEnvironment(
-        'CLOUDINARY_API_KEY',
-        defaultValue: '',
-      );
-  static String get cloudinaryApiSecret => const String.fromEnvironment(
-        'CLOUDINARY_API_SECRET',
-        defaultValue: '',
-      );
+  static String get cloudinaryCloudName =>
+      const String.fromEnvironment('CLOUDINARY_CLOUD_NAME');
+
+  static String get cloudinaryApiKey =>
+      const String.fromEnvironment('CLOUDINARY_API_KEY');
+
+  static String get cloudinaryApiSecret =>
+      const String.fromEnvironment('CLOUDINARY_API_SECRET');
 
   // Twilio SMS
-  static String get twilioAccountSid => const String.fromEnvironment(
-        'TWILIO_ACCOUNT_SID',
-        defaultValue: '',
-      );
-  static String get twilioAuthToken => const String.fromEnvironment(
-        'TWILIO_AUTH_TOKEN',
-        defaultValue: '',
-      );
-  static String get twilioPhoneNumber => const String.fromEnvironment(
-        'TWILIO_PHONE_NUMBER',
-        defaultValue: '',
-      );
+  static String get twilioAccountSid =>
+      const String.fromEnvironment('TWILIO_ACCOUNT_SID');
+
+  static String get twilioAuthToken =>
+      const String.fromEnvironment('TWILIO_AUTH_TOKEN');
+
+  static String get twilioPhoneNumber =>
+      const String.fromEnvironment('TWILIO_PHONE_NUMBER');
 
   // Gmail SMTP
-  static String get gmailUser => const String.fromEnvironment(
-        'GMAIL_USER',
-        defaultValue: '',
-      );
-  static String get gmailAppPassword => const String.fromEnvironment(
-        'GMAIL_APP_PASSWORD',
-        defaultValue: '',
-      );
-  static String get smtpHost => const String.fromEnvironment(
-        'SMTP_HOST',
-        defaultValue: 'smtp.gmail.com',
-      );
-  static int get smtpPort => const int.fromEnvironment(
-        'SMTP_PORT',
-        defaultValue: 587,
-      );
+  static String get gmailUser =>
+      const String.fromEnvironment('GMAIL_USER');
+
+  static String get gmailAppPassword =>
+      const String.fromEnvironment('GMAIL_APP_PASSWORD');
+
+  static String get smtpHost {
+    const val = String.fromEnvironment('SMTP_HOST');
+    return val.isNotEmpty ? val : 'smtp.gmail.com';
+  }
+
+  static int get smtpPort =>
+      const int.fromEnvironment('SMTP_PORT', defaultValue: 587);
 
   // Feature flags from environment config
   static bool get enableLogging => config['enableLogging'];

@@ -128,60 +128,56 @@ class _MatchingScreenState extends State<MatchingScreen> {
 
         washers.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
 
-        setState(() {
-          _nearbyWashers = washers;
-          _isLoading = false;
-          _isSearching = false;
-        });
-      } else {
-        // Fallback demo providers so user can always test map tracking
-        _useDemoWashers();
+        if (washers.isNotEmpty) {
+          setState(() {
+            _nearbyWashers = washers;
+            _isLoading = false;
+            _isSearching = false;
+          });
+          return;
+        }
       }
+
+      // Query users collection for registered provider users
+      final usersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', whereIn: ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider'])
+          .get();
+
+      List<Map<String, dynamic>> userProviders = [];
+      for (var doc in usersSnapshot.docs) {
+        final data = doc.data();
+        userProviders.add({
+          'id': doc.id,
+          'userId': doc.id,
+          'name': data['name'] ?? data['fullName'] ?? 'Service Provider',
+          'phone': data['phone'] ?? '',
+          'vehicleType': data['vehicleType'] ?? 'Car',
+          'workingRadius': data['workingRadius'] ?? 10,
+          'rating': data['rating'] ?? 4.8,
+          'totalJobs': data['totalJobs'] ?? 0,
+          'totalEarnings': data['totalEarnings'] ?? 0,
+          'isOnline': true,
+          'profileImage': data['profileImage'],
+          'distance': _calculateDistance(data),
+          'eta': _calculateETA(data['workingRadius'] ?? 10),
+          'bio': data['bio'] ?? 'Professional service provider',
+        });
+      }
+
+      setState(() {
+        _nearbyWashers = userProviders;
+        _isLoading = false;
+        _isSearching = false;
+      });
     } catch (e) {
       print('❌ Error searching for providers: $e');
-      _useDemoWashers();
+      setState(() {
+        _nearbyWashers = [];
+        _isLoading = false;
+        _isSearching = false;
+      });
     }
-  }
-
-  void _useDemoWashers() {
-    List<Map<String, dynamic>> demoWashers = [
-      {
-        'id': 'demo_washer_chidi',
-        'userId': 'usr_demo_chidi',
-        'name': 'Chidi Express Detailer',
-        'phone': '+2348087654321',
-        'vehicleType': 'Mobile Van',
-        'workingRadius': 5,
-        'rating': 4.9,
-        'totalJobs': 128,
-        'totalEarnings': 220000,
-        'isOnline': true,
-        'distance': 1.2,
-        'eta': '4 mins',
-        'bio': 'Top rated mobile car wash & detailing specialist',
-      },
-      {
-        'id': 'demo_washer_emeka',
-        'userId': 'usr_demo_emeka',
-        'name': 'Emeka Clean & Shine',
-        'phone': '+2348076543210',
-        'vehicleType': 'Motorcycle',
-        'workingRadius': 8,
-        'rating': 4.8,
-        'totalJobs': 94,
-        'totalEarnings': 175000,
-        'isOnline': true,
-        'distance': 2.4,
-        'eta': '7 mins',
-        'bio': 'Fast on-demand house cleaning & laundry expert',
-      },
-    ];
-
-    setState(() {
-      _nearbyWashers = demoWashers;
-      _isLoading = false;
-      _isSearching = false;
-    });
   }
 
   double _calculateDistance(Map<String, dynamic> data) {
