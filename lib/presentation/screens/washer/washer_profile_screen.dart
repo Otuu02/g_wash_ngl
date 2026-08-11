@@ -12,6 +12,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/cloudinary_service.dart';
 import '../welcome_screen.dart';
+import 'washer_job_history_screen.dart';
+import '../customer/help_support_screen.dart';
 
 class WasherProfileScreen extends StatefulWidget {
   final String? washerId;
@@ -90,7 +92,7 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
       final photoUrl = await cloudinaryService.uploadImage(imageFile: image, folder: 'washer_profiles');
 
       if (photoUrl != null && photoUrl.isNotEmpty) {
-        await authService.updateProfilePicture(photoUrl);
+        await authService.updateWasherProfilePicture(photoUrl);
         setState(() {
           _profileImageUrl = photoUrl;
         });
@@ -184,18 +186,18 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
           return;
         }
 
-        final query = await FirebaseFirestore.instance
-            .collection('washers')
-            .where('userId', isEqualTo: userId)
-            .limit(1)
-            .get();
+        final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+        final userData = userDoc.exists ? userDoc.data() : null;
+        final authPhoto = authService.photoURL;
 
         if (query.docs.isNotEmpty) {
           final doc = query.docs.first;
           _washerId = doc.id;
+          final data = doc.data();
+          final imgUrl = (data['profileImage'] ?? data['photoURL'] ?? data['profilePicture'] ?? userData?['photoURL'] ?? userData?['profilePicture'] ?? userData?['profileImage'] ?? authPhoto ?? '').toString();
           setState(() {
-            _washerData = doc.data();
-            _profileImageUrl = doc.data()['profileImage'] ?? '';
+            _washerData = data;
+            _profileImageUrl = imgUrl;
             _isLoading = false;
           });
         } else {
@@ -210,9 +212,17 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
 
         if (doc.exists) {
           _washerId = doc.id;
+          final data = doc.data()!;
+          final uId = (data['userId'] ?? '').toString();
+          DocumentSnapshot<Map<String, dynamic>>? userDoc;
+          if (uId.isNotEmpty) {
+            userDoc = await FirebaseFirestore.instance.collection('users').doc(uId).get();
+          }
+          final userData = userDoc != null && userDoc.exists ? userDoc.data() : null;
+          final imgUrl = (data['profileImage'] ?? data['photoURL'] ?? data['profilePicture'] ?? userData?['photoURL'] ?? userData?['profilePicture'] ?? userData?['profileImage'] ?? '').toString();
           setState(() {
-            _washerData = doc.data()!;
-            _profileImageUrl = doc.data()!['profileImage'] ?? '';
+            _washerData = data;
+            _profileImageUrl = imgUrl;
             _isLoading = false;
           });
         } else {
@@ -779,8 +789,11 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 title: 'Job History',
                 subtitle: 'View all completed jobs',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Job history coming soon')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => WasherJobHistoryScreen(washerId: _washerId),
+                    ),
                   );
                 },
               ),
@@ -791,8 +804,11 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 title: 'Help & Support',
                 subtitle: 'Get help or contact support',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Help & Support coming soon')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HelpSupportScreen(),
+                    ),
                   );
                 },
               ),

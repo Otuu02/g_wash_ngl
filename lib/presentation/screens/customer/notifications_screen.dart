@@ -3,9 +3,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/helpers.dart';
 import '../../../services/app_notification_service.dart';
+import '../../../services/auth_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -32,9 +34,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _notificationService.addListener(_onNotificationChanged);
-    
-    // ✅ REMOVED: Test notifications - only show real notifications
-    // Notifications are now only added when real events happen
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final uid = authService.userId;
+    if (uid != null && uid.isNotEmpty) {
+      _notificationService.setActiveUser(uid);
+    }
   }
 
   @override

@@ -115,12 +115,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
       }
 
       // 💳 REAL PAYSTACK GATEWAY (Card, Bank Transfer, USSD, QR Code)
+      List<String>? selectedChannels;
+      if (_selectedPaymentMethod == 'bank_transfer') {
+        selectedChannels = ['bank_transfer', 'bank'];
+      } else if (_selectedPaymentMethod == 'card') {
+        selectedChannels = ['card'];
+      } else if (_selectedPaymentMethod == 'ussd') {
+        selectedChannels = ['ussd'];
+      } else if (_selectedPaymentMethod == 'qr') {
+        selectedChannels = ['qr'];
+      }
+
       final initResult = await paymentService.initializePaystackTransaction(
         email: userEmail,
         amount: widget.amount,
         jobId: widget.jobId,
         userId: userId,
         serviceName: widget.serviceName,
+        channels: selectedChannels,
       );
 
       if (initResult['success'] == true && initResult['authorization_url'] != null) {
@@ -250,7 +262,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Complete your payment of ₦${NumberFormat('#,###').format(widget.amount)} on the Paystack checkout screen.',
+                    _selectedPaymentMethod == 'bank_transfer'
+                        ? 'Paystack has generated a Virtual Account for your transfer of ₦${NumberFormat('#,###').format(widget.amount)}. Finish the transfer on the Paystack page.'
+                        : 'Complete your payment of ₦${NumberFormat('#,###').format(widget.amount)} on the Paystack checkout screen.',
                     style: const TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 12),
@@ -263,7 +277,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Ref: $reference', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text('Ref: $reference', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary)),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy, size: 16, color: AppColors.primary),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: reference));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Payment reference copied!'), duration: Duration(seconds: 2)),
+                                );
+                              },
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 6),
                         const Row(
                           children: [

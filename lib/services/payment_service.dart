@@ -25,13 +25,30 @@ class PaymentService {
     required String jobId,
     required String userId,
     required String serviceName,
+    List<String>? channels,
   }) async {
     final reference = 'GWASH-${DateTime.now().millisecondsSinceEpoch}';
     final int amountInKobo = amount * 100;
 
     try {
       final String paystackSecretKey = Env.paystackSecretKey;
-      debugPrint('ðŸ’³ Initializing Live Paystack Transaction for $email (Ref: $reference)');
+      debugPrint('💳 Initializing Live Paystack Transaction for $email (Ref: $reference)');
+
+      final Map<String, dynamic> bodyPayload = {
+        'email': email.isNotEmpty ? email : 'customer@gwashng.com',
+        'amount': amountInKobo,
+        'reference': reference,
+        'callback_url': 'https://standard.paystack.co/close',
+        'metadata': {
+          'jobId': jobId,
+          'userId': userId,
+          'serviceName': serviceName,
+        }
+      };
+
+      if (channels != null && channels.isNotEmpty) {
+        bodyPayload['channels'] = channels;
+      }
 
       final response = await http.post(
         Uri.parse('https://api.paystack.co/transaction/initialize'),
@@ -39,24 +56,14 @@ class PaymentService {
           'Authorization': 'Bearer $paystackSecretKey',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'email': email.isNotEmpty ? email : 'customer@gwashng.com',
-          'amount': amountInKobo,
-          'reference': reference,
-          'callback_url': 'https://standard.paystack.co/close',
-          'metadata': {
-            'jobId': jobId,
-            'userId': userId,
-            'serviceName': serviceName,
-          }
-        }),
+        body: jsonEncode(bodyPayload),
       );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['status'] == true && data['data'] != null) {
         final authUrl = data['data']['authorization_url'];
         final accessCode = data['data']['access_code'];
-        debugPrint('âœ… Paystack Live Checkout URL generated: $authUrl');
+        debugPrint('✅ Paystack Live Checkout URL generated: $authUrl');
         return {
           'success': true,
           'authorization_url': authUrl,
@@ -66,13 +73,13 @@ class PaymentService {
       }
 
       final errMsg = data['message'] ?? 'Failed to initialize Paystack transaction';
-      debugPrint('âŒ Paystack Initialize Failed: $errMsg');
+      debugPrint('❌ Paystack Initialize Failed: $errMsg');
       return {
         'success': false,
         'error': errMsg,
       };
     } catch (e) {
-      debugPrint('âŒ Paystack Initialization Error: $e');
+      debugPrint('❌ Paystack Initialization Error: $e');
       return {
         'success': false,
         'error': e.toString().replaceAll('Exception: ', ''),

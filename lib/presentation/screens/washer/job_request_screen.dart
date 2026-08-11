@@ -167,24 +167,30 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
               return bTime.compareTo(aTime);
             });
 
-            // Pending Jobs: matching washerId OR unassigned/searching status
+            // Pending Jobs: matching washerId OR unassigned/searching broadcast
             final pendingJobs = allJobs.where((j) {
               final status = (j['status'] ?? '').toString().toLowerCase();
-              final jWasherId = (j['washerId'] ?? '').toString();
+              final jWasherId = (j['washerId'] ?? j['assignedWasherId'] ?? '').toString();
               
-              final isTargetWasher = washerId.isNotEmpty && (jWasherId == washerId);
-              final isUnassignedPending = (jWasherId.isEmpty || status == 'searching' || status == 'pending') &&
-                  (status == 'pending' || status == 'searching' || status == 'assigned');
+              final isDirectForMe = washerId.isNotEmpty && (jWasherId == washerId);
+              final isUnassignedBroadcast = (jWasherId.isEmpty || jWasherId == 'null' || jWasherId == 'broadcast') &&
+                  (status == 'searching' || status == 'pending' || status == 'unassigned');
 
-              return isTargetWasher && status == 'assigned' || isUnassignedPending;
+              if (isDirectForMe && (status == 'assigned' || status == 'pending' || status == 'pending_acceptance' || status == 'searching')) {
+                return true;
+              }
+              if (isUnassignedBroadcast) {
+                return true;
+              }
+              return false;
             }).toList();
 
-            // Active Jobs: assigned to current washer & active status
+            // Active Jobs: strictly assigned to current washer & active status
             final activeJobs = allJobs.where((j) {
               final status = (j['status'] ?? '').toString().toLowerCase();
-              final jWasherId = (j['washerId'] ?? '').toString();
+              final jWasherId = (j['washerId'] ?? j['assignedWasherId'] ?? '').toString();
               
-              final isMyJob = washerId.isEmpty || jWasherId == washerId;
+              final isMyJob = washerId.isNotEmpty && (jWasherId == washerId);
               final isActiveStatus = status == 'accepted' || status == 'enroute' || status == 'in_progress' || status == 'arrived';
 
               return isMyJob && isActiveStatus;

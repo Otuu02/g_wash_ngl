@@ -150,11 +150,16 @@ class _MatchingScreenState extends State<MatchingScreen> {
           _providerImages[doc.id] = profileImage;
         }
 
+        final washerPrice = _extractWasherPrice(data, widget.serviceName);
+        final washerEmail = data['email'] ?? (userDoc.exists ? (userDoc.data()?['email'] ?? '') : '');
+
         washers.add({
           'id': doc.id,
           'userId': userId,
           'name': userName,
           'phone': data['phone'] ?? (userDoc.exists ? (userDoc.data()?['phone'] ?? '') : ''),
+          'email': washerEmail,
+          'price': washerPrice,
           'vehicleType': data['vehicleType'] ?? 'Car',
           'workingRadius': data['workingRadius'] ?? 10,
           'rating': data['rating'] ?? 4.8,
@@ -190,11 +195,15 @@ class _MatchingScreenState extends State<MatchingScreen> {
           _providerImages[doc.id] = profileImage;
         }
 
+        final washerPrice = _extractWasherPrice(data, widget.serviceName);
+
         washers.add({
           'id': doc.id,
           'userId': doc.id,
           'name': userName,
           'phone': data['phone'] ?? '',
+          'email': data['email'] ?? '',
+          'price': washerPrice,
           'vehicleType': data['vehicleType'] ?? 'Car',
           'workingRadius': data['workingRadius'] ?? 10,
           'rating': data['rating'] ?? 4.8,
@@ -229,6 +238,28 @@ class _MatchingScreenState extends State<MatchingScreen> {
     }
   }
 
+  int? _extractWasherPrice(Map<String, dynamic> data, String serviceName) {
+    final Map<dynamic, dynamic>? subPrices = data['subServicePrices'] ?? data['servicePrices'] ?? data['prices'];
+    if (subPrices != null && subPrices.isNotEmpty) {
+      final sNameLower = serviceName.trim().toLowerCase().replaceAll(' ', '_');
+      for (var entry in subPrices.entries) {
+        final keyLower = entry.key.toString().trim().toLowerCase();
+        if (keyLower.endsWith(sNameLower) || keyLower.contains(sNameLower) || sNameLower.contains(keyLower)) {
+          final valStr = entry.value.toString().replaceAll(RegExp(r'[^0-9]'), '');
+          final parsed = int.tryParse(valStr);
+          if (parsed != null && parsed > 0) return parsed;
+        }
+      }
+    }
+    if (data['price'] != null && data['price'] is num && (data['price'] as num) > 0) {
+      return (data['price'] as num).toInt();
+    }
+    if (data['servicePrice'] != null && data['servicePrice'] is num && (data['servicePrice'] as num) > 0) {
+      return (data['servicePrice'] as num).toInt();
+    }
+    return null;
+  }
+
   double _calculateDistance(Map<String, dynamic> data) {
     final radius = (data['workingRadius'] ?? 10) as int;
     return (0.3 + (radius / 2) * (DateTime.now().millisecondsSinceEpoch % 100) / 100);
@@ -252,7 +283,10 @@ class _MatchingScreenState extends State<MatchingScreen> {
     if (provider['price'] != null && provider['price'] is num && (provider['price'] as num) > 0) {
       return (provider['price'] as num).toInt();
     }
-    // Rate per service type
+    if (widget.price != null && widget.price! > 0) {
+      return widget.price!;
+    }
+    // Rate per service type fallback
     switch (widget.serviceName) {
       case 'Standard Ride': return 2500;
       case 'SUV Ride': return 4000;
@@ -307,9 +341,10 @@ class _MatchingScreenState extends State<MatchingScreen> {
           longitude: widget.longitude ?? 3.3792,
           scheduledDate: widget.scheduledDate ?? DateTime.now(),
           scheduledTime: widget.scheduledTime ?? '9:00 AM',
-          assignedWasherId: provider['id'],
+          assignedWasherId: provider['userId'] ?? provider['id'],
           assignedWasherName: provider['name'],
           providerPhone: provider['phone'] ?? '',
+          providerEmail: provider['email'] ?? '',
         );
         createdJobId = result['id'];
       }
@@ -320,8 +355,12 @@ class _MatchingScreenState extends State<MatchingScreen> {
           .doc(createdJobId)
           .update({
         'status': 'pending_acceptance',
-        'washerId': provider['id'],
+        'washerId': provider['userId'] ?? provider['id'],
+        'washerDocId': provider['id'],
+        'assignedWasherId': provider['userId'] ?? provider['id'],
         'washerName': provider['name'],
+        'washerPhone': provider['phone'] ?? '',
+        'washerEmail': provider['email'] ?? '',
         'price': finalPrice,
       });
 

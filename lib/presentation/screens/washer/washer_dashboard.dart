@@ -63,6 +63,71 @@ class _WasherDashboardState extends State<WasherDashboard> {
     },
   };
 
+  List<Map<String, dynamic>> _parseServices(Map<String, dynamic> data) {
+    final List<String> rawList = [];
+
+    if (data['selectedMainCategories'] is List) {
+      rawList.addAll(List<String>.from(data['selectedMainCategories']));
+    }
+    if (data['mainCategoryNames'] is List) {
+      rawList.addAll(List<String>.from(data['mainCategoryNames']));
+    }
+    if (data['serviceCategories'] is List) {
+      rawList.addAll(List<String>.from(data['serviceCategories']));
+    }
+    if (data['selectedServices'] is List) {
+      rawList.addAll(List<String>.from(data['selectedServices']));
+    }
+    if (data['serviceCategory'] != null && data['serviceCategory'].toString().isNotEmpty) {
+      rawList.add(data['serviceCategory'].toString());
+    }
+
+    final Set<String> uniqueCategories = rawList.toSet();
+    final List<Map<String, dynamic>> services = [];
+
+    for (var cat in uniqueCategories) {
+      final normalized = _normalizeCategoryName(cat);
+      if (normalized != null && _serviceDetails.containsKey(normalized)) {
+        if (!services.any((s) => s['name'] == normalized)) {
+          services.add({
+            'name': normalized,
+            'icon': _serviceDetails[normalized]!['icon'],
+            'color': _serviceDetails[normalized]!['color'],
+            'bgColor': _serviceDetails[normalized]!['bgColor'],
+          });
+        }
+      }
+    }
+
+    if (services.isEmpty) {
+      services.add({
+        'name': 'Car Wash',
+        'icon': Icons.local_car_wash,
+        'color': const Color(0xFF0CAF60),
+        'bgColor': const Color(0xFF0CAF60).withOpacity(0.1),
+      });
+    }
+
+    return services;
+  }
+
+  String? _normalizeCategoryName(String cat) {
+    final lower = cat.trim().toLowerCase();
+    if (lower == 'car_wash' || lower == 'car wash' || lower == 'car washer') {
+      return 'Car Wash';
+    }
+    if (lower == 'house_cleaning' || lower == 'house cleaning' || lower == 'house cleaner') {
+      return 'House Cleaning';
+    }
+    if (lower == 'laundry' || lower == 'laundry service' || lower == 'laundry_service') {
+      return 'Laundry';
+    }
+    if (lower == 'ride_service' || lower == 'ride service' || lower == 'ride_sharing' || lower == 'ride sharing') {
+      return 'Ride Service';
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -153,34 +218,14 @@ class _WasherDashboardState extends State<WasherDashboard> {
       _washerId = doc.id;
       _washerData = data;
       
-      List<String> serviceCategories = List<String>.from(
-        data['serviceCategories'] ?? (data['serviceCategory'] != null ? [data['serviceCategory']] : ['Car Wash']),
-      );
-      List<Map<String, dynamic>> services = [];
-      for (var category in serviceCategories) {
-        if (_serviceDetails.containsKey(category)) {
-          services.add({
-            'name': category,
-            'icon': _serviceDetails[category]!['icon'],
-            'color': _serviceDetails[category]!['color'],
-            'bgColor': _serviceDetails[category]!['bgColor'],
-          });
-        }
-      }
+      List<Map<String, dynamic>> services = _parseServices(data);
       
       setState(() {
         _hasApplied = true;
         _isApproved = data['approved'] ?? true; // Default to true if record exists
         _washerStatus = _isApproved ? 'approved' : 'pending';
         _isOnline = data['isOnline'] ?? true;
-        _selectedServices = services.isNotEmpty ? services : [
-          {
-            'name': 'Car Wash',
-            'icon': Icons.local_car_wash,
-            'color': const Color(0xFF0CAF60),
-            'bgColor': const Color(0xFF0CAF60).withOpacity(0.1),
-          }
-        ];
+        _selectedServices = services;
         _washerStats = {
           'todayEarnings': data['todayEarnings'] ?? 0,
           'totalJobs': data['totalJobs'] ?? 0,
@@ -191,7 +236,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
         _isLoading = false;
       });
 
-      print('✅ Washer data loaded: $_washerId');
+      print('✅ Washer data loaded: $_washerId with ${_selectedServices.length} services');
 
       // Listen to real-time washer doc updates
       FirebaseFirestore.instance
@@ -203,20 +248,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
           final newData = snapshot.data()!;
           _washerData = newData;
           
-          List<String> newCategories = List<String>.from(
-            newData['serviceCategories'] ?? (newData['serviceCategory'] != null ? [newData['serviceCategory']] : ['Car Wash']),
-          );
-          List<Map<String, dynamic>> newServices = [];
-          for (var category in newCategories) {
-            if (_serviceDetails.containsKey(category)) {
-              newServices.add({
-                'name': category,
-                'icon': _serviceDetails[category]!['icon'],
-                'color': _serviceDetails[category]!['color'],
-                'bgColor': _serviceDetails[category]!['bgColor'],
-              });
-            }
-          }
+          List<Map<String, dynamic>> newServices = _parseServices(newData);
           
           setState(() {
             _isOnline = newData['isOnline'] ?? false;
@@ -262,13 +294,19 @@ class _WasherDashboardState extends State<WasherDashboard> {
         final data = doc.data();
         final status = (data['status'] ?? '').toString().toLowerCase();
         final paymentStatus = (data['paymentStatus'] ?? '').toString().toLowerCase();
-        final jobWasherId = (data['washerId'] ?? '').toString();
+        final jobWasherId = (data['washerId'] ?? data['assignedWasherId'] ?? '').toString();
+        final jobWasherDocId = (data['washerDocId'] ?? '').toString();
         final price = (data['price'] ?? 0) as num;
         final washerShare = (data['providerShare'] != null && data['providerShare'] is num)
             ? (data['providerShare'] as num).round()
             : (price * 0.95).round(); // 95% washer share
 
-        final isDirectForMe = (jobWasherId == washerId);
+        final authService = Provider.of<AuthService>(context, listen: false);
+        final currentUserId = authService.userId ?? '';
+
+        final isDirectForMe = (washerId.isNotEmpty && (jobWasherId == washerId || jobWasherDocId == washerId)) ||
+            (currentUserId.isNotEmpty && (jobWasherId == currentUserId || jobWasherDocId == currentUserId));
+
         final isUnassignedBroadcast = (jobWasherId.isEmpty || jobWasherId == 'null' || jobWasherId == 'broadcast') &&
             (status == 'searching' || status == 'pending' || status == 'pending_acceptance' || status == 'unassigned');
 

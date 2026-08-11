@@ -189,30 +189,57 @@ class AuthService extends ChangeNotifier {
   // Update Profile Picture (Cloudinary)
   // ============================================================
   Future<void> updateProfilePicture(String photoUrl) async {
+    await updateCustomerProfilePicture(photoUrl);
+  }
+
+  Future<void> updateCustomerProfilePicture(String photoUrl) async {
     _photoURL = photoUrl;
     final uid = _userId;
     if (uid != null && uid.isNotEmpty) {
       try {
         await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'customerPhotoURL': photoUrl,
           'photoURL': photoUrl,
-          'profilePicture': photoUrl,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-
-        if (isServiceProvider) {
-          await FirebaseFirestore.instance.collection('washers').doc(uid).set({
-            'photoURL': photoUrl,
-            'profilePicture': photoUrl,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-        debugPrint('âœ… Profile photo updated in Firestore: $photoUrl');
+        debugPrint('✅ Customer profile photo updated: $photoUrl');
       } catch (e) {
-        debugPrint('âŒ Error updating profile photo in Firestore: $e');
+        debugPrint('❌ Error updating customer photo: $e');
       }
     }
     await _saveUserState();
     notifyListeners();
+  }
+
+  Future<void> updateWasherProfilePicture(String photoUrl) async {
+    final uid = _userId;
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        final updatePayload = {
+          'profileImage': photoUrl,
+          'washerPhotoURL': photoUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        await FirebaseFirestore.instance
+            .collection('washers')
+            .doc(uid)
+            .set(updatePayload, SetOptions(merge: true));
+
+        final washerQuery = await FirebaseFirestore.instance
+            .collection('washers')
+            .where('userId', isEqualTo: uid)
+            .get();
+
+        for (var doc in washerQuery.docs) {
+          await doc.reference.set(updatePayload, SetOptions(merge: true));
+        }
+
+        debugPrint('✅ Washer profile photo updated in washers collection: $photoUrl');
+      } catch (e) {
+        debugPrint('❌ Error updating washer profile photo: $e');
+      }
+    }
   }
 
   // ============================================================

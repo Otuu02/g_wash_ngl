@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../services/cloudinary_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/communication_service.dart';
 import '../../../services/validation_service.dart';
@@ -33,7 +34,75 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   final _accountNameController = TextEditingController();
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
-  final _ninController = TextEditingController(); // ✅ NEW: NIN field
+  final _ninController = TextEditingController();
+  final _idNumberController = TextEditingController();
+
+  // Profile Photo & Means of Identification state
+  File? _profileImageFile;
+  File? _idDocumentFile;
+  String _selectedIdType = "National Identity Number (NIN)";
+  final List<String> _idTypes = [
+    "National Identity Number (NIN)",
+    "Driver's License",
+    "International Passport",
+    "Voter's Card (VNC / PVC)",
+  ];
+
+  Future<void> _pickImage(ImageSource source, bool isProfilePhoto) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, imageQuality: 80);
+      if (picked != null) {
+        setState(() {
+          if (isProfilePhoto) {
+            _profileImageFile = File(picked.path);
+          } else {
+            _idDocumentFile = File(picked.path);
+          }
+        });
+      }
+    } catch (e) {
+      _showError('Failed to select image: $e');
+    }
+  }
+
+  void _showImagePickerModal(bool isProfilePhoto) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isProfilePhoto ? 'Select Profile Picture' : 'Select ID Document Image',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.primary),
+              title: const Text('Take Photo with Camera'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera, isProfilePhoto);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: AppColors.primary),
+              title: const Text('Choose from Gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery, isProfilePhoto);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   
   // ============================================================
   // Service Price Controllers
@@ -70,12 +139,12 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
   ];
 
   final List<Map<String, dynamic>> _laundrySubServices = [
-    {'id': 'wash_fold', 'name': 'Wash & Fold', 'duration': '24 hours', 'icon': Icons.local_laundry_service, 'weight': 'Up to 5kg'},
-    {'id': 'wash_iron', 'name': 'Wash & Iron', 'duration': '24 hours', 'icon': Icons.iron, 'weight': 'Up to 5kg'},
-    {'id': 'dry_cleaning', 'name': 'Dry Cleaning', 'duration': '48 hours', 'icon': Icons.dry, 'items': 'Up to 3 items'},
-    {'id': 'ironing_only', 'name': 'Ironing Only', 'duration': '12 hours', 'icon': Icons.iron, 'weight': 'Up to 3kg'},
-    {'id': 'bulk_laundry', 'name': 'Bulk Laundry', 'duration': '48 hours', 'icon': Icons.local_laundry_service, 'weight': '15-20kg'},
-    {'id': 'curtain_cleaning', 'name': 'Curtain Cleaning', 'duration': '72 hours', 'icon': Icons.curtains, 'items': 'Per set'},
+    {'id': 'wash_fold', 'name': 'Wash & Fold', 'duration': '24 hours', 'icon': Icons.local_laundry_service, 'clothes': '1-10 clothes (Up to 5kg)'},
+    {'id': 'wash_iron', 'name': 'Wash & Iron', 'duration': '24 hours', 'icon': Icons.iron, 'clothes': '1-10 clothes (Up to 5kg)'},
+    {'id': 'dry_cleaning', 'name': 'Dry Cleaning', 'duration': '48 hours', 'icon': Icons.dry, 'clothes': 'Per piece / 1-3 items'},
+    {'id': 'ironing_only', 'name': 'Ironing Only', 'duration': '12 hours', 'icon': Icons.iron, 'clothes': '1-10 clothes (Up to 3kg)'},
+    {'id': 'bulk_laundry', 'name': 'Bulk Laundry', 'duration': '48 hours', 'icon': Icons.local_laundry_service, 'clothes': '20-50+ clothes (15-20kg)'},
+    {'id': 'curtain_cleaning', 'name': 'Curtain Cleaning', 'duration': '72 hours', 'icon': Icons.curtains, 'clothes': 'Per set / pair'},
   ];
 
   final List<Map<String, dynamic>> _rideSubServices = [
@@ -328,6 +397,34 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         mainCategoryNames.add(category['name']);
       }
 
+      // Upload Profile Image if provided
+      String? profileImageUrl;
+      if (_profileImageFile != null) {
+        try {
+          final cloudinary = CloudinaryService();
+          profileImageUrl = await cloudinary.uploadImage(
+            imageFile: XFile(_profileImageFile!.path),
+            folder: 'washer_profiles',
+          );
+        } catch (e) {
+          debugPrint('⚠️ Error uploading profile image: $e');
+        }
+      }
+
+      // Upload ID Document Image if provided
+      String? idDocumentUrl;
+      if (_idDocumentFile != null) {
+        try {
+          final cloudinary = CloudinaryService();
+          idDocumentUrl = await cloudinary.uploadImage(
+            imageFile: XFile(_idDocumentFile!.path),
+            folder: 'id_documents',
+          );
+        } catch (e) {
+          debugPrint('⚠️ Error uploading ID document: $e');
+        }
+      }
+
       final washerData = {
         'userId': userId,
         'name': _nameController.text.trim(),
@@ -335,7 +432,13 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'email': _emailController.text.trim(),
         'city': _cityController.text.trim(),
         'state': _stateController.text.trim(),
-        'ninNumber': _ninController.text.trim(), // ✅ NIN field added
+        'ninNumber': _ninController.text.trim(),
+        'idType': _selectedIdType,
+        'idNumber': _idNumberController.text.trim().isNotEmpty ? _idNumberController.text.trim() : _ninController.text.trim(),
+        'profileImage': profileImageUrl ?? '',
+        'washerPhotoURL': profileImageUrl ?? '',
+        'photoURL': profileImageUrl ?? '',
+        'idDocumentUrl': idDocumentUrl ?? '',
         'selectedMainCategories': selectedMainCategories,
         'mainCategoryNames': mainCategoryNames,
         'selectedSubServices': selectedSubServices,
@@ -689,10 +792,11 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                                                         ),
                                                       ),
                                                       Text(
-                                                        subService['duration'] ?? '',
+                                                        '${subService['duration'] ?? ''}${subService['clothes'] != null ? ' • ${subService['clothes']}' : ''}',
                                                         style: TextStyle(
                                                           fontSize: 10,
-                                                          color: Colors.grey.shade500,
+                                                          color: isSelected ? AppColors.primary : Colors.grey.shade600,
+                                                          fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                                                         ),
                                                       ),
                                                     ],
@@ -734,11 +838,75 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                     const SizedBox(height: 24),
                     
                     // ============================================================
-                    // Personal Information
+                    // Personal Information & Profile Photo
                     // ============================================================
                     const Text(
-                      'Personal Information',
+                      'Personal Information & Profile Photo',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Profile Picture Upload Card
+                    Center(
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary.withOpacity(0.08),
+                              border: Border.all(color: AppColors.primary, width: 2.5),
+                              image: _profileImageFile != null
+                                  ? DecorationImage(
+                                      image: FileImage(_profileImageFile!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                            ),
+                            child: _profileImageFile == null
+                                ? const Icon(
+                                    Icons.person_add_alt_1,
+                                    size: 55,
+                                    color: AppColors.primary,
+                                  )
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () => _showImagePickerModal(true),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () => _showImagePickerModal(true),
+                        icon: const Icon(Icons.cloud_upload, size: 18, color: AppColors.primary),
+                        label: Text(
+                          _profileImageFile == null ? 'Upload Profile Picture' : 'Change Profile Picture',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     
@@ -784,38 +952,6 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                         ),
                       ),
                       validator: (value) => value == null || value.isEmpty ? 'Enter email' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    
-                    // ✅ NEW: NIN Number Field
-                    TextFormField(
-                      controller: _ninController,
-                      keyboardType: TextInputType.number,
-                      maxLength: 11,
-                      decoration: const InputDecoration(
-                        labelText: 'NIN Number *',
-                        prefixIcon: Icon(Icons.verified, color: AppColors.primary),
-                        border: OutlineInputBorder(),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.primary, width: 2),
-                        ),
-                        counterText: '',
-                        hintText: 'Enter your 11-digit NIN',
-                        helperText: 'National Identification Number (NIN)',
-                        helperStyle: TextStyle(fontSize: 11, color: Colors.grey),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Enter your NIN number';
-                        }
-                        if (value.length != 11) {
-                          return 'NIN must be 11 digits';
-                        }
-                        if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                          return 'NIN must contain only numbers';
-                        }
-                        return null;
-                      },
                     ),
                     const SizedBox(height: 12),
                     
@@ -892,6 +1028,127 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                         if (value != _passwordController.text) return 'Passwords do not match';
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ============================================================
+                    // Means of Identification (ID Verification)
+                    // ============================================================
+                    const Text(
+                      'Means of Identification (ID Verification)',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Select your document type, enter your ID number, and upload a photo of your ID.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 14),
+
+                    DropdownButtonFormField<String>(
+                      value: _selectedIdType,
+                      decoration: const InputDecoration(
+                        labelText: 'Means of Identification Type *',
+                        prefixIcon: Icon(Icons.badge, color: AppColors.primary),
+                        border: OutlineInputBorder(),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
+                      isExpanded: true,
+                      items: _idTypes.map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Text(type, overflow: TextOverflow.ellipsis),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setState(() => _selectedIdType = val);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _idNumberController,
+                      keyboardType: TextInputType.text,
+                      decoration: InputDecoration(
+                        labelText: 'ID / Slip Number *',
+                        prefixIcon: const Icon(Icons.confirmation_number, color: AppColors.primary),
+                        border: const OutlineInputBorder(),
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                        hintText: 'Enter your ${_selectedIdType} number',
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Please enter your ID number';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Document Photo Upload Container
+                    GestureDetector(
+                      onTap: () => _showImagePickerModal(false),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _idDocumentFile != null
+                              ? AppColors.primary.withOpacity(0.05)
+                              : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _idDocumentFile != null
+                                ? AppColors.primary
+                                : Colors.grey.shade300,
+                            style: BorderStyle.solid,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            if (_idDocumentFile != null) ...[
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  _idDocumentFile!,
+                                  height: 140,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'ID Document Photo Attached',
+                                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ] else ...[
+                              const Icon(Icons.cloud_upload_outlined, size: 42, color: AppColors.primary),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Upload ID Document / Card Image',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Tap to take a clear photo or select from gallery',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     

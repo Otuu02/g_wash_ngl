@@ -205,21 +205,18 @@ class JobService extends ChangeNotifier {
       String resolvedWasherPhone = providerPhone ?? '';
       String resolvedWasherEmail = providerEmail ?? '';
 
-      // If no provider explicitly passed, resolve top provider for category
-      if (resolvedWasherId.isEmpty || resolvedWasherPhone.isEmpty) {
-        final providers = await getProvidersByCategory(
-          category: serviceCategory,
-          userLat: latitude,
-          userLng: longitude,
-          limit: 5,
-        );
-        if (providers.isNotEmpty) {
-          final topProvider = providers.first;
-          resolvedWasherId = topProvider['id'] ?? resolvedWasherId;
-          resolvedWasherName = topProvider['name'] ?? resolvedWasherName;
-          resolvedWasherPhone = topProvider['phone'] ?? resolvedWasherPhone;
-          resolvedWasherEmail = topProvider['email'] ?? resolvedWasherEmail;
-        }
+      if (resolvedWasherId.isNotEmpty && resolvedWasherEmail.isEmpty) {
+        try {
+          final wDoc = await _firestore.collection('washers').doc(resolvedWasherId).get();
+          if (wDoc.exists && (wDoc.data()?['email'] ?? '').toString().isNotEmpty) {
+            resolvedWasherEmail = wDoc.data()!['email'].toString();
+          } else {
+            final uDoc = await _firestore.collection('users').doc(resolvedWasherId).get();
+            if (uDoc.exists && (uDoc.data()?['email'] ?? '').toString().isNotEmpty) {
+              resolvedWasherEmail = uDoc.data()!['email'].toString();
+            }
+          }
+        } catch (_) {}
       }
 
       final isDirectAssign = resolvedWasherId.isNotEmpty;

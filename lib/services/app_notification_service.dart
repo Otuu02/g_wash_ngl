@@ -264,8 +264,19 @@ class AppNotificationService extends ChangeNotifier {
     }
   }
 
-  static const String _storageKey = 'local_app_notifications';
+  String _activeUserId = '';
   List<AppNotificationItem> _notifications = [];
+
+  void setActiveUser(String userId) {
+    if (_activeUserId != userId) {
+      _activeUserId = userId;
+      loadSavedNotifications();
+    }
+  }
+
+  String get _storageKey => _activeUserId.isNotEmpty
+      ? 'local_app_notifications_$_activeUserId'
+      : 'local_app_notifications';
 
   List<AppNotificationItem> get notifications => List.unmodifiable(_notifications);
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
