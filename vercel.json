@@ -2,10 +2,21 @@
   "name": "g-wash-ngl",
   "buildCommand": "bash build.sh",
   "outputDirectory": "build/web",
-  "installCommand": "",
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
     }
   ]
