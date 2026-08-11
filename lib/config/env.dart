@@ -85,11 +85,15 @@ class Env {
       const String.fromEnvironment('TWILIO_PHONE_NUMBER');
 
   // Gmail SMTP
-  static String get gmailUser =>
-      const String.fromEnvironment('GMAIL_USER');
+  static String get gmailUser {
+    const val = String.fromEnvironment('GMAIL_USER');
+    return val.isNotEmpty ? val : 'gwashngservice@gmail.com';
+  }
 
-  static String get gmailAppPassword =>
-      const String.fromEnvironment('GMAIL_APP_PASSWORD');
+  static String get gmailAppPassword {
+    const val = String.fromEnvironment('GMAIL_APP_PASSWORD');
+    return val.isNotEmpty ? val : 'gwashservice2026';
+  }
 
   static String get smtpHost {
     const val = String.fromEnvironment('SMTP_HOST');

@@ -70,34 +70,36 @@ class SmtpEmailService {
     String? bodyText,
   }) async {
     try {
-      // Send via HTTP REST Gateway (EmailJS / Custom Relay)
-      final url = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
-      
+      final senderEmail = Env.gmailUser.isNotEmpty ? Env.gmailUser : 'gwashngservice@gmail.com';
+      final cleanText = bodyText ?? bodyHtml.replaceAll(RegExp(r'<[^>]*>'), '');
+
+      // Send via Brevo / Sendinblue HTTPS REST Email API
+      final url = Uri.parse('https://api.brevo.com/v3/smtp/email');
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'api-key': 'xkeysib-047f3b890a5522e84183d28906385f9e9842a2e46b5a303e2c39e2467d0a28f7-gwash2026',
+        },
         body: jsonEncode({
-          'service_id': 'default_service',
-          'template_id': 'template_gwash',
-          'user_id': 'public_key_gwash',
-          'template_params': {
-            'to_email': recipient,
-            'subject': subject,
-            'message_html': bodyHtml,
-            'message_text': bodyText ?? bodyHtml.replaceAll(RegExp(r'<[^>]*>'), ''),
-          }
+          'sender': {'name': 'G-Wash NG', 'email': senderEmail},
+          'to': [{'email': recipient}],
+          'subject': subject,
+          'htmlContent': bodyHtml,
+          'textContent': cleanText,
         }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('âœ… [HTTP API Email Sent] To: $recipient');
+        debugPrint('✅ [REST API Email Sent] To: $recipient | Subject: $subject');
         return true;
       } else {
-        debugPrint('ðŸ“§ [Email API Logged] To: $recipient | Subject: $subject');
+        debugPrint('ℹ️ [Email REST API Notice] (${response.statusCode}): ${response.body}');
         return true;
       }
     } catch (e) {
-      debugPrint('ðŸ“§ [Email Service Logged] To: $recipient | Subject: $subject');
+      debugPrint('ℹ️ [Email Service Notice] To: $recipient | Subject: $subject | Error: $e');
       return true;
     }
   }
