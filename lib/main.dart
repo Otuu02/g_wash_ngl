@@ -285,11 +285,49 @@ class GWashApp extends StatelessWidget {
           ),
           
           builder: (context, child) {
-            return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                padding: MediaQuery.of(context).padding,
-              ),
-              child: child!,
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final isDesktop = constraints.maxWidth > 720;
+                if (!isDesktop) {
+                  return MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      padding: MediaQuery.of(context).padding,
+                    ),
+                    child: child!,
+                  );
+                }
+
+                // Sleek Desktop / Laptop Web View Container
+                return Container(
+                  color: const Color(0xFFF1F5F9),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 30,
+                              spreadRadius: 4,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: ClipRect(
+                          child: MediaQuery(
+                            data: MediaQuery.of(context).copyWith(
+                              padding: MediaQuery.of(context).padding,
+                            ),
+                            child: child!,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             );
           },
           
