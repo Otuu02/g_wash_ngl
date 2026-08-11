@@ -190,6 +190,11 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
         final userData = userDoc.exists ? userDoc.data() : null;
         final authPhoto = authService.photoURL;
 
+        final query = await FirebaseFirestore.instance
+            .collection('washers')
+            .where('userId', isEqualTo: userId)
+            .get();
+
         if (query.docs.isNotEmpty) {
           final doc = query.docs.first;
           _washerId = doc.id;
