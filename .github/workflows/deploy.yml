@@ -21,7 +21,7 @@ jobs:
           flutter --version
           flutter config --enable-web
           flutter pub get
-          flutter build web --release
+          flutter build web --release --no-tree-shake-icons
       
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v20
