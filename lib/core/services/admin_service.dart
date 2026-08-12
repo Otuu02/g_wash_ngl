@@ -17,8 +17,12 @@ class AdminService {
       
       int completedJobs = 0;
       int activeJobs = 0;
+      double totalGrossRevenue = 0.0;
+      double totalPlatformRevenue = 0.0;
+      double totalWasherPayouts = 0.0;
       
       for (var doc in jobs.docs) {
+
         final data = doc.data();
         final status = (data['status'] ?? '').toString();
         final isPaid = data['isPaid'] == true || data['paymentStatus'] == 'paid';
