@@ -729,12 +729,112 @@ class AuthService extends ChangeNotifier {
 
     await _saveUserState();
     notifyListeners();
-    debugPrint('âœ… Google user set: $name ($email)');
+    debugPrint('✅ Google user set: $name ($email)');
+  }
+
+  // ============================================================
+  // UPDATE USER PROFILE (Name, Phone, Email, Photo)
+  // ============================================================
+
+  Future<bool> updateUserProfile({
+    String? name,
+    String? phone,
+    String? email,
+    String? photoURL,
+  }) async {
+    try {
+      if (name != null && name.trim().isNotEmpty) {
+        _userName = name.trim();
+      }
+      if (phone != null && phone.trim().isNotEmpty) {
+        _userPhone = phone.trim();
+      }
+      if (email != null && email.trim().isNotEmpty) {
+        _userEmail = email.trim();
+      }
+      if (photoURL != null && photoURL.trim().isNotEmpty) {
+        _photoURL = photoURL.trim();
+      }
+
+      // 1. Update FirebaseAuth user profile if available
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        if (name != null && name.trim().isNotEmpty) {
+          try {
+            await user.updateDisplayName(name.trim());
+          } catch (_) {}
+        }
+        if (photoURL != null && photoURL.trim().isNotEmpty) {
+          try {
+            await user.updatePhotoURL(photoURL.trim());
+          } catch (_) {}
+        }
+      }
+
+      // 2. Update Firestore users collection document
+      final uid = _userId ?? user?.uid;
+      if (uid != null && uid.isNotEmpty) {
+        final updateData = <String, dynamic>{
+          'lastUpdated': FieldValue.serverTimestamp(),
+        };
+        if (name != null && name.trim().isNotEmpty) {
+          updateData['name'] = name.trim();
+          updateData['fullName'] = name.trim();
+        }
+        if (phone != null && phone.trim().isNotEmpty) {
+          updateData['phone'] = phone.trim();
+          updateData['phoneNumber'] = phone.trim();
+        }
+        if (email != null && email.trim().isNotEmpty) {
+          updateData['email'] = email.trim();
+        }
+        if (photoURL != null && photoURL.trim().isNotEmpty) {
+          updateData['photoURL'] = photoURL.trim();
+          updateData['profileImage'] = photoURL.trim();
+        }
+
+        try {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .set(updateData, SetOptions(merge: true));
+
+          if (_userRole == 'washer' || _userRole == 'provider') {
+            await FirebaseFirestore.instance
+                .collection('washers')
+                .doc(uid)
+                .set(updateData, SetOptions(merge: true));
+          }
+        } catch (e) {
+          debugPrint('ℹ️ Firestore user profile update info: $e');
+        }
+      }
+
+      // 3. Update registeredUsers local map
+      if (_userPhone != null && _userPhone!.isNotEmpty) {
+        if (_registeredUsers.containsKey(_userPhone!)) {
+          if (name != null && name.trim().isNotEmpty) {
+            _registeredUsers[_userPhone!]!['name'] = name.trim();
+          }
+        }
+      }
+
+      // 4. Save state to SharedPreferences and notify listeners
+      await _saveUserState();
+      notifyListeners();
+      debugPrint('✅ User profile updated successfully: $_userName ($_userPhone)');
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error updating user profile: $e');
+      notifyListeners();
+      return false;
+    }
   }
 
   // ============================================================
   // LOGOUT - Clears Firebase Auth
   // ============================================================
+
   Future<void> logout() async {
     try {
       await FirebaseAuth.instance.signOut();
@@ -1085,41 +1185,6 @@ class AuthService extends ChangeNotifier {
       default:
         return const Color(0xFF0CAF60);
     }
-  }
-
-  Future<void> updateUserProfile({
-    String? name,
-    String? phone,
-    String? email,
-  }) async {
-    if (_userId == null) return;
-    
-    final prefs = await SharedPreferences.getInstance();
-    if (name != null) {
-      _userName = name;
-      await prefs.setString('userName', name);
-    }
-    if (phone != null) {
-      _userPhone = phone;
-      await prefs.setString('userPhone', phone);
-    }
-    if (email != null) {
-      _userEmail = email;
-      await prefs.setString('userEmail', email);
-    }
-    
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(_userId).update({
-        'name': name ?? _userName,
-        'phone': phone ?? _userPhone,
-        'email': email ?? _userEmail,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('âŒ Failed to update user in Firestore: $e');
-    }
-    
-    notifyListeners();
   }
   
   Future<String?> getUserEmail() async {
