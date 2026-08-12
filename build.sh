@@ -32,8 +32,6 @@ flutter pub get
 echo "🔑 Injecting environment variables from Vercel..."
 
 flutter build web --release --no-tree-shake-icons \
-
-
   --dart-define=PAYSTACK_PUBLIC_KEY="${PAYSTACK_PUBLIC_KEY:-}" \
   --dart-define=PAYSTACK_SECRET_KEY="${PAYSTACK_SECRET_KEY:-}" \
   --dart-define=GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY:-}" \
@@ -47,6 +45,7 @@ flutter build web --release --no-tree-shake-icons \
   --dart-define=GMAIL_APP_PASSWORD="${GMAIL_APP_PASSWORD:-}" \
   --dart-define=SMTP_HOST="${SMTP_HOST:-smtp.gmail.com}" \
   --dart-define=SMTP_PORT="${SMTP_PORT:-587}"
+
 
 # ─── Verify Output ───────────────────────────────────────────────────────────
 if [ -d "build/web" ]; then
