@@ -18,6 +18,8 @@ import '../washer/washer_registration_screen.dart';
 import 'notifications_screen.dart';
 import 'help_support_screen.dart';
 import 'privacy_security_screen.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,13 +48,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<Map<String, dynamic>> _categories = [];
   List<Map<String, dynamic>> _services = [];
   
-  // Service Categories (Added Ride Service)
+  // Service Categories with FontAwesome Vector Icons
+
   final List<Map<String, dynamic>> _defaultCategories = [
-    {'name': 'Car Wash', 'icon': Icons.local_car_wash, 'color': AppColors.primary},
-    {'name': 'House Cleaning', 'icon': Icons.cleaning_services, 'color': AppColors.primary},
-    {'name': 'Laundry', 'icon': Icons.local_laundry_service, 'color': AppColors.primary},
-    {'name': 'Ride Service', 'icon': Icons.car_rental, 'color': AppColors.primary},
+    {'name': 'Car Wash', 'icon': FontAwesomeIcons.car, 'color': AppColors.primary},
+    {'name': 'House Cleaning', 'icon': FontAwesomeIcons.broom, 'color': AppColors.primary},
+    {'name': 'Laundry', 'icon': FontAwesomeIcons.shirt, 'color': AppColors.primary},
+    {'name': 'Ride Service', 'icon': FontAwesomeIcons.taxi, 'color': AppColors.primary},
   ];
+
 
   // ============================================================
   // CAROUSEL DATA - ALL 4 SLIDES (Added Ride Service)
