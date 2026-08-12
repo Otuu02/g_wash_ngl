@@ -4,7 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_colors.dart';
-import '../customer/tracking_screen.dart';
+import 'washer_order_details_screen.dart';
+
+
 
 class MatchingScreen extends StatefulWidget {
   final String? jobId;
@@ -237,19 +239,21 @@ class _MatchingScreenState extends State<MatchingScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => TrackingScreen(
-              jobId: widget.jobId,
-              washerName: provider['name'],
-              pickupAddress: widget.location,
-              pickupLocation: const LatLng(6.5244, 3.3792),
-              serviceName: widget.serviceName,
-              price: widget.price,
-              washerId: provider['id'],
-              washerImage: provider['profileImage'],
+            builder: (context) => WasherOrderDetailsScreen(
+              jobId: widget.jobId ?? '',
+              order: {
+                'id': widget.jobId,
+                'serviceName': widget.serviceName,
+                'price': widget.price,
+                'location': widget.location,
+                'washerId': provider['id'],
+                'washerName': provider['name'],
+              },
             ),
           ),
         );
       }
+
     } catch (e) {
       print('❌ Error assigning provider: $e');
       setState(() {

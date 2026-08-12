@@ -10,7 +10,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/job_service.dart';
 import '../../../services/cloudinary_service.dart';
-import '../customer/tracking_screen.dart';
+import 'washer_order_details_screen.dart';
+
+
 
 class JobRequestScreen extends StatefulWidget {
   const JobRequestScreen({super.key});
@@ -63,19 +65,14 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => TrackingScreen(
+            builder: (context) => WasherOrderDetailsScreen(
               jobId: jobId,
-              washerName: washerName,
-              pickupAddress: location,
-              pickupLocation: LatLng(lat, lng),
-              serviceName: job['serviceName'] ?? 'Service',
-              price: job['price'] ?? 0,
-              washerId: resolvedWasherId,
-              washerImage: result['washerImage'],
+              order: job,
             ),
           ),
         );
       }
+
     } catch (e) {
       print('❌ Error accepting job: $e');
       if (mounted) {
@@ -489,18 +486,14 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => TrackingScreen(
+                            builder: (context) => WasherOrderDetailsScreen(
                               jobId: jobId,
-                              washerName: job['washerName'] ?? 'Provider',
-                              pickupAddress: location,
-                              pickupLocation: LatLng(lat, lng),
-                              serviceName: job['serviceName'] ?? 'Service',
-                              price: job['price'] ?? 0,
-                              washerId: job['washerId'],
+                              order: job,
                             ),
                           ),
                         );
                       }
+
                     },
                     icon: const Icon(Icons.navigation, size: 18),
                     label: const Text('Track / Map'),
