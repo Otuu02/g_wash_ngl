@@ -1316,18 +1316,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   // ============================================================
-  // RICH GRAPHICAL PROMO FLYER CARD BUILDER
-  // ============================================================
-  // RICH GRAPHICAL PROMO FLYER CARD BUILDER
+  // CLEAN FLYER CARD BUILDER
   // ============================================================
   Widget _buildFlyerCard(Map<String, dynamic> item) {
+    final String path = item['imagePath'] ?? 'assets/images/flyer_launch.jpg';
+    final String fileName = path.split('/').last;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => BookingScreen(
-              serviceCategory: item['category'],
+              serviceCategory: item['category'] ?? 'Car Wash',
             ),
           ),
         );
@@ -1345,249 +1346,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: MultiPathFlyerImageWidget(
-            assetPath: item['imagePath'],
+          child: Image.asset(
+            path,
             fit: BoxFit.cover,
-          ),
-        ),
-      ),
-    );
-  }
-
-
-  Widget _buildGraphicalBannerContent(Map<String, dynamic> item, List<Color> gradientColors) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Background decorative shapes
-          Positioned(
-            right: -25,
-            top: -25,
-            child: Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.12),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 45,
-            bottom: -35,
-            child: Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.08),
-              ),
-            ),
-          ),
-          // Banner Content Layout
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.22),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
-                        ),
-                        child: Text(
-                          item['badge'] ?? 'PROMOTION',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        item['title'] ?? item['category'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          height: 1.1,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        item['subtitle'] ?? 'Professional services delivered right to your location.',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 11,
-                          height: 1.2,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) {
+              return Image.asset(
+                'assets/$path',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.network(
+                    'assets/images/$fileName',
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.network(
+                        'assets/assets/images/$fileName',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade300,
+                            child: const Center(
+                              child: Icon(Icons.image, size: 50, color: AppColors.primary),
                             ),
-                          ],
-                        ),
-                        child: Text(
-                          item['cta'] ?? 'Book Now →',
-                          style: TextStyle(
-                            color: gradientColors.first,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.25),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      item['icon'] ?? Icons.stars,
-                      color: Colors.white,
-                      size: 36,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ============================================================
-// MULTI-PATH FLYER IMAGE WIDGET
-// ============================================================
-class MultiPathFlyerImageWidget extends StatefulWidget {
-  final String assetPath;
-  final BoxFit fit;
-
-  const MultiPathFlyerImageWidget({
-    super.key,
-    required this.assetPath,
-    this.fit = BoxFit.cover,
-  });
-
-  @override
-  State<MultiPathFlyerImageWidget> createState() => _MultiPathFlyerImageWidgetState();
-}
-
-class _MultiPathFlyerImageWidgetState extends State<MultiPathFlyerImageWidget> {
-  int _attemptIndex = 0;
-
-  List<String> get _paths {
-    final raw = widget.assetPath;
-    final name = raw.split('/').last;
-    return [
-      raw,                           // 'assets/images/flyer_services.jpg'
-      'assets/$raw',                 // 'assets/assets/images/flyer_services.jpg'
-      'images/$name',                // 'images/flyer_services.jpg'
-      'assets/images/$name',         // 'assets/images/flyer_services.jpg'
-    ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_attemptIndex < _paths.length) {
-      final currentPath = _paths[_attemptIndex];
-      return Image.asset(
-        currentPath,
-        fit: widget.fit,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _attemptIndex++;
-              });
-            }
-          });
-          return Container(color: Colors.grey.shade200);
-        },
-      );
-    }
-
-    final name = widget.assetPath.split('/').last;
-    return Image.network(
-      'assets/assets/images/$name',
-      fit: widget.fit,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.network(
-          'assets/images/$name',
-          fit: widget.fit,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (context, error, stackTrace) {
-            return Image.network(
-              'images/$name',
-              fit: widget.fit,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: AppColors.primary,
-                  child: Center(
-                    child: Text(
-                      name,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-}
 
