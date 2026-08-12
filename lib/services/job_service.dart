@@ -96,17 +96,15 @@ class JobService extends ChangeNotifier {
             if (cleanCategory == 'laundry' && (c == 'laundry' || c.contains('laundry'))) return true;
             return false;
           });
-        }
-
-        if (isMatch) {
+        }        if (isMatch) {
           final rawName = data['name'] ?? data['fullName'] ?? data['userName'] ?? 'Service Provider';
           final name = (rawName is String && rawName.trim().isNotEmpty) ? rawName.trim() : 'Service Provider';
 
           providers.add({
             'id': doc.id,
             'name': name,
-            'phone': data['phone'] ?? '+2348012345678',
-            'email': data['email'] ?? '${name.toLowerCase().replaceAll(' ', '.')}@gwashng.com',
+            'phone': data['phone'] ?? data['phoneNumber'] ?? '',
+            'email': data['email'] ?? '',
             'rating': data['rating'] ?? 4.8,
             'vehicleType': data['vehicleType'] ?? 'Motorcycle',
             'serviceCategory': serviceCat ?? category,
@@ -132,7 +130,7 @@ class JobService extends ChangeNotifier {
             'id': doc.id,
             'userId': doc.id,
             'name': rawName,
-            'phone': data['phone'] ?? '',
+            'phone': data['phone'] ?? data['phoneNumber'] ?? '',
             'email': data['email'] ?? '',
             'rating': data['rating'] ?? 4.8,
             'vehicleType': data['vehicleType'] ?? 'Motorcycle',
@@ -158,21 +156,11 @@ class JobService extends ChangeNotifier {
       providers.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
       return providers;
     } catch (e) {
-      debugPrint('âŒ Error getting providers: $e');
-      return [
-        {
-          'id': 'provider_fallback_1',
-          'name': 'Samuel Okon',
-          'phone': '+2348012345678',
-          'rating': 4.9,
-          'vehicleType': 'Motorcycle',
-          'distance': 1.2,
-          'distanceDisplay': '1.2 km',
-          'eta': '8 mins',
-        },
-      ];
+      debugPrint('❌ Error getting providers: $e');
+      return [];
     }
   }
+
 
   // ============================================================
   // CREATE JOB IN FIRESTORE
@@ -578,8 +566,9 @@ class JobService extends ChangeNotifier {
     String? note,
   }) async {
     try {
-      final jobDoc = await _firestore.collection('jobs').doc(jobId);
+      final jobDoc = _firestore.collection('jobs').doc(jobId);
       final snapshot = await jobDoc.get();
+
       if (!snapshot.exists) return;
 
       final data = snapshot.data()!;

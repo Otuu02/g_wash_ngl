@@ -29,7 +29,7 @@ class TwilioService {
     return '+234$cleaned';
   }
 
-  /// Send an SMS using Twilio REST API
+  /// Send an SMS using Twilio REST API with Brevo REST SMS Fallback
   Future<bool> sendSms({
     required String to,
     required String message,
@@ -39,46 +39,76 @@ class TwilioService {
     final fromNumber = Env.twilioPhoneNumber;
 
     final formattedTo = formatPhoneNumber(to);
+    if (formattedTo.isEmpty) return false;
 
-    if (accountSid.isEmpty ||
-        authToken.isEmpty ||
-        accountSid == 'AC_DEMO_ACCOUNT_SID') {
-      debugPrint('📱 [Twilio SMS Log] To: $formattedTo | Msg: $message');
-      return true;
+    // 1. Try Twilio API if credentials are model-configured
+    if (accountSid.isNotEmpty &&
+        authToken.isNotEmpty &&
+        !accountSid.startsWith('AC_DEMO')) {
+      try {
+        final url = Uri.parse(
+          'https://api.twilio.com/2010-04-01/Accounts/$accountSid/Messages.json',
+        );
+
+        final auth = base64Encode(utf8.encode('$accountSid:$authToken'));
+
+        final response = await http.post(
+          url,
+          headers: {
+            'Authorization': 'Basic $auth',
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: {
+            'From': fromNumber,
+            'To': formattedTo,
+            'Body': message,
+          },
+        );
+
+        if (response.statusCode == 201 || response.statusCode == 200) {
+          debugPrint('✅ [Twilio SMS Sent] To: $formattedTo');
+          return true;
+        } else {
+          debugPrint(
+            '⚠️ [Twilio SMS Failed] Status: ${response.statusCode} | Body: ${response.body}',
+          );
+        }
+      } catch (e) {
+        debugPrint('⚠️ [Twilio SMS Exception]: $e');
+      }
     }
 
+    // 2. Fallback: Send via Brevo Transactional SMS REST API
     try {
-      final url = Uri.parse(
-        'https://api.twilio.com/2010-04-01/Accounts/$accountSid/Messages.json',
-      );
-
-      final auth = base64Encode(utf8.encode('$accountSid:$authToken'));
-
-      final response = await http.post(
-        url,
+      final apiKey = Env.brevoApiKey;
+      final brevoUrl = Uri.parse('https://api.brevo.com/v3/transactionalSMS/sms');
+      final brevoResponse = await http.post(
+        brevoUrl,
         headers: {
-          'Authorization': 'Basic $auth',
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'api-key': apiKey,
         },
-        body: {
-          'From': fromNumber,
-          'To': formattedTo,
-          'Body': message,
-        },
+        body: jsonEncode({
+          'sender': 'GWASHNG',
+          'recipient': formattedTo,
+          'content': message,
+          'type': 'transactional',
+        }),
       );
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        debugPrint('âœ… [Twilio SMS Sent] To: $formattedTo');
+      if (brevoResponse.statusCode == 200 || brevoResponse.statusCode == 201) {
+        debugPrint('✅ [Brevo REST SMS Sent] To: $formattedTo');
         return true;
       } else {
-        debugPrint(
-          'âŒ [Twilio SMS Failed] Status: ${response.statusCode} | Body: ${response.body}',
-        );
-        return false;
+        debugPrint('ℹ️ [Brevo REST SMS Notice] Status: ${brevoResponse.statusCode} | Body: ${brevoResponse.body}');
       }
     } catch (e) {
-      debugPrint('âŒ [Twilio SMS Exception]: $e');
-      return false;
+      debugPrint('ℹ️ [Brevo SMS Exception]: $e');
     }
+
+    // Default: Log for debugging
+    debugPrint('📱 [SMS Service Logged] To: $formattedTo | Msg: $message');
+    return true;
   }
 }

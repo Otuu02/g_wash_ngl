@@ -187,19 +187,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _openPaystackUrl(String authUrl) async {
     final Uri url = Uri.parse(authUrl);
     try {
-      if (await canLaunchUrl(url)) {
-        bool launched = await launchUrl(url, mode: LaunchMode.inAppBrowserView);
-        if (!launched) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-        }
+      bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        launched = await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+      }
+      if (!launched) {
+        await launchUrl(url, mode: LaunchMode.platformDefault);
       }
     } catch (e) {
       debugPrint('Error launching Paystack URL: $e');
       try {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
+        await launchUrl(url, mode: LaunchMode.platformDefault);
       } catch (_) {}
     }
   }
+
 
   void _showPaystackVerificationDialog({
     required String reference,

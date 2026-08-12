@@ -18,9 +18,13 @@ service cloud.firestore {
 
     // User documents
     match /users/{userId} {
-      // 🔒 Each user can only read their OWN profile.
-      // Admins can read all profiles.
-      allow read: if isOwner(userId) || isAdmin();
+      // 🔒 Each user can read their OWN profile, admins can read all, and authenticated users can read provider profiles for matching.
+      allow read: if isAuthenticated() && (
+        isOwner(userId) || 
+        isAdmin() || 
+        (resource.data.keys().hasAny(['role']) && resource.data.role in ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider']) ||
+        (resource.data.keys().hasAny(['userRole']) && resource.data.userRole in ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider'])
+      );
       // Allow user creation, but restrict updates to prevent changing 'role' to admin
       allow create: if isOwner(userId) && (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == 'customer');
       allow update: if isOwner(userId) && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])) || isAdmin();
@@ -37,17 +41,22 @@ service cloud.firestore {
 
     // Jobs collection
     match /jobs/{jobId} {
-      // 🔒 Only the customer, the assigned provider, or an admin can read a job.
+      // 🔒 Customer, assigned provider, admin, OR any authenticated provider looking for 'searching'/unassigned jobs can read.
       allow read: if isAuthenticated() && (
         resource.data.customerId == request.auth.uid ||
         resource.data.washerId == request.auth.uid ||
+        resource.data.status == 'searching' ||
+        resource.data.washerId == '' ||
         isAdmin()
       );
       // Any authenticated user can create a job (they become the customerId)
       allow create: if isAuthenticated() && request.resource.data.customerId == request.auth.uid;
+      // Allow update if customer, assigned provider, unassigned searching job (provider accepting), or admin
       allow update: if isAuthenticated() && (
         resource.data.customerId == request.auth.uid || 
         resource.data.washerId == request.auth.uid || 
+        resource.data.status == 'searching' ||
+        resource.data.washerId == '' ||
         isAdmin()
       );
       allow delete: if isAdmin();
@@ -71,5 +80,17 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
+
+    // System Logs collections (Email & SMS logging)
+    match /email_logs/{logId} {
+      allow read, create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /sms_logs/{logId} {
+      allow read, create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
   }
 }
+

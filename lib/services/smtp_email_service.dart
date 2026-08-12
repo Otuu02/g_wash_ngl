@@ -72,15 +72,16 @@ class SmtpEmailService {
     try {
       final senderEmail = Env.gmailUser.isNotEmpty ? Env.gmailUser : 'gwashngservice@gmail.com';
       final cleanText = bodyText ?? bodyHtml.replaceAll(RegExp(r'<[^>]*>'), '');
+      final apiKey = Env.brevoApiKey;
 
-      // Send via Brevo / Sendinblue HTTPS REST Email API
+      // Primary: Send via Brevo / Sendinblue HTTPS REST Email API
       final url = Uri.parse('https://api.brevo.com/v3/smtp/email');
       final response = await http.post(
         url,
         headers: {
           'accept': 'application/json',
           'content-type': 'application/json',
-          'api-key': 'xkeysib-047f3b890a5522e84183d28906385f9e9842a2e46b5a303e2c39e2467d0a28f7-gwash2026',
+          'api-key': apiKey,
         },
         body: jsonEncode({
           'sender': {'name': 'G-Wash NG', 'email': senderEmail},
@@ -91,16 +92,17 @@ class SmtpEmailService {
         }),
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('✅ [REST API Email Sent] To: $recipient | Subject: $subject');
+      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
+        debugPrint('✅ [REST API Email Sent Successfully] To: $recipient | Subject: $subject');
         return true;
       } else {
-        debugPrint('ℹ️ [Email REST API Notice] (${response.statusCode}): ${response.body}');
-        return true;
+        debugPrint('❌ [Email REST API Failed] (${response.statusCode}): ${response.body}');
+        return false;
       }
     } catch (e) {
-      debugPrint('ℹ️ [Email Service Notice] To: $recipient | Subject: $subject | Error: $e');
-      return true;
+      debugPrint('❌ [Email Service Exception] To: $recipient | Subject: $subject | Error: $e');
+      return false;
     }
   }
 }
+

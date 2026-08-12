@@ -525,13 +525,13 @@ class AuthService extends ChangeNotifier {
       return _localLogin(formattedPhone, password);
       
     } catch (e) {
-      debugPrint('âŒ Login error: $e');
+      debugPrint('❌ Login error: $e');
       return _localLogin(formatPhone(phoneNumber), password);
     }
   }
 
   // ============================================================
-  // LOCAL LOGIN - Fallback
+  // LOCAL LOGIN & FIRESTORE USER LOOKUP
   // ============================================================
   Future<bool> _localLogin(String formattedPhone, String password) async {
     if (_registeredUsers.containsKey(formattedPhone)) {
@@ -544,15 +544,51 @@ class AuthService extends ChangeNotifier {
         _serviceCategory = _registeredUsers[formattedPhone]!['serviceCategory'];
         await _saveUserState();
         notifyListeners();
-        debugPrint('âœ… User logged in from local storage: $_userName (role: $_userRole)');
+        debugPrint('✅ User logged in from local storage: $_userName (role: $_userRole)');
         return true;
-      } else {
-        debugPrint('âŒ Wrong password for local user');
-        return false;
       }
     }
-    
-    debugPrint('âŒ Login failed for: $formattedPhone');
+
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('users')
+          .where('phone', isEqualTo: formattedPhone)
+          .limit(1)
+          .get();
+
+      if (query.docs.isNotEmpty) {
+        final doc = query.docs.first;
+        final data = doc.data();
+        final uid = doc.id;
+
+        _isLoggedIn = true;
+        _userName = data['name'] ?? data['fullName'] ?? 'User';
+        _userPhone = data['phone'] ?? formattedPhone;
+        _userId = uid;
+        _userRole = data['role'] ?? data['userRole'] ?? 'customer';
+        _userEmail = data['email'] ?? '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
+        _serviceCategory = data['serviceCategory'];
+
+        await _checkIfWasher(uid);
+
+        _registeredUsers[formattedPhone] = {
+          'name': _userName!,
+          'password': password,
+          'phone': formattedPhone,
+          'userId': uid,
+          'role': _userRole!,
+        };
+
+        await _saveUserState();
+        notifyListeners();
+        debugPrint('✅ User logged in from Firestore: $_userName (role: $_userRole)');
+        return true;
+      }
+    } catch (e) {
+      debugPrint('ℹ️ Firestore phone login query info: $e');
+    }
+
+    debugPrint('❌ Login failed for: $formattedPhone');
     return false;
   }
 

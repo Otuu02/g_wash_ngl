@@ -48,6 +48,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   String _jobStatus = 'searching';
   String? _washerId;
   String? _washerImageUrl;
+  String? _washerPhone;
   String? _lastStatus;
   String _currentLocation = 'Searching for nearby service providers...';
   int _etaMinutes = 0;
@@ -135,10 +136,40 @@ class _TrackingScreenState extends State<TrackingScreen> {
             .doc(_washerId)
             .get();
         if (doc.exists) {
-          final data = doc.data();
-          if (data != null && data['profileImage'] != null) {
+          final data = doc.data()!;
+          final img = data['profileImage'] ?? data['photoURL'];
+          final phone = data['phone'] ?? data['phoneNumber'] ?? data['userPhone'] ?? data['contactPhone'];
+          final userId = data['userId'];
+
+          setState(() {
+            if (img != null && img.toString().isNotEmpty) _washerImageUrl = img.toString();
+            if (phone != null && phone.toString().isNotEmpty) _washerPhone = phone.toString();
+          });
+
+          // Fallback to users collection if phone not on washer doc
+          if ((_washerPhone == null || _washerPhone!.isEmpty) && userId != null) {
+            final uDoc = await FirebaseFirestore.instance.collection('users').doc(userId.toString()).get();
+            if (uDoc.exists) {
+              final uPhone = uDoc.data()?['phone'] ?? uDoc.data()?['phoneNumber'];
+              final uImg = uDoc.data()?['profileImage'] ?? uDoc.data()?['photoURL'];
+              setState(() {
+                if (uPhone != null && uPhone.toString().isNotEmpty) _washerPhone = uPhone.toString();
+                if ((_washerImageUrl == null || _washerImageUrl!.isEmpty) && uImg != null) {
+                  _washerImageUrl = uImg.toString();
+                }
+              });
+            }
+          }
+        } else {
+          // Direct lookup in users collection for provider UID
+          final uDoc = await FirebaseFirestore.instance.collection('users').doc(_washerId!).get();
+          if (uDoc.exists) {
+            final uData = uDoc.data()!;
+            final uPhone = uData['phone'] ?? uData['phoneNumber'];
+            final uImg = uData['profileImage'] ?? uData['photoURL'];
             setState(() {
-              _washerImageUrl = data['profileImage'];
+              if (uPhone != null && uPhone.toString().isNotEmpty) _washerPhone = uPhone.toString();
+              if (uImg != null && uImg.toString().isNotEmpty) _washerImageUrl = uImg.toString();
             });
           }
         }
@@ -147,6 +178,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
       }
     }
   }
+
 
   void _listenToJobUpdates() {
     _jobSubscription = FirebaseFirestore.instance
@@ -159,6 +191,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
         final status = data['status'] ?? 'searching';
         
         _washerId = data['washerId'] ?? data['assignedWasherId'] ?? widget.washerId;
+        final jPhone = data['washerPhone'] ?? data['providerPhone'] ?? data['phone'];
+        if (jPhone != null && jPhone.toString().isNotEmpty) {
+          _washerPhone = jPhone.toString();
+        }
         
         final bool isAssigned = _washerId != null && _washerId!.isNotEmpty &&
             (status == 'assigned' || status == 'accepted' || status == 'enRoute' || status == 'arrived' || status == 'completed' || status == 'paid');
@@ -572,19 +608,44 @@ class _TrackingScreenState extends State<TrackingScreen> {
   }
 
   Future<void> _callWasher() async {
-    final phone = '08012345678';
-    final Uri url = Uri.parse('tel:$phone');
+    String phone = _washerPhone ?? '';
 
+    // Dynamically fetch from Firestore if missing
+    if (phone.isEmpty && _washerId != null && _washerId!.isNotEmpty) {
+      try {
+        final wDoc = await FirebaseFirestore.instance.collection('washers').doc(_washerId!).get();
+        if (wDoc.exists && wDoc.data()?['phone'] != null) {
+          phone = wDoc.data()!['phone'].toString();
+        } else {
+          final uDoc = await FirebaseFirestore.instance.collection('users').doc(_washerId!).get();
+          if (uDoc.exists && uDoc.data()?['phone'] != null) {
+            phone = uDoc.data()!['phone'].toString();
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Provider phone number not registered yet.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final Uri url = Uri.parse('tel:$phone');
     try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url);
-      } else {
+      bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!launched) {
         _showPhoneCallModal(phone);
       }
     } catch (e) {
       _showPhoneCallModal(phone);
     }
   }
+
 
   void _showPhoneCallModal(String phone) {
     showDialog(

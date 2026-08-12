@@ -75,14 +75,29 @@ class Env {
       const String.fromEnvironment('CLOUDINARY_API_SECRET');
 
   // Twilio SMS
-  static String get twilioAccountSid =>
-      const String.fromEnvironment('TWILIO_ACCOUNT_SID');
+  static String get twilioAccountSid {
+    const val = String.fromEnvironment('TWILIO_ACCOUNT_SID');
+    return val.isNotEmpty ? val : 'AC_DEMO_GWASH_NG_TWILIO';
+  }
 
-  static String get twilioAuthToken =>
-      const String.fromEnvironment('TWILIO_AUTH_TOKEN');
+  static String get twilioAuthToken {
+    const val = String.fromEnvironment('TWILIO_AUTH_TOKEN');
+    return val.isNotEmpty ? val : 'demo_auth_token_gwash';
+  }
 
-  static String get twilioPhoneNumber =>
-      const String.fromEnvironment('TWILIO_PHONE_NUMBER');
+  static String get twilioPhoneNumber {
+    const val = String.fromEnvironment('TWILIO_PHONE_NUMBER');
+    return val.isNotEmpty ? val : '+18005550199';
+  }
+
+  // Brevo HTTPS REST API Key (Email & SMS Gateway)
+  static String get brevoApiKey {
+    const val = String.fromEnvironment('BREVO_API_KEY');
+    return val.isNotEmpty
+        ? val
+        : 'xkeysib-047f3b890a5522e84183d28906385f9e9842a2e46b5a303e2c39e2467d0a28f7-gwash2026';
+  }
+
 
   // Gmail SMTP
   static String get gmailUser {
