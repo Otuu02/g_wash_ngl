@@ -873,15 +873,15 @@ class PaymentService {
     required String accountName,
   }) async {
     try {
-      if (amount < 10000) {
-        throw Exception('Minimum withdrawal amount threshold is â‚¦10,000.');
+      if (amount < 1000) {
+        throw Exception('Minimum withdrawal amount threshold is ₦1,000.');
       }
 
       final payoutRef = _firestore.collection('payout_requests').doc();
       final payoutId = payoutRef.id;
       Map<String, dynamic> washerData = {};
 
-      // ðŸ”’ ATOMIC TRANSACTION: Prevent race conditions & rapid multi-tapping withdrawal exploits
+      // 🔐 ATOMIC TRANSACTION: Prevent race conditions & rapid multi-tapping withdrawal exploits
       await _firestore.runTransaction((transaction) async {
         final washerRef = _firestore.collection('washers').doc(washerId);
         final washerDoc = await transaction.get(washerRef);
