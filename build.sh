@@ -5,8 +5,8 @@ echo "🚀 Starting G-Wash NG Vercel build..."
 
 # ─── Install Flutter ─────────────────────────────────────────────────────────
 if [ ! -d "flutter-sdk" ]; then
-  echo "📦 Installing Flutter SDK (stable)..."
-  git clone https://github.com/flutter/flutter.git -b stable --depth 1 flutter-sdk
+  echo "📦 Installing Flutter SDK (3.24.0)..."
+  git clone https://github.com/flutter/flutter.git -b 3.24.0 --depth 1 flutter-sdk
 fi
 
 export PATH="$PATH:$(pwd)/flutter-sdk/bin"
@@ -15,9 +15,10 @@ export PATH="$PATH:$(pwd)/flutter-sdk/bin"
 if ! command -v flutter &> /dev/null; then
   echo "❌ Flutter not found after install. Retrying..."
   rm -rf flutter-sdk
-  git clone https://github.com/flutter/flutter.git -b stable --depth 1 flutter-sdk
+  git clone https://github.com/flutter/flutter.git -b 3.24.0 --depth 1 flutter-sdk
   export PATH="$PATH:$(pwd)/flutter-sdk/bin"
 fi
+
 
 echo "✅ Flutter version:"
 flutter --version
