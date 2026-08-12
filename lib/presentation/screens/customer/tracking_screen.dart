@@ -319,7 +319,23 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
+  Future<void> _updateStatus(String newStatus) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('jobs')
+          .doc(widget.jobId)
+          .update({
+        'status': newStatus,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      _showStatusNotification(newStatus);
+    } catch (e) {
+      debugPrint('❌ Error updating status: $e');
+    }
+  }
+
   void _listenToWasherLocation(String washerId) {
+
     _washerSubscription = LocationService().getWasherLocationStream(washerId).listen((doc) {
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
@@ -1356,10 +1372,86 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 const SizedBox(height: 16),
           
                 // ============================================================
+                // LIVE PROVIDER STATUS CONTROL CARD (As shown in second screenshot)
+                // ============================================================
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.green.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.touch_app, color: Colors.green, size: 18),
+                          SizedBox(width: 6),
+                          Text(
+                            'Live Provider Status Control',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Simulate provider status actions live in real-time:',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _updateStatus('arrived'),
+                              icon: const Icon(Icons.location_on, size: 14),
+                              label: const Text('📍 Arrived', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _updateStatus('in_progress'),
+                              icon: const Icon(Icons.rocket_launch, size: 14),
+                              label: const Text('🚀 Started', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purple,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _updateStatus('completed'),
+                              icon: const Icon(Icons.check_circle, size: 14),
+                              label: const Text('✅ Complete', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ============================================================
                 // ACTION BUTTONS
                 // ============================================================
-                // COMPLETE ORDER BUTTON
-                if (isCompleted && !isPaid)
+                // COMPLETE ORDER & PAY BUTTON
+                if (!isPaid && (_jobStatus == 'arrived' || _jobStatus == 'in_progress' || isCompleted))
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -1390,6 +1482,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                             ),
                     ),
                   ),
+
                 
                 // RATE SERVICE BUTTON
                 if (isPaid)
