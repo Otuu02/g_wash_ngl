@@ -60,28 +60,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final List<Map<String, dynamic>> _carouselItems = [
     {
       'imagePath': 'assets/images/flyer_launch.jpg',
+      'category': 'Car Wash',
+      'title': '30% OFF Car Wash',
+      'subtitle': 'Spotless exterior wash & detailing at your doorstep',
+      'badge': '🔥 SPECIAL OFFER',
+      'cta': 'Claim Offer →',
+      'gradient': [const Color(0xFF008080), const Color(0xFF0CAF60)],
+      'icon': Icons.local_car_wash,
       'emoji': '🚗',
-      'category': 'Professional Car Wash',
     },
     {
       'imagePath': 'assets/images/flyer_services.jpg',
-      'emoji': '🧹',
       'category': 'House Cleaning',
+      'title': 'Deep House Cleaning',
+      'subtitle': 'Sanitized rooms & spotless spaces by top-rated pros',
+      'badge': '✨ POPULAR SERVICE',
+      'cta': 'Book Cleaner →',
+      'gradient': [const Color(0xFF1E3A8A), const Color(0xFF2563EB)],
+      'icon': Icons.cleaning_services,
+      'emoji': '🧹',
     },
     {
       'imagePath': 'assets/images/flyer_whychoose.jpg',
+      'category': 'Laundry',
+      'title': 'Express Laundry & Dry Clean',
+      'subtitle': 'Free doorstep pickup & delivery within 24 hours',
+      'badge': '⚡ 24H EXPRESS',
+      'cta': 'Schedule Wash →',
+      'gradient': [const Color(0xFF581C87), const Color(0xFF7C3AED)],
+      'icon': Icons.local_laundry_service,
       'emoji': '👕',
-      'category': 'Laundry Service',
     },
-    // ============================================================
-    // NEW: Ride Service Carousel Slide
-    // ============================================================
     {
       'imagePath': 'assets/images/flyer_rider.jpg',
-      'emoji': '🚘',
       'category': 'Ride Service',
+      'title': 'On-Demand Ride Service',
+      'subtitle': 'Comfortable sedans, SUVs & luxury rides anytime',
+      'badge': '🚘 INSTANT RIDES',
+      'cta': 'Book Ride →',
+      'gradient': [const Color(0xFFC2410C), const Color(0xFFEA580C)],
+      'icon': Icons.directions_car,
+      'emoji': '🚘',
     },
   ];
+
 
   // REMOVED PRICES - Only service names and durations
   final List<Map<String, dynamic>> _defaultCarWashServices = [
@@ -655,10 +677,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 20),
 
           // ============================================================
-          // 4-SLIDE CAROUSEL - FULL IMAGES ONLY (NO TEXT OVERLAYS)
+          // 4-SLIDE CAROUSEL - RICH GRAPHICAL PROMO FLYERS
           // ============================================================
           SizedBox(
-            height: isSmallScreen ? 160 : 200,
+            height: isSmallScreen ? 170 : 200,
             child: PageView.builder(
               controller: _carouselController,
               onPageChanged: (index) {
@@ -671,54 +693,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 final item = _carouselItems[index];
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => BookingScreen(
-                            serviceCategory: item['category'],
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.asset(
-                          item['imagePath'],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              height: 200,
-                              color: Colors.grey.shade300,
-                              child: Center(
-                                child: Text(
-                                  item['emoji'],
-                                  style: const TextStyle(fontSize: 80),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: _buildFlyerCard(item),
                 );
               },
             ),
           ),
+
 
           const SizedBox(height: 8),
 
@@ -1334,4 +1314,200 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ],
     );
   }
-}
+
+  // ============================================================
+  // RICH GRAPHICAL PROMO FLYER CARD BUILDER
+  // ============================================================
+  Widget _buildFlyerCard(Map<String, dynamic> item) {
+    final List<Color> gradientColors = (item['gradient'] as List<Color>?) ?? [
+      AppColors.primary,
+      AppColors.primaryDark,
+    ];
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BookingScreen(
+              serviceCategory: item['category'],
+            ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: gradientColors.first.withOpacity(0.3),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  item['imagePath'],
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildGraphicalBannerContent(item, gradientColors);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGraphicalBannerContent(Map<String, dynamic> item, List<Color> gradientColors) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Background decorative shapes
+          Positioned(
+            right: -25,
+            top: -25,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.12),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 45,
+            bottom: -35,
+            child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.08),
+              ),
+            ),
+          ),
+          // Banner Content Layout
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.22),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
+                        ),
+                        child: Text(
+                          item['badge'] ?? 'PROMOTION',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        item['title'] ?? item['category'],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          height: 1.1,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        item['subtitle'] ?? 'Professional services delivered right to your location.',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 11,
+                          height: 1.2,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          item['cta'] ?? 'Book Now →',
+                          style: TextStyle(
+                            color: gradientColors.first,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Icon(
+                      item['icon'] ?? Icons.stars,
+                      color: Colors.white,
+                      size: 36,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
