@@ -77,6 +77,59 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
     setState(() => _isProcessing = true);
 
     try {
+      // 🔒 SECURITY CHECK: Washer cannot complete job unless payment is confirmed!
+      if (newStatus == 'completed') {
+        final jobDoc = await FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).get();
+        final data = jobDoc.data() ?? {};
+        final paymentStatus = (data['paymentStatus'] ?? '').toString().toLowerCase();
+        final isPaid = data['isPaid'] == true;
+        final statusStr = (data['status'] ?? '').toString().toLowerCase();
+
+        final bool paymentIsConfirmed = isPaid || paymentStatus == 'paid' || statusStr == 'paid' || paymentStatus == 'completed' || paymentStatus == 'escrow';
+
+        if (!paymentIsConfirmed) {
+          setState(() => _isProcessing = false);
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                title: const Row(
+                  children: [
+                    Icon(Icons.lock_clock, color: Colors.orange, size: 28),
+                    SizedBox(width: 8),
+                    Text('Payment Pending 🔒', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  ],
+                ),
+                content: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'The customer has not completed payment for this service yet.',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Please instruct the customer to tap "Complete Order & Pay" on their app so funds are secured in escrow before completing.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                  ],
+                ),
+                actions: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+                    child: const Text('OK, I will notify customer'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       await FirebaseFirestore.instance
           .collection('jobs')
           .doc(widget.jobId)
@@ -111,14 +164,20 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
           notifColor = Colors.orange;
           break;
         case 'arrived':
-          notifTitle = '📍 Arrived';
-          notifMsg = 'You have arrived at the customer location.';
+          notifTitle = '📍 Arrived at Location';
+          notifMsg = 'Customer has been notified that you arrived!';
           notifIcon = Icons.location_on_outlined;
-          notifColor = Colors.green;
+          notifColor = Colors.blue;
+          break;
+        case 'in_progress':
+          notifTitle = '🚿 Service Started';
+          notifMsg = 'Service is now in progress.';
+          notifIcon = Icons.cleaning_services;
+          notifColor = Colors.purple;
           break;
         case 'completed':
           notifTitle = '🎉 Job Completed!';
-          notifMsg = 'The job has been completed successfully.';
+          notifMsg = 'The job has been completed successfully and funds released!';
           notifIcon = Icons.check_circle_outline;
           notifColor = Colors.green;
           break;
@@ -129,6 +188,7 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
           notifColor = Colors.red;
           break;
       }
+
 
       AppNotificationService().notify(
         context: context,
@@ -437,7 +497,7 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _isProcessing ? null : () => _updateOrderStatus('enRoute'),
+                        onPressed: _isProcessing ? null : () => _updateOrderStatus('arrived'),
                         icon: _isProcessing
                             ? const SizedBox(
                                 width: 20,
@@ -447,10 +507,10 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
                               )
-                            : const Icon(Icons.directions_car),
-                        label: Text(_isProcessing ? 'Processing...' : 'Start Trip'),
+                            : const Icon(Icons.location_on),
+                        label: Text(_isProcessing ? 'Processing...' : '📍 I Have Arrived'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
@@ -459,7 +519,7 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
                   ],
                 ),
 
-              if (status == 'enRoute')
+              if (status == 'arrived' || status == 'enRoute')
                 Row(
                   children: [
                     Expanded(
@@ -477,7 +537,7 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _isProcessing ? null : () => _updateOrderStatus('completed'),
+                        onPressed: _isProcessing ? null : () => _updateOrderStatus('in_progress'),
                         icon: _isProcessing
                             ? const SizedBox(
                                 width: 20,
@@ -487,10 +547,10 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
                               )
-                            : const Icon(Icons.check),
-                        label: Text(_isProcessing ? 'Processing...' : 'Complete Job'),
+                            : const Icon(Icons.play_arrow),
+                        label: Text(_isProcessing ? 'Processing...' : '🚿 Start Service'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: Colors.purple,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
@@ -498,6 +558,33 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
                     ),
                   ],
                 ),
+
+              if (status == 'in_progress' || status == 'paid')
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _isProcessing ? null : () => _updateOrderStatus('completed'),
+                    icon: _isProcessing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.check_circle),
+                    label: Text(_isProcessing ? 'Processing...' : '✅ Complete Service'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+
 
               if (status == 'searching')
                 Row(

@@ -4,10 +4,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/job_service.dart';
-import '../customer/tracking_screen.dart';
+import 'washer_order_details_screen.dart';
+
+
+
 
 class IncomingJobDialog extends StatefulWidget {
   final Map<String, dynamic> job;
@@ -89,21 +91,17 @@ class _IncomingJobDialogState extends State<IncomingJobDialog> with SingleTicker
         final lng = widget.job['longitude'] ?? 3.3792;
         final location = widget.job['location'] ?? 'Customer Address';
 
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => TrackingScreen(
+            builder: (context) => WasherOrderDetailsScreen(
               jobId: jobId,
-              washerName: widget.job['washerName'] ?? 'Service Provider',
-              pickupAddress: location,
-              pickupLocation: LatLng(lat, lng),
-              serviceName: widget.job['serviceName'] ?? 'Service',
-              price: widget.job['price'] ?? 0,
-              washerId: widget.washerId,
+              order: widget.job,
             ),
           ),
         );
       }
+
     } catch (e) {
       if (mounted) {
         setState(() => _isProcessing = false);
