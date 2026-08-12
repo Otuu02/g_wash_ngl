@@ -1025,12 +1025,16 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       children: [
                         Text(
                           (_jobStatus == 'accepted' || _jobStatus == 'enRoute')
-                              ? 'Washer On The Way'
-                              : _jobStatus == 'assigned'
-                                  ? 'Awaiting Provider Confirmation'
+                              ? 'Washer En Route'
+                              : (_jobStatus == 'assigned' || _jobStatus == 'pending_acceptance')
+                                  ? 'Awaiting Provider Acceptance'
                                   : _jobStatus == 'arrived'
                                       ? 'Provider Arrived'
-                                      : 'Searching For Provider',
+                                      : _jobStatus == 'in_progress'
+                                          ? 'Service In Progress'
+                                          : _jobStatus == 'completed'
+                                              ? 'Service Completed'
+                                              : 'Searching For Provider',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -1051,9 +1055,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     decoration: BoxDecoration(
                       color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute') 
                           ? Colors.green.withOpacity(0.2) 
-                          : (_jobStatus == 'assigned')
+                          : (_jobStatus == 'assigned' || _jobStatus == 'pending_acceptance')
                               ? Colors.blue.withOpacity(0.2)
-                              : Colors.orange.withOpacity(0.2),
+                              : _jobStatus == 'arrived'
+                                  ? Colors.blue.withOpacity(0.2)
+                                  : Colors.orange.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -1062,7 +1068,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                           (_jobStatus == 'accepted' || _jobStatus == 'enRoute') ? Icons.timer : Icons.hourglass_top,
                           color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute') 
                               ? Colors.green 
-                              : (_jobStatus == 'assigned')
+                              : (_jobStatus == 'assigned' || _jobStatus == 'pending_acceptance' || _jobStatus == 'arrived')
                                   ? Colors.blue.shade800
                                   : Colors.orange.shade800,
                           size: 14,
@@ -1071,13 +1077,15 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         Text(
                           (_jobStatus == 'accepted' || _jobStatus == 'enRoute') && _etaMinutes > 0
                               ? '$_etaMinutes mins' 
-                              : _jobStatus == 'assigned'
-                                  ? 'Awaiting'
-                                  : 'Searching',
+                              : (_jobStatus == 'assigned' || _jobStatus == 'pending_acceptance')
+                                  ? 'Requested'
+                                  : _jobStatus == 'arrived'
+                                      ? 'Arrived'
+                                      : 'Searching',
                           style: TextStyle(
                             color: (_jobStatus == 'accepted' || _jobStatus == 'enRoute') 
                                 ? Colors.green 
-                                : (_jobStatus == 'assigned')
+                                : (_jobStatus == 'assigned' || _jobStatus == 'pending_acceptance' || _jobStatus == 'arrived')
                                     ? Colors.blue.shade800
                                     : Colors.orange.shade800,
                             fontWeight: FontWeight.bold,
@@ -1087,6 +1095,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       ],
                     ),
                   ),
+
                 ],
               ),
             ),
@@ -1416,12 +1425,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     ),
                   ),
 
-                // ============================================================
-                // PROVIDER ACTION SIMULATOR QUICK BAR (DEMO CONTROLS)
-                // ============================================================
-                _buildProviderSimulationQuickBar(),
-                
                 // CANCEL BOOKING BUTTON
+
                 if (!isCompleted && !isPaid && !isCancelled)
                   SizedBox(
                     width: double.infinity,
@@ -1452,93 +1457,5 @@ class _TrackingScreenState extends State<TrackingScreen> {
       );
     }
 
-  Widget _buildProviderSimulationQuickBar() {
-    return Container(
-      margin: const EdgeInsets.only(top: 12, bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.touch_app, size: 16, color: AppColors.primary),
-              SizedBox(width: 6),
-              Text(
-                'Live Provider Status Control',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Simulate provider status actions live in real-time:',
-            style: TextStyle(fontSize: 11, color: Colors.grey),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).update({
-                      'status': 'arrived',
-                      'arrivedAt': FieldValue.serverTimestamp(),
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    elevation: 1,
-                  ),
-                  child: const Text('📍 Arrived', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).update({
-                      'status': 'in_progress',
-                      'startedAt': FieldValue.serverTimestamp(),
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    elevation: 1,
-                  ),
-                  child: const Text('🚿 Started', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    await FirebaseFirestore.instance.collection('jobs').doc(widget.jobId).update({
-                      'status': 'completed',
-                      'completedAt': FieldValue.serverTimestamp(),
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    elevation: 1,
-                  ),
-                  child: const Text('✅ Complete', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+}
 }

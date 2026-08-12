@@ -382,15 +382,35 @@ class JobService extends ChangeNotifier {
 
       // Send System Push Notification to Customer
       _notificationService.addNotification(
-        title: 'ðŸŽ‰ Order Accepted!',
+        title: '🎉 Order Accepted!',
         message: '$washerName accepted your ${jobData['serviceName'] ?? 'service'} request and is on their way!',
         type: 'booking',
         jobId: jobId,
       );
 
-      debugPrint('âœ… Job $jobId accepted by $washerId');
+      // Send Real Email & SMS to Customer upon Acceptance
+      final customerEmail = (jobData['customerEmail'] ?? '').toString();
+      final customerPhone = (jobData['customerPhone'] ?? '').toString();
+      final customerName = (jobData['customerName'] ?? 'Customer').toString();
+      final serviceName = (jobData['serviceName'] ?? 'Service').toString();
+
+      if (customerEmail.isNotEmpty) {
+        await _communicationService.sendRealEmail(
+          email: customerEmail,
+          subject: '🎉 Order Accepted by $washerName - G Wash NG',
+          body: 'Hello $customerName,\n\nGreat news! $washerName has accepted your request for $serviceName and is on their way!\n\nThank you for choosing G Wash NG.',
+        );
+      }
+      if (customerPhone.isNotEmpty) {
+        await _communicationService.sendRealSms(
+          phone: customerPhone,
+          message: '🎉 G Wash NG Alert: $washerName has accepted your $serviceName request and is en route to your location!',
+        );
+      }
+
+      debugPrint('✅ Job $jobId accepted by $washerId');
     } catch (e) {
-      debugPrint('âŒ Error accepting job request: $e');
+      debugPrint('❌ Error accepting job request: $e');
       rethrow;
     }
   }
