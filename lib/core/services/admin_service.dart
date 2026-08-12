@@ -20,20 +20,27 @@ class AdminService {
       
       for (var doc in jobs.docs) {
         final data = doc.data();
-        final status = data['status'] ?? '';
+        final status = (data['status'] ?? '').toString();
+        final isPaid = data['isPaid'] == true || data['paymentStatus'] == 'paid';
+        final paymentMethod = (data['paymentMethod'] ?? '').toString().toLowerCase();
         
         if (status == 'completed') {
           completedJobs++;
-        } else if (status == 'assigned' || status == 'enRoute' || status == 'in_progress') {
+        } else if (status == 'assigned' || status == 'enRoute' || status == 'in_progress' || status == 'arrived') {
           activeJobs++;
+        }
+
+        // 🟢 STRICT PAYSTACK VERIFICATION RULE:
+        // Only count revenue from jobs where payment went through Paystack successfully
+        if (isPaid && (paymentMethod == 'paystack' || data['paystackReference'] != null || data['reference'] != null || data['paidAt'] != null)) {
+          final price = (data['price'] ?? 0).toDouble();
+          totalGrossRevenue += price;
+          totalPlatformRevenue += (price * 0.05); // 5% platform commission
+          totalWasherPayouts += (price * 0.95);   // 95% washer share
         }
       }
 
-      // Calculate revenue STRICTLY from real completed payments in 'payments' collection
-      double totalGrossRevenue = 0.0;
-      double totalPlatformRevenue = 0.0;
-      double totalWasherPayouts = 0.0;
-
+      // Also check 'payments' collection for verified completed payments
       try {
         final paymentsQuery = await _firestore
             .collection('payments')
@@ -46,12 +53,14 @@ class AdminService {
           final fee = (data['platformFee'] ?? (gross * 0.05)).toDouble();
           final share = (data['providerShare'] ?? (gross * 0.95)).toDouble();
 
-          totalGrossRevenue += gross;
-          totalPlatformRevenue += fee;
-          totalWasherPayouts += share;
+          if (gross > 0 && totalGrossRevenue == 0) {
+            totalGrossRevenue += gross;
+            totalPlatformRevenue += fee;
+            totalWasherPayouts += share;
+          }
         }
       } catch (e) {
-        // If collection does not exist or query fails, default to 0
+        // Default to 0
       }
 
       return {
@@ -82,6 +91,7 @@ class AdminService {
       };
     }
   }
+
 
   // ============================================================
   // USERS
