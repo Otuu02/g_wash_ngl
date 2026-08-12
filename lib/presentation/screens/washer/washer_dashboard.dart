@@ -264,11 +264,22 @@ class _WasherDashboardState extends State<WasherDashboard> {
       // Listen to real-time jobs for dynamic stats calculation & incoming popups
       _listenToRealtimeJobs(_washerId);
 
+      // Prompt washer to set custom service prices if not yet configured
+      if (mounted) {
+        final Map<dynamic, dynamic>? servicePrices = data['servicePrices'];
+        if (servicePrices == null || servicePrices.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _showSetServicePricesPromptDialog();
+          });
+        }
+      }
+
     } catch (e) {
       print('❌ Error loading washer data: $e');
       setState(() => _isLoading = false);
     }
   }
+
 
   String? _activePromptJobId;
 
@@ -373,7 +384,154 @@ class _WasherDashboardState extends State<WasherDashboard> {
     });
   }
 
+  bool _hasPromptedPrices = false;
+
+  void _showSetServicePricesPromptDialog() {
+    if (_hasPromptedPrices || !mounted) return;
+    _hasPromptedPrices = true;
+
+    final priceControllers = <String, TextEditingController>{};
+    List<String> servicesToPrice = [];
+
+    if (_selectedServices.isNotEmpty) {
+      servicesToPrice = _selectedServices.map((s) => (s['name'] ?? s['title'] ?? 'Service').toString()).toList();
+    } else {
+      servicesToPrice = ['Exterior Wash', 'Interior Cleaning', 'Full Detailing', 'Standard Cleaning', 'Deep Cleaning', 'Wash & Fold', 'Standard Ride'];
+    }
+
+    for (var s in servicesToPrice) {
+      priceControllers[s] = TextEditingController();
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Column(
+            children: [
+              Icon(Icons.sell, color: AppColors.primary, size: 40),
+              SizedBox(height: 8),
+              Text(
+                'Set Your Service Prices 🏷️',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: AppColors.primary, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Welcome! Please set custom prices for your services so customers can book you.',
+                            style: TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ...priceControllers.entries.map((entry) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: TextField(
+                        controller: entry.value,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: entry.key,
+                          prefixText: '₦ ',
+                          hintText: 'Enter price (e.g. 4500)',
+                          border: const OutlineInputBorder(),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final updatedPrices = <String, int>{};
+                  priceControllers.forEach((name, ctrl) {
+                    final val = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
+                    if (val != null && val > 0) {
+                      updatedPrices[name] = val;
+                    }
+                  });
+
+                  if (updatedPrices.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter at least one valid price for your services!'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (_washerId.isNotEmpty) {
+                    await FirebaseFirestore.instance.collection('washers').doc(_washerId).set({
+                      'servicePrices': updatedPrices,
+                      'price': updatedPrices.values.first,
+                      'hasSetPrices': true,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    }, SetOptions(merge: true));
+
+                    setState(() {
+                      _washerData['servicePrices'] = updatedPrices;
+                      _washerData['price'] = updatedPrices.values.first;
+                    });
+
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🎉 Your service prices have been saved! You are ready for bookings.'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Save & Start Accepting Bookings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showIncomingJobOverlay(Map<String, dynamic> job) {
+
     showDialog(
       context: context,
       barrierDismissible: false,
