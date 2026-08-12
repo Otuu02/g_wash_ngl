@@ -303,9 +303,16 @@ class _WasherDashboardState extends State<WasherDashboard> {
 
         final authService = Provider.of<AuthService>(context, listen: false);
         final currentUserId = authService.userId ?? '';
+        final currentUserPhone = authService.userPhone ?? '';
+        
+        final jobPhone = (data['washerPhone'] ?? data['providerPhone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+        final myCleanPhone = currentUserPhone.replaceAll(RegExp(r'[^0-9]'), '');
+        final isPhoneMatch = myCleanPhone.isNotEmpty && jobPhone.isNotEmpty && (myCleanPhone.contains(jobPhone) || jobPhone.contains(myCleanPhone));
 
         final isDirectForMe = (washerId.isNotEmpty && (jobWasherId == washerId || jobWasherDocId == washerId)) ||
-            (currentUserId.isNotEmpty && (jobWasherId == currentUserId || jobWasherDocId == currentUserId));
+            (currentUserId.isNotEmpty && (jobWasherId == currentUserId || jobWasherDocId == currentUserId)) ||
+            isPhoneMatch;
+
 
         final isUnassignedBroadcast = (jobWasherId.isEmpty || jobWasherId == 'null' || jobWasherId == 'broadcast') &&
             (status == 'searching' || status == 'pending' || status == 'pending_acceptance' || status == 'unassigned');

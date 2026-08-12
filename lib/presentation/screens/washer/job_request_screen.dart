@@ -170,9 +170,13 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
             // Pending Jobs: matching washerId OR unassigned/searching broadcast
             final pendingJobs = allJobs.where((j) {
               final status = (j['status'] ?? '').toString().toLowerCase();
-              final jWasherId = (j['washerId'] ?? j['assignedWasherId'] ?? '').toString();
-              
-              final isDirectForMe = washerId.isNotEmpty && (jWasherId == washerId);
+              final jWasherId = (j['washerId'] ?? j['assignedWasherId'] ?? j['washerDocId'] ?? '').toString();
+              final jWasherPhone = (j['washerPhone'] ?? j['providerPhone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+              final myCleanPhone = (authService.userPhone ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+              final isPhoneMatch = myCleanPhone.isNotEmpty && jWasherPhone.isNotEmpty && (myCleanPhone.contains(jWasherPhone) || jWasherPhone.contains(myCleanPhone));
+
+              final isDirectForMe = (washerId.isNotEmpty && jWasherId == washerId) || isPhoneMatch;
+
               final isUnassignedBroadcast = (jWasherId.isEmpty || jWasherId == 'null' || jWasherId == 'broadcast') &&
                   (status == 'searching' || status == 'pending' || status == 'unassigned');
 
