@@ -6,6 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/app_notification_service.dart';
+import '../../../services/communication_service.dart';
+
+
 
 class WasherOrderDetailsScreen extends StatefulWidget {
   final String jobId;
@@ -198,6 +201,24 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
         icon: notifIcon,
         backgroundColor: notifColor,
       );
+
+      final customerEmail = (_orderData?['customerEmail'] ?? '').toString();
+      final customerPhone = (_orderData?['customerPhone'] ?? '').toString();
+      final customerName = (_orderData?['customerName'] ?? 'Customer').toString();
+      final providerName = (_orderData?['washerName'] ?? 'Service Provider').toString();
+      final serviceName = (_orderData?['serviceName'] ?? 'Service').toString();
+
+      await CommunicationService().sendStatusUpdateNotification(
+        jobId: widget.jobId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        customerEmail: customerEmail,
+        providerName: providerName,
+        serviceName: serviceName,
+        status: newStatus,
+        message: '$notifTitle: $notifMsg',
+      );
+
 
       // Navigate back after completion
       if (newStatus == 'completed') {
