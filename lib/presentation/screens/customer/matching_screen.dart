@@ -141,13 +141,15 @@ class _MatchingScreenState extends State<MatchingScreen> {
           userName = data['name'].toString();
         }
 
-        String? profileImage = data['profileImage'];
+        String? profileImage = (data['profileImage'] ?? data['photoURL'] ?? data['profilePicture'] ?? data['avatar'] ?? data['washerPhotoURL'])?.toString();
         if ((profileImage == null || profileImage.isEmpty) && userDoc.exists) {
-          profileImage = userDoc.data()?['profileImage'];
+          final uData = userDoc.data();
+          profileImage = (uData?['profileImage'] ?? uData?['photoURL'] ?? uData?['profilePicture'] ?? uData?['avatar'] ?? uData?['washerPhotoURL'])?.toString();
         }
 
         if (profileImage != null && profileImage.isNotEmpty) {
           _providerImages[doc.id] = profileImage;
+          if (userId.isNotEmpty) _providerImages[userId] = profileImage;
         }
 
         final washerPrice = _extractWasherPrice(data, widget.serviceName);
@@ -189,11 +191,12 @@ class _MatchingScreenState extends State<MatchingScreen> {
         }
 
         final userName = data['name'] ?? data['fullName'] ?? 'Service Provider';
-        String? profileImage = data['profileImage'];
+        String? profileImage = (data['profileImage'] ?? data['photoURL'] ?? data['profilePicture'] ?? data['avatar'] ?? data['washerPhotoURL'])?.toString();
 
         if (profileImage != null && profileImage.isNotEmpty) {
           _providerImages[doc.id] = profileImage;
         }
+
 
         final washerPrice = _extractWasherPrice(data, widget.serviceName);
 
@@ -241,15 +244,23 @@ class _MatchingScreenState extends State<MatchingScreen> {
   int? _extractWasherPrice(Map<String, dynamic> data, String serviceName) {
     final Map<dynamic, dynamic>? subPrices = data['subServicePrices'] ?? data['servicePrices'] ?? data['prices'];
     if (subPrices != null && subPrices.isNotEmpty) {
+      if (subPrices[serviceName] != null) {
+        final valStr = subPrices[serviceName].toString().replaceAll(RegExp(r'[^0-9]'), '');
+        final parsed = int.tryParse(valStr);
+        if (parsed != null && parsed > 0) return parsed;
+      }
       final sNameLower = serviceName.trim().toLowerCase().replaceAll(' ', '_');
       for (var entry in subPrices.entries) {
         final keyLower = entry.key.toString().trim().toLowerCase();
-        if (keyLower.endsWith(sNameLower) || keyLower.contains(sNameLower) || sNameLower.contains(keyLower)) {
+        if (keyLower == sNameLower || keyLower.endsWith(sNameLower) || keyLower.contains(sNameLower) || sNameLower.contains(keyLower)) {
           final valStr = entry.value.toString().replaceAll(RegExp(r'[^0-9]'), '');
           final parsed = int.tryParse(valStr);
           if (parsed != null && parsed > 0) return parsed;
         }
       }
+    }
+    if (data['customPrice'] != null && data['customPrice'] is num && (data['customPrice'] as num) > 0) {
+      return (data['customPrice'] as num).toInt();
     }
     if (data['price'] != null && data['price'] is num && (data['price'] as num) > 0) {
       return (data['price'] as num).toInt();
@@ -259,6 +270,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
     }
     return null;
   }
+
 
   double _calculateDistance(Map<String, dynamic> data) {
     final radius = (data['workingRadius'] ?? 10) as int;

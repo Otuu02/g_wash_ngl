@@ -704,20 +704,14 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                 },
               ),
 
-              // Services
+              // Services & Pricing
               _buildMenuItem(
-                icon: Icons.verified,
-                title: 'Services',
-                subtitle: serviceDisplayNames.isNotEmpty ? serviceDisplayNames : 'No services selected',
-                onTap: () {
-                  _showInfoDialog(
-                    'Your Services',
-                    serviceDisplayNames.isNotEmpty 
-                        ? 'Services: $serviceDisplayNames'
-                        : 'No services selected yet.\nPlease update your profile.',
-                  );
-                },
+                icon: Icons.sell,
+                title: 'Services & Custom Pricing',
+                subtitle: serviceDisplayNames.isNotEmpty ? '$serviceDisplayNames · Tap to set custom prices' : 'Tap to manage services & custom pricing',
+                onTap: () => _showEditServicesAndPricesDialog(),
               ),
+
 
               // Vehicle Details
               _buildMenuItem(
@@ -891,7 +885,116 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
     );
   }
 
+  void _showEditServicesAndPricesDialog() {
+    final Map<String, dynamic> currentPrices = Map<String, dynamic>.from(_washerData['servicePrices'] ?? {});
+    final priceControllers = <String, TextEditingController>{};
+
+    final allServices = _getAllServices();
+    if (allServices.isEmpty) {
+      allServices.addAll(['Exterior Wash', 'Interior Cleaning', 'Full Detailing', 'Standard Cleaning', 'Deep Cleaning', 'Wash & Fold', 'Standard Ride']);
+    }
+
+    for (var s in allServices) {
+      final displayName = _getServiceDisplayName(s);
+      final existingVal = currentPrices[displayName] ?? currentPrices[s] ?? '';
+      priceControllers[displayName] = TextEditingController(text: existingVal.toString());
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.sell, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Custom Service Pricing', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Set your custom price for each service offered. Customers will see your custom prices when booking!',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                ...priceControllers.entries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextField(
+                      controller: entry.value,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: entry.key,
+                        prefixText: '₦ ',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final updatedPrices = <String, int>{};
+              priceControllers.forEach((name, ctrl) {
+                final val = int.tryParse(ctrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
+                if (val != null && val > 0) {
+                  updatedPrices[name] = val;
+                }
+              });
+
+              if (_washerId != null && _washerId!.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('washers').doc(_washerId).set({
+                  'servicePrices': updatedPrices,
+                  'price': updatedPrices.values.isNotEmpty ? updatedPrices.values.first : null,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                }, SetOptions(merge: true));
+
+                setState(() {
+                  _washerData['servicePrices'] = updatedPrices;
+                  if (updatedPrices.values.isNotEmpty) {
+                    _washerData['price'] = updatedPrices.values.first;
+                  }
+                });
+
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Custom service prices updated successfully! 🎉'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Save Pricing'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMenuItem({
+
     required IconData icon,
     required String title,
     required String subtitle,
