@@ -1318,12 +1318,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ============================================================
   // RICH GRAPHICAL PROMO FLYER CARD BUILDER
   // ============================================================
+  // RICH GRAPHICAL PROMO FLYER CARD BUILDER
+  // ============================================================
   Widget _buildFlyerCard(Map<String, dynamic> item) {
-    final List<Color> gradientColors = (item['gradient'] as List<Color>?) ?? [
-      AppColors.primary,
-      AppColors.primaryDark,
-    ];
-
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -1340,7 +1337,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: gradientColors.first.withOpacity(0.3),
+              color: Colors.black.withOpacity(0.15),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
@@ -1348,23 +1345,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  item['imagePath'],
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return _buildGraphicalBannerContent(item, gradientColors);
-                  },
-                ),
-              ),
-            ],
+          child: MultiPathFlyerImageWidget(
+            assetPath: item['imagePath'],
+            fit: BoxFit.cover,
           ),
         ),
       ),
     );
   }
+
 
   Widget _buildGraphicalBannerContent(Map<String, dynamic> item, List<Color> gradientColors) {
     return Container(
@@ -1510,4 +1499,95 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
-}
+}
+
+// ============================================================
+// MULTI-PATH FLYER IMAGE WIDGET
+// ============================================================
+class MultiPathFlyerImageWidget extends StatefulWidget {
+  final String assetPath;
+  final BoxFit fit;
+
+  const MultiPathFlyerImageWidget({
+    super.key,
+    required this.assetPath,
+    this.fit = BoxFit.cover,
+  });
+
+  @override
+  State<MultiPathFlyerImageWidget> createState() => _MultiPathFlyerImageWidgetState();
+}
+
+class _MultiPathFlyerImageWidgetState extends State<MultiPathFlyerImageWidget> {
+  int _attemptIndex = 0;
+
+  List<String> get _paths {
+    final raw = widget.assetPath;
+    final name = raw.split('/').last;
+    return [
+      raw,                           // 'assets/images/flyer_services.jpg'
+      'assets/$raw',                 // 'assets/assets/images/flyer_services.jpg'
+      'images/$name',                // 'images/flyer_services.jpg'
+      'assets/images/$name',         // 'assets/images/flyer_services.jpg'
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_attemptIndex < _paths.length) {
+      final currentPath = _paths[_attemptIndex];
+      return Image.asset(
+        currentPath,
+        fit: widget.fit,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _attemptIndex++;
+              });
+            }
+          });
+          return Container(color: Colors.grey.shade200);
+        },
+      );
+    }
+
+    final name = widget.assetPath.split('/').last;
+    return Image.network(
+      'assets/assets/images/$name',
+      fit: widget.fit,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.network(
+          'assets/images/$name',
+          fit: widget.fit,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) {
+            return Image.network(
+              'images/$name',
+              fit: widget.fit,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: AppColors.primary,
+                  child: Center(
+                    child: Text(
+                      name,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
