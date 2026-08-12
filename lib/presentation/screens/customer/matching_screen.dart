@@ -411,7 +411,35 @@ class _MatchingScreenState extends State<MatchingScreen> {
 
   void _waitForProviderResponse(String jobId, Map<String, dynamic> provider, int finalPrice) {
     StreamSubscription<DocumentSnapshot>? subscription;
+    Timer? timeoutTimer;
     bool dialogOpen = true;
+
+    // ⏳ 30-SECOND ACCEPTANCE TIMEOUT FALLBACK
+    timeoutTimer = Timer(const Duration(seconds: 30), () async {
+      if (dialogOpen && mounted) {
+        subscription?.cancel();
+        if (dialogOpen && mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+
+        try {
+          await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
+            'status': 'expired',
+            'expiredAt': FieldValue.serverTimestamp(),
+            'expireReason': 'Provider did not respond within 30 seconds',
+          });
+        } catch (e) {
+          debugPrint('⚠️ Error expiring job: $e');
+        }
+
+        setState(() {
+          _isAssigning = false;
+          _selectedWasherId = null;
+        });
+
+        _showProviderUnavailableDialog(provider['name']);
+      }
+    });
 
     showDialog(
       context: context,
@@ -434,7 +462,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Waiting for service provider to accept your request. This takes just a few seconds!',
+                  'Waiting for service provider to accept your request. (30s timeout)',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Colors.grey),
                 ),
@@ -464,6 +492,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
       },
     ).then((_) {
       dialogOpen = false;
+      timeoutTimer?.cancel();
       subscription?.cancel();
     });
 
@@ -477,6 +506,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
       final status = (data?['status'] ?? '').toString().toLowerCase();
 
       if (status == 'accepted' || status == 'assigned') {
+        timeoutTimer?.cancel();
         subscription?.cancel();
         if (dialogOpen && mounted) {
           Navigator.of(context, rootNavigator: true).pop();
@@ -492,6 +522,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
           providerId: provider['id'],
         );
       } else if (status == 'declined') {
+        timeoutTimer?.cancel();
         subscription?.cancel();
         if (dialogOpen && mounted) {
           Navigator.of(context, rootNavigator: true).pop();
@@ -500,16 +531,50 @@ class _MatchingScreenState extends State<MatchingScreen> {
           _isAssigning = false;
           _selectedWasherId = null;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${provider['name']} was unavailable. Please select another provider.'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        _showProviderUnavailableDialog(provider['name']);
       }
     });
   }
+
+  void _showProviderUnavailableDialog(String providerName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Column(
+          children: [
+            Icon(Icons.timer_off, color: Colors.orange, size: 50),
+            SizedBox(height: 10),
+            Text(
+              'Provider Unavailable ⏳',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(
+          '$providerName is currently unavailable or did not respond within 30 seconds.\n\nPlease select another service provider nearby!',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 14, color: Colors.black87),
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Choose Another Provider', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   void _showBookingSuccessDialog({
     required String jobId,
