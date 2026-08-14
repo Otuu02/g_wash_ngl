@@ -11,10 +11,17 @@ class AdminService {
   // ============================================================
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
+      // Auto-purge old unverified test jobs & test data from Firestore if present
+      final testJobsCheck = await _firestore.collection('jobs').get();
+      if (testJobsCheck.docs.any((j) => j.data()['paystackVerified'] != true)) {
+        await clearTestRevenueData();
+      }
+
       final users = await _firestore.collection('users').get();
       final washers = await _firestore.collection('washers').get();
       final jobs = await _firestore.collection('jobs').get();
       
+      int validJobsCount = 0;
       int completedJobs = 0;
       int activeJobs = 0;
       double totalGrossRevenue = 0.0;
@@ -25,22 +32,24 @@ class AdminService {
         final data = doc.data();
         final status = (data['status'] ?? '').toString();
         final isCompleted = status == 'completed';
-        // 🟢 STRICT PAYSTACK VERIFICATION RULE: Only count revenue if explicitly verified by Paystack webhook/callback
+        // 🟢 STRICT PAYSTACK VERIFICATION RULE: Only count revenue & jobs if explicitly verified by Paystack
         final isPaystackVerified = data['paystackVerified'] == true;
         final isPaid = (data['isPaid'] == true || data['paymentStatus'] == 'paid') && isPaystackVerified;
         
-        if (status == 'completed') {
-          completedJobs++;
-        } else if (status == 'assigned' || status == 'enRoute' || status == 'in_progress' || status == 'arrived') {
-          activeJobs++;
-        }
+        if (isPaystackVerified) {
+          validJobsCount++;
+          if (status == 'completed') {
+            completedJobs++;
+          } else if (status == 'assigned' || status == 'enRoute' || status == 'in_progress' || status == 'arrived') {
+            activeJobs++;
+          }
 
-        // Only count revenue from completed jobs where payment went through Paystack successfully and has verified reference
-        if (isCompleted && isPaid) {
-          final price = (data['price'] ?? 0).toDouble();
-          totalGrossRevenue += price;
-          totalPlatformRevenue += (price * 0.05); // 5% platform commission
-          totalWasherPayouts += (price * 0.95);   // 95% washer share
+          if (isCompleted && isPaid) {
+            final price = (data['price'] ?? 0).toDouble();
+            totalGrossRevenue += price;
+            totalPlatformRevenue += (price * 0.05); // 5% platform commission
+            totalWasherPayouts += (price * 0.95);   // 95% washer share
+          }
         }
       }
 
@@ -71,7 +80,7 @@ class AdminService {
       return {
         'totalUsers': users.size,
         'totalWashers': washers.size,
-        'totalJobs': jobs.size,
+        'totalJobs': validJobsCount,
         'totalRevenue': totalGrossRevenue.toInt(),
         'totalPlatformRevenue': totalPlatformRevenue,
         'totalWasherPayouts': totalWasherPayouts,

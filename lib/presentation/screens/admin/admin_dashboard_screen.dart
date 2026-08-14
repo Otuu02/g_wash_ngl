@@ -510,22 +510,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 20),
           
           // Stats Grid
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Overview',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              TextButton.icon(
-                onPressed: _resetTestRevenueData,
-                icon: const Icon(Icons.cleaning_services, size: 16, color: Colors.red),
-                label: const Text(
-                  'Reset Revenue to ₦0',
-                  style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
+          const Text(
+            'Overview',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           GridView.count(
