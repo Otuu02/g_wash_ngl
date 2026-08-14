@@ -361,6 +361,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
   
+  Future<void> _resetTestRevenueData() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Financial Counters & Test Revenue'),
+        content: const Text(
+          'This will purge non-verified test payment data and reset revenue counters to ₦0 until real Paystack completed transactions occur. Proceed?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reset to ₦0'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isLoading = true);
+      try {
+        await _adminService.clearTestRevenueData();
+        await _loadDashboardData();
+        _showSuccessSnackBar('✅ Test revenue cleared! Counters reset to ₦0.');
+      } catch (e) {
+        setState(() => _isLoading = false);
+        _showErrorSnackBar('Error resetting test data: $e');
+      }
+    }
+  }
+
   void _signOut() async {
     await FirebaseAuth.instance.signOut();
     Navigator.pushReplacementNamed(context, '/login');
@@ -475,9 +510,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 20),
           
           // Stats Grid
-          const Text(
-            'Overview',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Overview',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              TextButton.icon(
+                onPressed: _resetTestRevenueData,
+                icon: const Icon(Icons.cleaning_services, size: 16, color: Colors.red),
+                label: const Text(
+                  'Reset Revenue to ₦0',
+                  style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           GridView.count(

@@ -22,11 +22,15 @@ class AdminService {
       double totalWasherPayouts = 0.0;
       
       for (var doc in jobs.docs) {
-
         final data = doc.data();
         final status = (data['status'] ?? '').toString();
-        final isPaid = data['isPaid'] == true || data['paymentStatus'] == 'paid';
-        final paymentMethod = (data['paymentMethod'] ?? '').toString().toLowerCase();
+        final isCompleted = status == 'completed';
+        final isPaystackVerified = data['paystackVerified'] == true || 
+            (data['paystackReference'] != null && 
+             data['paystackReference'].toString().isNotEmpty && 
+             !data['paystackReference'].toString().contains('test_demo') &&
+             !data['paystackReference'].toString().contains('mock'));
+        final isPaid = (data['isPaid'] == true || data['paymentStatus'] == 'paid') && isPaystackVerified;
         
         if (status == 'completed') {
           completedJobs++;
@@ -35,8 +39,8 @@ class AdminService {
         }
 
         // 🟢 STRICT PAYSTACK VERIFICATION RULE:
-        // Only count revenue from jobs where payment went through Paystack successfully
-        if (isPaid && (paymentMethod == 'paystack' || data['paystackReference'] != null || data['reference'] != null || data['paidAt'] != null)) {
+        // Only count revenue from completed jobs where payment went through Paystack successfully and has verified reference
+        if (isCompleted && isPaid) {
           final price = (data['price'] ?? 0).toDouble();
           totalGrossRevenue += price;
           totalPlatformRevenue += (price * 0.05); // 5% platform commission
@@ -44,11 +48,12 @@ class AdminService {
         }
       }
 
-      // Also check 'payments' collection for verified completed payments
+      // Check 'payments' collection ONLY for verified completed Paystack payments
       try {
         final paymentsQuery = await _firestore
             .collection('payments')
             .where('status', isEqualTo: 'completed')
+            .where('paystackVerified', isEqualTo: true)
             .get();
 
         for (var doc in paymentsQuery.docs) {
@@ -95,7 +100,50 @@ class AdminService {
       };
     }
   }
+  // ============================================================
+  // RESET & PURGE TEST REVENUE DATA
+  // ============================================================
+  Future<void> clearTestRevenueData() async {
+    try {
+      // 1. Delete non-verified payments from payments collection
+      final payments = await _firestore.collection('payments').get();
+      for (var doc in payments.docs) {
+        final data = doc.data();
+        if (data['paystackVerified'] != true) {
+          await doc.reference.delete();
+        }
+      }
 
+      // 2. Clear fake test payment flags on all jobs
+      final jobs = await _firestore.collection('jobs').get();
+      for (var doc in jobs.docs) {
+        final data = doc.data();
+        final paystackRef = (data['paystackReference'] ?? '').toString();
+        if (paystackRef.isEmpty || data['paystackVerified'] != true) {
+          await doc.reference.update({
+            'isPaid': false,
+            'paymentStatus': 'pending',
+            'paystackVerified': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      // 3. Reset test revenue stats on washers
+      final washers = await _firestore.collection('washers').get();
+      for (var doc in washers.docs) {
+        await doc.reference.update({
+          'todayEarnings': 0,
+          'totalEarnings': 0,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      print('✅ All test revenue data cleared successfully');
+    } catch (e) {
+      print('❌ Error clearing test revenue data: $e');
+      rethrow;
+    }
+  }
 
   // ============================================================
   // USERS
