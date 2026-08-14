@@ -371,11 +371,50 @@ class AuthService extends ChangeNotifier {
       if (name.isEmpty || password.isEmpty) {
         return false;
       }
-      
+
       if (_registeredUsers.containsKey(formattedPhone)) {
+        debugPrint('⛔ Signup rejected: Phone number $formattedPhone exists in local cache');
         return false;
       }
       
+      // 🔒 Validation Check 3: Check if Phone Number Already Exists in Database (users or washers)
+      try {
+        final existingUserFormatted = await FirebaseFirestore.instance
+            .collection('users')
+            .where('phone', isEqualTo: formattedPhone)
+            .limit(1)
+            .get();
+
+        if (existingUserFormatted.docs.isNotEmpty) {
+          debugPrint('⛔ Signup rejected: Phone number $formattedPhone already exists in users database');
+          return false;
+        }
+
+        final existingUserRaw = await FirebaseFirestore.instance
+            .collection('users')
+            .where('phone', isEqualTo: phoneNumber)
+            .limit(1)
+            .get();
+
+        if (existingUserRaw.docs.isNotEmpty) {
+          debugPrint('⛔ Signup rejected: Raw phone number $phoneNumber already exists in users database');
+          return false;
+        }
+
+        final existingWasher = await FirebaseFirestore.instance
+            .collection('washers')
+            .where('phone', isEqualTo: formattedPhone)
+            .limit(1)
+            .get();
+
+        if (existingWasher.docs.isNotEmpty) {
+          debugPrint('⛔ Signup rejected: Phone number $formattedPhone already exists in washers database');
+          return false;
+        }
+      } catch (e) {
+        debugPrint('⚠️ Firestore duplicate check notice: $e');
+      }
+
       final String userEmail = (email != null && email.trim().isNotEmpty)
           ? email.trim().toLowerCase()
           : '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
@@ -392,18 +431,18 @@ class AuthService extends ChangeNotifier {
 
         try {
           await userCredential.user?.sendEmailVerification();
-          debugPrint('ðŸ“§ Firebase verification email dispatched to: $userEmail');
+          debugPrint('📧 Firebase verification email dispatched to: $userEmail');
         } catch (mailErr) {
-          debugPrint('â„¹ï¸ Firebase email verification notice: $mailErr');
+          debugPrint('ℹ️ Firebase email verification notice: $mailErr');
         }
       } on FirebaseAuthException catch (e) {
-        debugPrint('âš ï¸ Firebase Auth signup notice: ${e.message} (code: ${e.code})');
+        debugPrint('⚠️ Firebase Auth signup notice: ${e.message} (code: ${e.code})');
         if (e.code == 'email-already-in-use') {
-          debugPrint('ðŸ“ User already exists in Firebase Auth - trying login...');
-          return await login(phoneNumber, password);
+          debugPrint('⛔ Account/Phone already exists in Firebase Auth');
+          return false;
         }
       } catch (e) {
-        debugPrint('âš ï¸ Firebase Auth signup fallback: $e');
+        debugPrint('⚠️ Firebase Auth signup fallback: $e');
         _userEmail = userEmail;
       }
 
