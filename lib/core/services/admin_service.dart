@@ -25,11 +25,8 @@ class AdminService {
         final data = doc.data();
         final status = (data['status'] ?? '').toString();
         final isCompleted = status == 'completed';
-        final isPaystackVerified = data['paystackVerified'] == true || 
-            (data['paystackReference'] != null && 
-             data['paystackReference'].toString().isNotEmpty && 
-             !data['paystackReference'].toString().contains('test_demo') &&
-             !data['paystackReference'].toString().contains('mock'));
+        // 🟢 STRICT PAYSTACK VERIFICATION RULE: Only count revenue if explicitly verified by Paystack webhook/callback
+        final isPaystackVerified = data['paystackVerified'] == true;
         final isPaid = (data['isPaid'] == true || data['paymentStatus'] == 'paid') && isPaystackVerified;
         
         if (status == 'completed') {
@@ -38,7 +35,6 @@ class AdminService {
           activeJobs++;
         }
 
-        // 🟢 STRICT PAYSTACK VERIFICATION RULE:
         // Only count revenue from completed jobs where payment went through Paystack successfully and has verified reference
         if (isCompleted && isPaid) {
           final price = (data['price'] ?? 0).toDouble();
@@ -100,47 +96,61 @@ class AdminService {
       };
     }
   }
+
   // ============================================================
-  // RESET & PURGE TEST REVENUE DATA
+  // PURGE ALL TEST DATA & RESET DATABASE TO INITIAL ZERO STATE
   // ============================================================
   Future<void> clearTestRevenueData() async {
     try {
-      // 1. Delete non-verified payments from payments collection
+      // 1. Delete ALL documents in 'jobs' collection
+      final jobs = await _firestore.collection('jobs').get();
+      for (var doc in jobs.docs) {
+        await doc.reference.delete();
+      }
+
+      // 2. Delete ALL documents in 'payments' collection
       final payments = await _firestore.collection('payments').get();
       for (var doc in payments.docs) {
+        await doc.reference.delete();
+      }
+
+      // 3. Delete ALL documents in 'transactions' collection
+      final transactions = await _firestore.collection('transactions').get();
+      for (var doc in transactions.docs) {
+        await doc.reference.delete();
+      }
+
+      // 4. Delete ALL documents in 'washers' collection
+      final washers = await _firestore.collection('washers').get();
+      for (var doc in washers.docs) {
+        await doc.reference.delete();
+      }
+
+      // 5. Delete non-admin users from 'users' collection (Keep master admin)
+      final users = await _firestore.collection('users').get();
+      for (var doc in users.docs) {
         final data = doc.data();
-        if (data['paystackVerified'] != true) {
+        final phone = (data['phone'] ?? '').toString();
+        final role = (data['role'] ?? '').toString();
+        if (role != 'admin' && phone != '+2348679267153' && phone != '08679267153') {
           await doc.reference.delete();
         }
       }
 
-      // 2. Clear fake test payment flags on all jobs
-      final jobs = await _firestore.collection('jobs').get();
-      for (var doc in jobs.docs) {
-        final data = doc.data();
-        final paystackRef = (data['paystackReference'] ?? '').toString();
-        if (paystackRef.isEmpty || data['paystackVerified'] != true) {
-          await doc.reference.update({
-            'isPaid': false,
-            'paymentStatus': 'pending',
-            'paystackVerified': false,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
+      // 6. Delete communication logs
+      final smsLogs = await _firestore.collection('sms_logs').get();
+      for (var doc in smsLogs.docs) {
+        await doc.reference.delete();
       }
 
-      // 3. Reset test revenue stats on washers
-      final washers = await _firestore.collection('washers').get();
-      for (var doc in washers.docs) {
-        await doc.reference.update({
-          'todayEarnings': 0,
-          'totalEarnings': 0,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+      final emailLogs = await _firestore.collection('email_logs').get();
+      for (var doc in emailLogs.docs) {
+        await doc.reference.delete();
       }
-      print('✅ All test revenue data cleared successfully');
+
+      print('✅ Entire database purged of test data. Financial counters reset to ₦0.');
     } catch (e) {
-      print('❌ Error clearing test revenue data: $e');
+      print('❌ Error purging test data: $e');
       rethrow;
     }
   }

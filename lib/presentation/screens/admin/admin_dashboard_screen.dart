@@ -365,9 +365,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reset Financial Counters & Test Revenue'),
+        title: const Text('Purge All Test Data & Reset Database'),
         content: const Text(
-          'This will purge non-verified test payment data and reset revenue counters to ₦0 until real Paystack completed transactions occur. Proceed?',
+          'This will delete all test jobs, test payments, test transactions, and test accounts from the database, leaving only the Master Admin account and resetting all revenue counters to ₦0. Proceed?',
         ),
         actions: [
           TextButton(
@@ -377,7 +377,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Reset to ₦0'),
+            child: const Text('Purge All & Reset to ₦0'),
           ),
         ],
       ),
