@@ -81,6 +81,13 @@ class TwilioService {
     // 2. Fallback: Send via Brevo Transactional SMS REST API
     try {
       final apiKey = Env.brevoApiKey;
+
+      // 🔒 Guard: skip gracefully if Brevo key not configured
+      if (apiKey.isEmpty) {
+        debugPrint('ℹ️ [SMS Service] Brevo API key not set — SMS skipped for: $formattedTo');
+        return true; // Don't crash the app — just skip
+      }
+
       final brevoUrl = Uri.parse('https://api.brevo.com/v3/transactionalSMS/sms');
       final brevoResponse = await http.post(
         brevoUrl,

@@ -22,7 +22,7 @@ class SmtpEmailService {
 
     if (recipient.isEmpty) return false;
 
-    // 1. Web Platform or HTTP Fallback
+    // 1. Web Platform — use Brevo REST API
     if (kIsWeb) {
       return await _sendViaHttpApi(
         recipient: recipient,
@@ -32,10 +32,10 @@ class SmtpEmailService {
       );
     }
 
-    // 2. Mobile Native SMTP
+    // 2. Mobile Native SMTP — skip gracefully if credentials not set
     if (username.isEmpty || appPassword.isEmpty) {
-      debugPrint('📧 [Email Service Log] To: $recipient | Subject: $subject');
-      return true;
+      debugPrint('📧 [Email Service] Credentials not configured — email logged only. To: $recipient | Subject: $subject');
+      return true; // Don't crash the app — just skip
     }
 
     final smtpServer = gmail(username, appPassword);
@@ -49,10 +49,10 @@ class SmtpEmailService {
 
     try {
       final sendReport = await send(message, smtpServer);
-      debugPrint('âœ… [Gmail SMTP Email Sent]: ${sendReport.toString()}');
+      debugPrint('✅ [Gmail SMTP Email Sent]: ${sendReport.toString()}');
       return true;
     } catch (e) {
-      debugPrint('â„¹ï¸ [SMTP Native Exception - Trying HTTP Fallback]: $e');
+      debugPrint('ℹ️ [SMTP Native Exception — Trying HTTP Fallback]: $e');
       return await _sendViaHttpApi(
         recipient: recipient,
         subject: subject,
@@ -62,7 +62,7 @@ class SmtpEmailService {
     }
   }
 
-  /// HTTP REST Email Sender
+  /// HTTP REST Email Sender via Brevo API
   Future<bool> _sendViaHttpApi({
     required String recipient,
     required String subject,
@@ -74,7 +74,12 @@ class SmtpEmailService {
       final cleanText = bodyText ?? bodyHtml.replaceAll(RegExp(r'<[^>]*>'), '');
       final apiKey = Env.brevoApiKey;
 
-      // Primary: Send via Brevo / Sendinblue HTTPS REST Email API
+      // 🔒 Guard: skip silently if Brevo API key not configured
+      if (apiKey.isEmpty) {
+        debugPrint('ℹ️ [Email Service] Brevo API key not set — email skipped. To: $recipient | Subject: $subject');
+        return true; // Return true so app flow is not interrupted
+      }
+
       final url = Uri.parse('https://api.brevo.com/v3/smtp/email');
       final response = await http.post(
         url,
@@ -105,4 +110,3 @@ class SmtpEmailService {
     }
   }
 }
-
