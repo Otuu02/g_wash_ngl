@@ -154,8 +154,8 @@ class ValidationService {
       return ValidationResult(isValid: false, errorMessage: 'Phone number is required');
     }
 
-    // Admin bypass check for demo admin number
-    if (allowAdminBypass && (phone == '+2348000000000' || cleaned == '2348000000000')) {
+    // Admin bypass check for admin number
+    if (allowAdminBypass && (phone == '+2348679267153' || cleaned == '2348679267153')) {
       return ValidationResult(isValid: true);
     }
 

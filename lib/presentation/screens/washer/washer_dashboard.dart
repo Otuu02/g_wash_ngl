@@ -264,15 +264,8 @@ class _WasherDashboardState extends State<WasherDashboard> {
       // Listen to real-time jobs for dynamic stats calculation & incoming popups
       _listenToRealtimeJobs(_washerId);
 
-      // Prompt washer to set custom service prices if not yet configured
-      if (mounted) {
-        final Map<dynamic, dynamic>? servicePrices = data['servicePrices'];
-        if (servicePrices == null || servicePrices.isEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _showSetServicePricesPromptDialog();
-          });
-        }
-      }
+      // Service price popup removed per requirements
+
 
     } catch (e) {
       print('❌ Error loading washer data: $e');
@@ -387,8 +380,8 @@ class _WasherDashboardState extends State<WasherDashboard> {
   bool _hasPromptedPrices = false;
 
   void _showSetServicePricesPromptDialog() {
-    if (_hasPromptedPrices || !mounted) return;
-    _hasPromptedPrices = true;
+    return; // Price setup pop-up disabled
+  }
 
     final priceControllers = <String, TextEditingController>{};
     List<String> servicesToPrice = [];

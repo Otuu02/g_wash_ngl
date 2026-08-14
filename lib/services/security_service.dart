@@ -32,15 +32,25 @@ class SecurityService {
   static const Set<String> customerProtectedRoutes = {
     '/home',
     '/booking',
+    '/booking-with-params',
+    '/my-bookings',
+    '/profile',
+    '/location-search',
+    '/saved-addresses',
+    '/payment-methods',
+    '/notifications',
+    '/privacy-security',
+    '/help-support',
     '/matching',
     '/tracking',
     '/payment',
+    '/rating',
+    '/order-details',
     '/service-selection',
     '/house-cleaning-details',
     '/laundry-details',
     '/ride-booking',
     '/order-history',
-    '/profile',
   };
 
   /// List of protected routes requiring service provider (washer/cleaner/laundry/ride) role
@@ -50,14 +60,18 @@ class SecurityService {
     '/washer-earnings',
     '/washer-history',
     '/washer-registration',
+    '/washer-jobs',
+    '/washer-subscription',
   };
 
   /// List of protected routes requiring admin role
   static const Set<String> adminProtectedRoutes = {
+    '/admin',
     '/admin-dashboard',
     '/admin-users',
     '/admin-jobs',
     '/admin-payouts',
+    '/admin-transactions',
   };
 
   /// Sanitize user inputs against Cross-Site Scripting (XSS) attacks

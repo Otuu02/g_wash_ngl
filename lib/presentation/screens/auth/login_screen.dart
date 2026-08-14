@@ -537,9 +537,48 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     side: BorderSide(color: Colors.grey.shade300),
                   ),
+              // ============================================================
+              // OPTION 4: Admin Portal Access (Desktop / Laptop View Only)
+              // ============================================================
+              if (MediaQuery.of(context).size.width > 720) ...[
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _phoneController.text = '08679267153';
+                        _passwordController.text = 'NDIPsamu@2024';
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🛡️ Admin credentials populated. Press Sign In to access Admin Dashboard.'),
+                          backgroundColor: AppColors.primary,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.admin_panel_settings, color: AppColors.primary),
+                    label: const Text(
+                      'Admin Portal Sign In',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: AppColors.primary.withOpacity(0.05),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: AppColors.primary.withOpacity(0.4)),
+                    ),
+                  ),
                 ),
-              ),
-              
+              ],
+
               const SizedBox(height: 20),
 
               // ============================================================

@@ -333,30 +333,6 @@ class GWashApp extends StatelessWidget {
           
           home: _getHomeScreen(authService),
           
-          routes: {
-            '/welcome': (context) => const WelcomeScreen(),
-            '/login': (context) => const LoginScreen(),
-            '/home': (context) => const HomeScreen(),
-            '/booking': (context) => const BookingScreen(),
-            '/my-bookings': (context) => const MyBookingsScreen(),
-            '/profile': (context) => const ProfileScreen(),
-            '/location-search': (context) => const LocationSearchScreen(),
-            '/saved-addresses': (context) => const SavedAddressesScreen(),
-            '/payment-methods': (context) => const PaymentMethodsScreen(),
-            '/notifications': (context) => const NotificationsScreen(),
-            '/privacy-security': (context) => const PrivacySecurityScreen(),
-            '/help-support': (context) => const HelpSupportScreen(),
-            
-            '/washer-registration': (context) => const WasherRegistrationScreen(),
-            '/washer-dashboard': (context) => const WasherDashboard(),
-            '/washer-jobs': (context) => const JobRequestScreen(),
-            '/washer-earnings': (context) => const EarningsScreen(),
-            '/washer-profile': (context) => const WasherProfileScreen(),
-            '/washer-subscription': (context) => const SubscriptionScreen(),
-            
-            '/admin': (context) => const AdminDashboardScreen(),
-          },
-          
           onGenerateRoute: (settings) {
             // 🛡️ RouteGuard: Enforce authentication & RBAC for direct link/URL entry
             final routeGuard = SecurityService().validateRouteAccess(
@@ -366,7 +342,7 @@ class GWashApp extends StatelessWidget {
             );
 
             if (!routeGuard.isAllowed) {
-              debugPrint('🛡️ [Route Guard Direct Link Intercepted]: ${settings.name} -> ${routeGuard.reason}');
+              debugPrint('🛡️ [Route Guard Intercepted Direct URL]: ${settings.name} -> ${routeGuard.reason}');
               return MaterialPageRoute(
                 builder: (context) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -378,73 +354,104 @@ class GWashApp extends StatelessWidget {
                       ),
                     );
                   });
-                  return _getHomeScreen(authService);
+                  return authService.isLoggedIn ? _getHomeScreen(authService) : const LoginScreen();
                 },
               );
             }
 
-            if (settings.name == '/admin') {
-              if (authService.isLoggedIn && authService.isAdmin) {
+            switch (settings.name) {
+              case '/welcome':
+                return MaterialPageRoute(builder: (context) => const WelcomeScreen());
+              case '/login':
+                return MaterialPageRoute(builder: (context) => const LoginScreen());
+              case '/home':
+                return MaterialPageRoute(builder: (context) => const HomeScreen());
+              case '/booking':
+                return MaterialPageRoute(builder: (context) => const BookingScreen());
+              case '/my-bookings':
+                return MaterialPageRoute(builder: (context) => const MyBookingsScreen());
+              case '/profile':
+                return MaterialPageRoute(builder: (context) => const ProfileScreen());
+              case '/location-search':
+                return MaterialPageRoute(builder: (context) => const LocationSearchScreen());
+              case '/saved-addresses':
+                return MaterialPageRoute(builder: (context) => const SavedAddressesScreen());
+              case '/payment-methods':
+                return MaterialPageRoute(builder: (context) => const PaymentMethodsScreen());
+              case '/notifications':
+                return MaterialPageRoute(builder: (context) => const NotificationsScreen());
+              case '/privacy-security':
+                return MaterialPageRoute(builder: (context) => const PrivacySecurityScreen());
+              case '/help-support':
+                return MaterialPageRoute(builder: (context) => const HelpSupportScreen());
+
+              case '/washer-registration':
+                return MaterialPageRoute(builder: (context) => const WasherRegistrationScreen());
+              case '/washer-dashboard':
+                return MaterialPageRoute(builder: (context) => const WasherDashboard());
+              case '/washer-jobs':
+                return MaterialPageRoute(builder: (context) => const JobRequestScreen());
+              case '/washer-earnings':
+                return MaterialPageRoute(builder: (context) => const EarningsScreen());
+              case '/washer-profile':
+                return MaterialPageRoute(builder: (context) => const WasherProfileScreen());
+              case '/washer-subscription':
+                return MaterialPageRoute(builder: (context) => const SubscriptionScreen());
+
+              case '/admin':
+              case '/admin-dashboard':
+                return MaterialPageRoute(builder: (context) => const AdminDashboardScreen());
+
+              case '/order-details':
+                final order = settings.arguments as Map<String, dynamic>? ?? {};
+                return MaterialPageRoute(builder: (context) => OrderDetailsScreen(order: order));
+
+              case '/booking-with-params':
+                final args = settings.arguments as Map<String, dynamic>? ?? {};
                 return MaterialPageRoute(
-                  builder: (context) => const AdminDashboardScreen(),
+                  builder: (context) => BookingScreen(
+                    selectedService: args['service'],
+                    selectedPrice: args['price'],
+                    selectedAddress: args['address'],
+                  ),
                 );
-              }
-              return MaterialPageRoute(
-                builder: (context) => const LoginScreen(),
-              );
+
+              case '/tracking':
+                final args = settings.arguments as Map<String, dynamic>? ?? {};
+                return MaterialPageRoute(
+                  builder: (context) => TrackingScreen(
+                    jobId: args['jobId'] ?? '',
+                    washerName: args['washerName'] ?? 'Professional Washer',
+                    pickupAddress: args['pickupAddress'] ?? 'Your Location',
+                    pickupLocation: args['pickupLocation'] ?? const LatLng(6.5244, 3.3792),
+                    serviceName: args['serviceName'] ?? 'Service',
+                    price: args['price'] ?? 0,
+                  ),
+                );
+
+              case '/rating':
+                final args = settings.arguments as Map<String, String>? ?? {};
+                return MaterialPageRoute(
+                  builder: (context) => RatingScreen(
+                    jobId: args['jobId'] ?? '',
+                    washerId: args['washerId'] ?? '',
+                  ),
+                );
+
+              case '/otp':
+                final args = settings.arguments as Map<String, String>? ?? {};
+                return MaterialPageRoute(
+                  builder: (context) => OTPScreen(
+                    phoneNumber: args['phoneNumber'] ?? '',
+                    verificationId: args['verificationId'] ?? '',
+                  ),
+                );
+
+              default:
+                return MaterialPageRoute(
+                  builder: (context) => _getHomeScreen(authService),
+                );
             }
-            
-            if (settings.name == '/order-details') {
-              final order = settings.arguments as Map<String, dynamic>;
-              return MaterialPageRoute(builder: (context) => OrderDetailsScreen(order: order));
-            }
-            
-            if (settings.name == '/booking-with-params') {
-              final args = settings.arguments as Map<String, dynamic>;
-              return MaterialPageRoute(
-                builder: (context) => BookingScreen(
-                  selectedService: args['service'],
-                  selectedPrice: args['price'],
-                  selectedAddress: args['address'],
-                ),
-              );
-            }
-            
-            if (settings.name == '/tracking') {
-              final args = settings.arguments as Map<String, dynamic>;
-              return MaterialPageRoute(
-                builder: (context) => TrackingScreen(
-                  jobId: args['jobId'] ?? '',
-                  washerName: args['washerName'] ?? 'Professional Washer',
-                  pickupAddress: args['pickupAddress'] ?? 'Your Location',
-                  pickupLocation: args['pickupLocation'] ?? const LatLng(6.5244, 3.3792),
-                  serviceName: args['serviceName'] ?? 'Service',
-                  price: args['price'] ?? 0,
-                ),
-              );
-            }
-            
-            if (settings.name == '/rating') {
-              final args = settings.arguments as Map<String, String>;
-              return MaterialPageRoute(
-                builder: (context) => RatingScreen(
-                  jobId: args['jobId']!,
-                  washerId: args['washerId']!,
-                ),
-              );
-            }
-            
-            if (settings.name == '/otp') {
-              final args = settings.arguments as Map<String, String>;
-              return MaterialPageRoute(
-                builder: (context) => OTPScreen(
-                  phoneNumber: args['phoneNumber']!,
-                  verificationId: args['verificationId']!,
-                ),
-              );
-            }
-            
-            return null;
           },
         );
       },

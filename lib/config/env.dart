@@ -102,12 +102,12 @@ class Env {
   // Gmail SMTP
   static String get gmailUser {
     const val = String.fromEnvironment('GMAIL_USER');
-    return val.isNotEmpty ? val : 'gwashngservice@gmail.com';
+    return val.isNotEmpty ? val : 'gwashng@gmail.com';
   }
 
   static String get gmailAppPassword {
     const val = String.fromEnvironment('GMAIL_APP_PASSWORD');
-    return val.isNotEmpty ? val : 'gwashservice2026';
+    return val.isNotEmpty ? val : 'xonspumasgtmnlqx';
   }
 
   static String get smtpHost {

@@ -379,6 +379,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              _loadDashboardData();
+              _showSuccessSnackBar('Fetching latest real-time data...');
+            },
+            tooltip: 'Refresh Real Data',
+          ),
+          IconButton(
             icon: const Icon(Icons.settings, color: Colors.white),
             onPressed: _showFullSettingsDialog,
           ),
@@ -402,7 +410,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          if (index == 0) _loadDashboardData();
+        },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.grey600,
@@ -418,8 +429,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
   
   Widget _buildDashboardTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+    return RefreshIndicator(
+      onRefresh: _loadDashboardData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -540,8 +554,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
   
   Widget _buildQuickStat(String label, String value, IconData icon) {
     return Expanded(

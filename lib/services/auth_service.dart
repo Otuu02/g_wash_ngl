@@ -33,6 +33,7 @@ class AuthService extends ChangeNotifier {
     _loadSavedUser();
     _listenToAuthChanges();
     _checkIfWasherOnStartup();
+    seedSoleAdminAccount();
   }
 
   // ============================================================
@@ -53,6 +54,80 @@ class AuthService extends ChangeNotifier {
   bool get isLaundryProvider => _userRole == 'laundry_provider';
   bool get isAdmin => _userRole == 'admin';
   bool get isServiceProvider => isWasher || isCleaner || isLaundryProvider;
+
+  // ============================================================
+  // SEED SOLE ADMIN ACCOUNT & PURGE OTHER ADMIN PRIVILEGES
+  // ============================================================
+  Future<void> seedSoleAdminAccount() async {
+    try {
+      const adminPhone = '+2348679267153';
+      const adminEmail = '2348679267153@gwashng.com';
+
+      // 1. Demote/Remove any other existing admin account in Firestore
+      final existingAdmins = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'admin')
+          .get();
+
+      for (var doc in existingAdmins.docs) {
+        final data = doc.data();
+        final phone = (data['phone'] ?? '').toString();
+        if (phone != adminPhone && phone != '08679267153') {
+          await doc.reference.update({
+            'role': 'customer',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          debugPrint('🛡️ Demoted previous admin user ${doc.id} ($phone) to customer');
+        }
+      }
+
+      // 2. Query or create the master admin user doc
+      final adminQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('phone', isEqualTo: adminPhone)
+          .limit(1)
+          .get();
+
+      if (adminQuery.docs.isNotEmpty) {
+        final doc = adminQuery.docs.first;
+        await doc.reference.update({
+          'role': 'admin',
+          'name': 'G-Wash Chief Admin',
+          'email': adminEmail,
+          'phone': adminPhone,
+          'isBlocked': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint('✅ Master Admin record updated in Firestore (${doc.id})');
+      } else {
+        final newAdminDoc = FirebaseFirestore.instance.collection('users').doc('admin_master_8679267153');
+        await newAdminDoc.set({
+          'name': 'G-Wash Chief Admin',
+          'phone': adminPhone,
+          'email': adminEmail,
+          'role': 'admin',
+          'isBlocked': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        debugPrint('✅ Master Admin record seeded in Firestore');
+      }
+
+      // 3. Register in local memory cache
+      _registeredUsers[adminPhone] = {
+        'name': 'G-Wash Chief Admin',
+        'password': 'NDIPsamu@2024',
+        'phone': adminPhone,
+        'email': adminEmail,
+        'userId': 'admin_master_8679267153',
+        'role': 'admin',
+      };
+      _registeredUsers['08679267153'] = _registeredUsers[adminPhone]!;
+
+    } catch (e) {
+      debugPrint('❌ Error seeding sole admin account: $e');
+    }
+  }
 
   // ============================================================
   // FIX: Check if user is a washer on startup
@@ -273,7 +348,7 @@ class AuthService extends ChangeNotifier {
       final formattedPhone = formatPhone(phoneNumber);
       final validator = ValidationService();
       
-      if (formattedPhone == '+2348000000000') {
+      if (formattedPhone == '+2348679267153') {
         role = 'admin';
       }
       
@@ -395,15 +470,12 @@ class AuthService extends ChangeNotifier {
       }
       
       final email = '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
-      debugPrint('ðŸ“ Attempting login for phone: $formattedPhone ($email)');
+      debugPrint('📫 Attempting login for phone: $formattedPhone ($email)');
       
-      // Special check for Admin account â€” phone alone is NOT enough.
+      // Special check for Admin account — phone alone is NOT enough.
       // Admin must successfully authenticate via Firebase Auth as well.
-      if (formattedPhone == '+2348000000000') {
-        // ðŸ”’ SECURITY FIX: Admin must pass Firebase Auth, not just match the phone number.
-        // Fall through to normal Firebase Auth flow below; role is elevated only after
-        // successful credential verification via Firestore role check.
-        debugPrint('ðŸ›¡ï¸ Admin login attempt â€” requiring Firebase Auth credential check');
+      if (formattedPhone == '+2348679267153') {
+        debugPrint('🛡️ Master Admin login attempt — verifying credentials');
       }
 
       // 1. Try signing in directly with Firebase Auth first
@@ -459,9 +531,9 @@ class AuthService extends ChangeNotifier {
             final data = userDoc.data() as Map<String, dynamic>;
             _userName = data['name'] ?? 'User';
             _userPhone = data['phone'] ?? formattedPhone;
-            _userRole = data['role'] ?? (formattedPhone == '+2348000000000' ? 'admin' : 'customer');
+            _userRole = data['role'] ?? (formattedPhone == '+2348679267153' ? 'admin' : 'customer');
             _serviceCategory = data['serviceCategory'];
-            debugPrint('âœ… Loaded profile from Firestore for $uid (role: $_userRole)');
+            debugPrint('✅ Loaded profile from Firestore for $uid (role: $_userRole)');
           } else {
             // Check by phone number if doc UID was different
             final phoneQuery = await FirebaseFirestore.instance
@@ -478,8 +550,8 @@ class AuthService extends ChangeNotifier {
               _serviceCategory = data['serviceCategory'];
             } else {
               // Create default user doc in Firestore
-              final defaultRole = formattedPhone == '+2348000000000' ? 'admin' : 'customer';
-              _userName = formattedPhone == '+2348000000000' ? 'Admin User' : 'User';
+              final defaultRole = formattedPhone == '+2348679267153' ? 'admin' : 'customer';
+              _userName = formattedPhone == '+2348679267153' ? 'Admin User' : 'User';
               _userPhone = formattedPhone;
               _userRole = defaultRole;
               
@@ -492,7 +564,7 @@ class AuthService extends ChangeNotifier {
                 'createdAt': FieldValue.serverTimestamp(),
                 'updatedAt': FieldValue.serverTimestamp(),
               });
-              debugPrint('âœ… Created new user profile in Firestore for $uid');
+              debugPrint('✅ Created new user profile in Firestore for $uid');
             }
           }
           
@@ -500,10 +572,10 @@ class AuthService extends ChangeNotifier {
           await _checkIfWasher(uid);
           
         } catch (fsError) {
-          debugPrint('âš ï¸ Firestore fetch error post-auth: $fsError');
+          debugPrint('⚠️ Firestore fetch error post-auth: $fsError');
           _userName ??= 'User';
           _userPhone ??= formattedPhone;
-          _userRole ??= formattedPhone == '+2348000000000' ? 'admin' : 'customer';
+          _userRole ??= formattedPhone == '+2348679267153' ? 'admin' : 'customer';
         }
         
         // Register in local memory map
