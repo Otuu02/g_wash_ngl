@@ -552,11 +552,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () {
                       setState(() {
                         _phoneController.text = '08679267153';
-                        _passwordController.text = 'NDIPsamu@2024';
+                        // 🔒 SECURITY: Password is intentionally NOT pre-filled.
+                        // The admin must type their own password.
+                        _passwordController.clear();
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('🛡️ Admin credentials populated. Press Sign In to access Admin Dashboard.'),
+                          content: Text('🛡️ Admin phone number pre-filled. Enter your password and press Sign In.'),
                           backgroundColor: AppColors.primary,
                           duration: Duration(seconds: 2),
                         ),

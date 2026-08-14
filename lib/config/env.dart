@@ -91,12 +91,9 @@ class Env {
   }
 
   // Brevo HTTPS REST API Key (Email & SMS Gateway)
-  static String get brevoApiKey {
-    const val = String.fromEnvironment('BREVO_API_KEY');
-    return val.isNotEmpty
-        ? val
-        : 'xkeysib-047f3b890a5522e84183d28906385f9e9842a2e46b5a303e2c39e2467d0a28f7-gwash2026';
-  }
+  // 🔒 SECURITY: Must be injected via --dart-define=BREVO_API_KEY=... at build time.
+  static String get brevoApiKey =>
+      const String.fromEnvironment('BREVO_API_KEY');
 
 
   // Gmail SMTP
@@ -105,10 +102,9 @@ class Env {
     return val.isNotEmpty ? val : 'gwashng@gmail.com';
   }
 
-  static String get gmailAppPassword {
-    const val = String.fromEnvironment('GMAIL_APP_PASSWORD');
-    return val.isNotEmpty ? val : 'xonspumasgtmnlqx';
-  }
+  // 🔒 SECURITY: Must be injected via --dart-define=GMAIL_APP_PASSWORD=... at build time.
+  static String get gmailAppPassword =>
+      const String.fromEnvironment('GMAIL_APP_PASSWORD');
 
   static String get smtpHost {
     const val = String.fromEnvironment('SMTP_HOST');

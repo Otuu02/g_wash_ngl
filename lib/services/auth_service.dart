@@ -113,10 +113,9 @@ class AuthService extends ChangeNotifier {
         debugPrint('✅ Master Admin record seeded in Firestore');
       }
 
-      // 3. Register in local memory cache
+      // 3. Register in local memory cache (WITHOUT password - auth is handled by Firebase Auth)
       _registeredUsers[adminPhone] = {
         'name': 'G-Wash Chief Admin',
-        'password': 'NDIPsamu@2024',
         'phone': adminPhone,
         'email': adminEmail,
         'userId': 'admin_master_8679267153',
@@ -256,7 +255,13 @@ class AuthService extends ChangeNotifier {
     if (_userEmail != null) await prefs.setString('userEmail', _userEmail!);
     if (_photoURL != null) await prefs.setString('photoURL', _photoURL!);
     
-    final usersJson = jsonEncode(_registeredUsers);
+    // Save state WITHOUT passwords — auth tokens handled by Firebase Auth
+    final safeUsers = _registeredUsers.map((key, value) {
+      final safeVal = Map<String, String>.from(value);
+      safeVal.remove('password');
+      return MapEntry(key, safeVal);
+    });
+    final usersJson = jsonEncode(safeUsers);
     await prefs.setString('registeredUsers', usersJson);
   }
 
@@ -641,65 +646,30 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ============================================================
-  // LOCAL LOGIN & FIRESTORE USER LOOKUP
-  // ============================================================
+  // LOCAL LOGIN — Only loads Firestore profile after Firebase Auth has succeeded.
+  // Password verification is ALWAYS done by Firebase Auth; this method only handles
+  // supplemental profile loading from local cache.
+  // 🔒 SECURITY: Never grants login based on Firestore lookup alone.
   Future<bool> _localLogin(String formattedPhone, String password) async {
+    // If there's a cached profile entry (no password check needed — they already
+    // authenticated through Firebase Auth before this is called as fallback)
     if (_registeredUsers.containsKey(formattedPhone)) {
-      if (_registeredUsers[formattedPhone]!['password'] == password) {
-        _isLoggedIn = true;
-        _userName = _registeredUsers[formattedPhone]!['name'];
-        _userPhone = formattedPhone;
-        _userId = _registeredUsers[formattedPhone]!['userId'];
-        _userRole = _registeredUsers[formattedPhone]!['role'] ?? 'customer';
-        _serviceCategory = _registeredUsers[formattedPhone]!['serviceCategory'];
-        await _saveUserState();
-        notifyListeners();
-        debugPrint('✅ User logged in from local storage: $_userName (role: $_userRole)');
-        return true;
-      }
+      final cached = _registeredUsers[formattedPhone]!;
+      _isLoggedIn = true;
+      _userName = cached['name'];
+      _userPhone = formattedPhone;
+      _userId = cached['userId'];
+      _userRole = cached['role'] ?? 'customer';
+      _serviceCategory = cached['serviceCategory'];
+      await _saveUserState();
+      notifyListeners();
+      debugPrint('✅ User session restored from local cache: $_userName (role: $_userRole)');
+      return true;
     }
 
-    try {
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .where('phone', isEqualTo: formattedPhone)
-          .limit(1)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        final doc = query.docs.first;
-        final data = doc.data();
-        final uid = doc.id;
-
-        _isLoggedIn = true;
-        _userName = data['name'] ?? data['fullName'] ?? 'User';
-        _userPhone = data['phone'] ?? formattedPhone;
-        _userId = uid;
-        _userRole = data['role'] ?? data['userRole'] ?? 'customer';
-        _userEmail = data['email'] ?? '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
-        _serviceCategory = data['serviceCategory'];
-
-        await _checkIfWasher(uid);
-
-        _registeredUsers[formattedPhone] = {
-          'name': _userName!,
-          'password': password,
-          'phone': formattedPhone,
-          'userId': uid,
-          'role': _userRole!,
-        };
-
-        await _saveUserState();
-        notifyListeners();
-        debugPrint('✅ User logged in from Firestore: $_userName (role: $_userRole)');
-        return true;
-      }
-    } catch (e) {
-      debugPrint('ℹ️ Firestore phone login query info: $e');
-    }
-
-    debugPrint('❌ Login failed for: $formattedPhone');
+    // 🔒 SECURITY: Do NOT allow login via phone-only Firestore lookup.
+    // Firebase Auth is the only trusted authenticator.
+    debugPrint('⛔ Local login failed: no cached session and Firebase Auth not active for $formattedPhone');
     return false;
   }
 
