@@ -537,6 +537,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     side: BorderSide(color: Colors.grey.shade300),
                   ),
+                ),
+              ),
+
               // ============================================================
               // OPTION 4: Admin Portal Access (Desktop / Laptop View Only)
               // ============================================================
