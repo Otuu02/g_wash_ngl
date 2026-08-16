@@ -65,7 +65,7 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
         );
       }
     } catch (e) {
-      print('❌ Error loading order: $e');
+      debugPrint('❌ Error loading order: $e');
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -229,7 +229,7 @@ class _WasherOrderDetailsScreenState extends State<WasherOrderDetailsScreen> {
         });
       }
     } catch (e) {
-      print('❌ Error updating order: $e');
+      debugPrint('❌ Error updating order: $e');
       setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -45,8 +45,10 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (_passwordController.text.isEmpty) {
-      _showError('Please enter a password');
+    // 🔒 Validation Check 3: Password Strength Check
+    final pwdRes = ValidationService().validatePassword(_passwordController.text);
+    if (!pwdRes.isValid) {
+      _showError(pwdRes.errorMessage ?? 'Password is not strong enough');
       return;
     }
     if (_passwordController.text != _confirmPasswordController.text) {

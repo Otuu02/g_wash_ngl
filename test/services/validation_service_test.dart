@@ -89,4 +89,29 @@ void main() {
       expect(res2.isValid, isFalse);
     });
   });
+
+  group('Password Strength Validation Tests', () {
+    test('Should reject empty or short passwords (<8 characters)', () {
+      final res1 = validator.validatePassword('');
+      expect(res1.isValid, isFalse);
+
+      final res2 = validator.validatePassword('Short1!');
+      expect(res2.isValid, isFalse);
+      expect(res2.errorMessage, contains('at least 8 characters'));
+    });
+
+    test('Should reject passwords lacking digits or special characters', () {
+      final res = validator.validatePassword('OnlyLetters');
+      expect(res.isValid, isFalse);
+      expect(res.errorMessage, contains('at least one letter and one number or special character'));
+    });
+
+    test('Should accept strong passwords', () {
+      final res1 = validator.validatePassword('SecurePass1');
+      expect(res1.isValid, isTrue);
+
+      final res2 = validator.validatePassword('P@ssword2026');
+      expect(res2.isValid, isTrue);
+    });
+  });
 }

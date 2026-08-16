@@ -502,7 +502,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         );
       }
     } catch (e) {
-      print('❌ Registration error: $e');
+      debugPrint('❌ Registration error: $e');
       _showError('Registration failed: ${e.toString().substring(0, 100)}...');
       setState(() => _isLoading = false);
     }

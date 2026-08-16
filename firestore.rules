@@ -22,8 +22,13 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isOwner(userId) || 
         isAdmin() || 
-        (resource.data.keys().hasAny(['role']) && resource.data.role in ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider']) ||
-        (resource.data.keys().hasAny(['userRole']) && resource.data.userRole in ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider'])
+        (
+          (!resource.data.keys().hasAny(['role']) || resource.data.role != 'customer') &&
+          (
+            (resource.data.keys().hasAny(['role']) && resource.data.role in ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider']) ||
+            (resource.data.keys().hasAny(['userRole']) && resource.data.userRole in ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider'])
+          )
+        )
       );
       // Allow user creation, but restrict updates to prevent changing 'role' to admin
       allow create: if isOwner(userId) && (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == 'customer');

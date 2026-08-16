@@ -135,7 +135,7 @@ class _RatingScreenState extends State<RatingScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      print('❌ Error submitting rating: $e');
+      debugPrint('❌ Error submitting rating: $e');
       if (mounted) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(

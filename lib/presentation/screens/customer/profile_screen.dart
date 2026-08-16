@@ -9,6 +9,8 @@ import '../../../services/auth_service.dart';
 import '../../../services/cloudinary_service.dart';
 import '../welcome_screen.dart';
 import '../washer/washer_registration_screen.dart';
+import '../washer/earnings_screen.dart';
+import '../washer/washer_dashboard.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -243,8 +245,9 @@ class ProfileScreen extends StatelessWidget {
             'My Earnings', 
             'Track your earnings and withdrawals', 
             () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Earnings feature coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EarningsScreen()),
               );
             }
           ),

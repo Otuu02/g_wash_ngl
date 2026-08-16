@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 
 class Helpers {
@@ -391,7 +392,8 @@ class Helpers {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              showSnackBar(context, message: 'Share feature coming soon!', isSuccess: true);
+              Clipboard.setData(const ClipboardData(text: 'Use my code GWASH500 to sign up on G-Wash NG and get ₦500 off your first service! Download app now.'));
+              showSnackBar(context, message: '✅ Referral link & code copied to clipboard!', isSuccess: true);
             },
             child: const Text('Share Now'),
           ),

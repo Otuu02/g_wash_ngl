@@ -112,35 +112,35 @@ class GWashApp extends StatelessWidget {
   const GWashApp({super.key});
 
   Widget _getHomeScreen(AuthService authService) {
-    print('🔍 Determining home screen:');
-    print('   isLoggedIn: ${authService.isLoggedIn}');
-    print('   userRole: ${authService.userRole}');
-    print('   isWasher: ${authService.isWasher}');
-    print('   isServiceProvider: ${authService.isServiceProvider}');
+    debugPrint('🔍 Determining home screen:');
+    debugPrint('   isLoggedIn: ${authService.isLoggedIn}');
+    debugPrint('   userRole: ${authService.userRole}');
+    debugPrint('   isWasher: ${authService.isWasher}');
+    debugPrint('   isServiceProvider: ${authService.isServiceProvider}');
     
     if (!authService.isLoggedIn) {
-      print('❌ User not logged in - showing Welcome Screen');
+      debugPrint('❌ User not logged in - showing Welcome Screen');
       return const WelcomeScreen();
     }
     
     if (authService.isWasher) {
-      print('✅ User is a WASHER - showing Washer Dashboard');
+      debugPrint('✅ User is a WASHER - showing Washer Dashboard');
       return const WasherDashboard();
     }
     
     if (authService.isServiceProvider) {
-      print('✅ User is a SERVICE PROVIDER - showing Washer Dashboard');
+      debugPrint('✅ User is a SERVICE PROVIDER - showing Washer Dashboard');
       return const WasherDashboard();
     }
     
     if (authService.userRole == 'washer' || 
         authService.userRole == 'cleaner' || 
         authService.userRole == 'laundry_provider') {
-      print('✅ User role is ${authService.userRole} - showing Washer Dashboard');
+      debugPrint('✅ User role is ${authService.userRole} - showing Washer Dashboard');
       return const WasherDashboard();
     }
     
-    print('✅ User is a CUSTOMER - showing Home Screen');
+    debugPrint('✅ User is a CUSTOMER - showing Home Screen');
     return const HomeScreen();
   }
 

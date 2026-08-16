@@ -1,6 +1,7 @@
 // lib/core/services/admin_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AdminService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -157,9 +158,9 @@ class AdminService {
         await doc.reference.delete();
       }
 
-      print('✅ Entire database purged of test data. Financial counters reset to ₦0.');
+      debugPrint('✅ Entire database purged of test data. Financial counters reset to ₦0.');
     } catch (e) {
-      print('❌ Error purging test data: $e');
+      debugPrint('❌ Error purging test data: $e');
       rethrow;
     }
   }
@@ -177,7 +178,7 @@ class AdminService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting users: $e');
+      debugPrint('Error getting users: $e');
       return [];
     }
   }
@@ -214,12 +215,12 @@ class AdminService {
           await user.delete();
         }
       } catch (e) {
-        print('⚠️ Could not delete user from Auth: $e');
+        debugPrint('⚠️ Could not delete user from Auth: $e');
       }
       
-      print('✅ User $userId deleted successfully');
+      debugPrint('✅ User $userId deleted successfully');
     } catch (e) {
-      print('❌ Error deleting user: $e');
+      debugPrint('❌ Error deleting user: $e');
       rethrow;
     }
   }
@@ -237,7 +238,7 @@ class AdminService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting washers: $e');
+      debugPrint('Error getting washers: $e');
       return [];
     }
   }
@@ -316,9 +317,9 @@ class AdminService {
         await _firestore.collection('washers').doc(washerId).delete();
       }
       
-      print('✅ Washer $washerId deleted successfully');
+      debugPrint('✅ Washer $washerId deleted successfully');
     } catch (e) {
-      print('❌ Error deleting washer: $e');
+      debugPrint('❌ Error deleting washer: $e');
       rethrow;
     }
   }
@@ -355,9 +356,9 @@ class AdminService {
         }
       }
       
-      print('✅ Washer $washerId updated successfully');
+      debugPrint('✅ Washer $washerId updated successfully');
     } catch (e) {
-      print('❌ Error updating washer: $e');
+      debugPrint('❌ Error updating washer: $e');
       rethrow;
     }
   }
@@ -378,7 +379,7 @@ class AdminService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting jobs: $e');
+      debugPrint('Error getting jobs: $e');
       return [];
     }
   }
@@ -403,9 +404,9 @@ class AdminService {
       }
       
       await _firestore.collection('jobs').doc(jobId).delete();
-      print('✅ Job $jobId deleted successfully');
+      debugPrint('✅ Job $jobId deleted successfully');
     } catch (e) {
-      print('❌ Error deleting job: $e');
+      debugPrint('❌ Error deleting job: $e');
       rethrow;
     }
   }
@@ -419,9 +420,9 @@ class AdminService {
         'status': status,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Job $jobId status updated to $status');
+      debugPrint('✅ Job $jobId status updated to $status');
     } catch (e) {
-      print('❌ Error updating job: $e');
+      debugPrint('❌ Error updating job: $e');
       rethrow;
     }
   }
@@ -435,9 +436,9 @@ class AdminService {
       for (var doc in snapshot.docs) {
         await doc.reference.delete();
       }
-      print('✅ All users deleted');
+      debugPrint('✅ All users deleted');
     } catch (e) {
-      print('❌ Error deleting all users: $e');
+      debugPrint('❌ Error deleting all users: $e');
       rethrow;
     }
   }
@@ -448,9 +449,9 @@ class AdminService {
       for (var doc in snapshot.docs) {
         await doc.reference.delete();
       }
-      print('✅ All washers deleted');
+      debugPrint('✅ All washers deleted');
     } catch (e) {
-      print('❌ Error deleting all washers: $e');
+      debugPrint('❌ Error deleting all washers: $e');
       rethrow;
     }
   }
@@ -461,9 +462,9 @@ class AdminService {
       for (var doc in snapshot.docs) {
         await doc.reference.delete();
       }
-      print('✅ All jobs deleted');
+      debugPrint('✅ All jobs deleted');
     } catch (e) {
-      print('❌ Error deleting all jobs: $e');
+      debugPrint('❌ Error deleting all jobs: $e');
       rethrow;
     }
   }
@@ -479,7 +480,7 @@ class AdminService {
       }
       return null;
     } catch (e) {
-      print('Error getting settings: $e');
+      debugPrint('Error getting settings: $e');
       return null;
     }
   }
@@ -530,7 +531,7 @@ class AdminService {
         'averageEarning': totalJobs > 0 ? totalEarnings / totalJobs : 0,
       };
     } catch (e) {
-      print('❌ Error getting washer earnings: $e');
+      debugPrint('❌ Error getting washer earnings: $e');
       return {
         'totalEarnings': 0,
         'totalJobs': 0,
@@ -559,7 +560,7 @@ class AdminService {
       }
       return total;
     } catch (e) {
-      print('Error getting total revenue: $e');
+      debugPrint('Error getting total revenue: $e');
       return 0;
     }
   }
@@ -576,7 +577,7 @@ class AdminService {
       }
       return null;
     } catch (e) {
-      print('Error getting user: $e');
+      debugPrint('Error getting user: $e');
       return null;
     }
   }
@@ -593,7 +594,7 @@ class AdminService {
       }
       return null;
     } catch (e) {
-      print('Error getting washer: $e');
+      debugPrint('Error getting washer: $e');
       return null;
     }
   }
@@ -610,7 +611,7 @@ class AdminService {
       }
       return null;
     } catch (e) {
-      print('Error getting job: $e');
+      debugPrint('Error getting job: $e');
       return null;
     }
   }
@@ -621,7 +622,7 @@ class AdminService {
       final snapshot = await _firestore.collection('users').get();
       return snapshot.size;
     } catch (e) {
-      print('Error getting total users: $e');
+      debugPrint('Error getting total users: $e');
       return 0;
     }
   }
@@ -632,7 +633,7 @@ class AdminService {
       final snapshot = await _firestore.collection('washers').get();
       return snapshot.size;
     } catch (e) {
-      print('Error getting total washers: $e');
+      debugPrint('Error getting total washers: $e');
       return 0;
     }
   }
@@ -646,7 +647,7 @@ class AdminService {
           .get();
       return snapshot.size;
     } catch (e) {
-      print('Error getting active jobs: $e');
+      debugPrint('Error getting active jobs: $e');
       return 0;
     }
   }
@@ -660,7 +661,7 @@ class AdminService {
           .get();
       return snapshot.size;
     } catch (e) {
-      print('Error getting completed jobs: $e');
+      debugPrint('Error getting completed jobs: $e');
       return 0;
     }
   }

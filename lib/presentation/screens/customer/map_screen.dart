@@ -87,14 +87,14 @@ class _MapScreenState extends State<MapScreen> {
         // Move camera to current position
         _moveCamera(_currentPosition, 15);
 
-        print('✅ Current location: $_selectedAddress');
+        debugPrint('✅ Current location: $_selectedAddress');
       } else {
         // Permission denied - use default Lagos
         setState(() => _isLoading = false);
         _showPermissionDialog();
       }
     } catch (e) {
-      print('❌ Error getting location: $e');
+      debugPrint('❌ Error getting location: $e');
       setState(() => _isLoading = false);
       // Use default location
       _addMarker(_currentPosition, 'Lekki Phase 1, Lagos');

@@ -207,7 +207,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
             _currentLocationAddress = address;
             _isGettingLocation = false;
           });
-          print('✅ Current location: $address');
+          debugPrint('✅ Current location: $address');
         }
       } else {
         // Permission denied
@@ -217,7 +217,7 @@ class _LocationSearchScreenState extends State<LocationSearchScreen> {
         }
       }
     } catch (e) {
-      print('❌ Error getting location: $e');
+      debugPrint('❌ Error getting location: $e');
       if (mounted) {
         setState(() => _isGettingLocation = false);
       }

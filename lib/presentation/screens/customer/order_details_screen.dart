@@ -65,7 +65,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         });
       }
     } catch (e) {
-      print('❌ Error loading order details: $e');
+      debugPrint('❌ Error loading order details: $e');
     }
   }
 

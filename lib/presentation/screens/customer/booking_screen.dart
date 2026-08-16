@@ -251,9 +251,9 @@ class _BookingScreenState extends State<BookingScreen> {
       final customerPhone = authService.userPhone ?? (user?.phoneNumber ?? '');
       final customerEmail = authService.userEmail ?? (user?.email ?? '');
 
-      print('📝 Creating job for: $customerName ($uid)');
-      print('📝 Service: $_selectedService - ₦$_selectedServicePrice');
-      print('📝 Location: $_selectedLocation');
+      debugPrint('📝 Creating job for: $customerName ($uid)');
+      debugPrint('📝 Service: $_selectedService - ₦$_selectedServicePrice');
+      debugPrint('📝 Location: $_selectedLocation');
 
       // Create job with dynamic GPS coordinates & trigger Twilio SMS + Gmail SMTP notifications
       final result = await JobService().createJob(
@@ -273,7 +273,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
       final jobId = result['id'];
       
-      print('✅ Job created with ID: $jobId');
+      debugPrint('✅ Job created with ID: $jobId');
 
       // Show prominent success modal popup
       if (mounted) {
@@ -281,7 +281,7 @@ class _BookingScreenState extends State<BookingScreen> {
       }
       
     } catch (e) {
-      print('❌ Error creating job: $e');
+      debugPrint('❌ Error creating job: $e');
       setState(() {
         _bookingError = e.toString();
       });

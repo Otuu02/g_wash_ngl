@@ -132,9 +132,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-      print('✅ User saved to Firestore: ${user.displayName}');
+      debugPrint('✅ User saved to Firestore: ${user.displayName}');
     } catch (e) {
-      print('❌ Error saving user to Firestore: $e');
+      debugPrint('❌ Error saving user to Firestore: $e');
     }
   }
 

@@ -10,6 +10,7 @@ import 'earnings_screen.dart';
 import 'washer_profile_screen.dart';
 import 'washer_registration_screen.dart';
 import 'incoming_job_dialog.dart';
+import 'subscription_screen.dart';
 import '../../../services/app_notification_service.dart';
 
 class WasherDashboard extends StatefulWidget {
@@ -142,7 +143,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
       final userId = authService.getCurrentUserId();
       
       if (userId == null || userId.isEmpty) {
-        print('❌ No user ID found in AuthService');
+        debugPrint('❌ No user ID found in AuthService');
         setState(() {
           _isLoading = false;
           _hasApplied = false;
@@ -150,7 +151,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
         return;
       }
 
-      print('✅ Loading washer data for user ID: $userId');
+      debugPrint('✅ Loading washer data for user ID: $userId');
 
       // 1. Query washers by userId field
       final washerQuery = await FirebaseFirestore.instance
@@ -205,7 +206,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
       }
 
       if (targetDoc == null || !targetDoc.exists) {
-        print('❌ No washer profile found for user ID: $userId');
+        debugPrint('❌ No washer profile found for user ID: $userId');
         setState(() {
           _isLoading = false;
           _hasApplied = false;
@@ -236,7 +237,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
         _isLoading = false;
       });
 
-      print('✅ Washer data loaded: $_washerId with ${_selectedServices.length} services');
+      debugPrint('✅ Washer data loaded: $_washerId with ${_selectedServices.length} services');
 
       // Listen to real-time washer doc updates
       FirebaseFirestore.instance
@@ -268,7 +269,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
 
 
     } catch (e) {
-      print('❌ Error loading washer data: $e');
+      debugPrint('❌ Error loading washer data: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -612,7 +613,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
         ),
       );
     } catch (e) {
-      print('❌ Error updating online status: $e');
+      debugPrint('❌ Error updating online status: $e');
       setState(() => _isOnline = !value);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1103,7 +1104,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
                     'View Earnings',
                     Icons.payments,
                     Colors.green,
-                    () => setState(() => _currentIndex = 1),
+                    () => setState(() => _currentIndex = 2),
                   ),
                 ),
               ],
@@ -1116,7 +1117,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
                     'My Profile',
                     Icons.person,
                     Colors.blue,
-                    () => setState(() => _currentIndex = 2),
+                    () => setState(() => _currentIndex = 3),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1126,16 +1127,10 @@ class _WasherDashboardState extends State<WasherDashboard> {
                     Icons.subscriptions,
                     Colors.purple,
                     () {
-                      final subValid = _washerData['subscriptionValidUntil'];
-                      if (subValid != null) {
-                        final date = (subValid as Timestamp).toDate();
-                        _showInfoDialog(
-                          'Subscription Status',
-                          'Subscription valid until: ${DateFormat('MMM dd, yyyy').format(date)}',
-                        );
-                      } else {
-                        _showInfoDialog('Subscription', 'No active subscription');
-                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SubscriptionScreen()),
+                      );
                     },
                   ),
                 ),

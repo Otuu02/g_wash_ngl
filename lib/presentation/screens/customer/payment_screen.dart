@@ -169,7 +169,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         );
       }
     } catch (e) {
-      print('❌ Payment failed: $e');
+      debugPrint('❌ Payment failed: $e');
       setState(() {
         _isProcessing = false;
         _paymentStatus = 'failed';

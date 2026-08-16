@@ -235,7 +235,7 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
         }
       }
     } catch (e) {
-      print('❌ Error loading washer data: $e');
+      debugPrint('❌ Error loading washer data: $e');
       setState(() => _isLoading = false);
     }
   }

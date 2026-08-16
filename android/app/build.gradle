@@ -49,9 +49,10 @@ android {
         versionName flutterVersionName
         multiDexEnabled true
 
-        // 🔒 Inject Google Maps API key from --dart-define or env or fallback
+        // 🔒 SECURITY: Google Maps API key injected via MAPS_API_KEY env var or project property.
+        // Set MAPS_API_KEY in your build environment — do NOT hardcode here.
         def mapsKey = project.hasProperty('MAPS_API_KEY') ? project.MAPS_API_KEY
-                     : (System.getenv('MAPS_API_KEY') ?: 'AIzaSyCSBBZZdb5oP_dXrMy56_W5LpKciS-ieQ4')
+                     : (System.getenv('MAPS_API_KEY') ?: '')
         manifestPlaceholders += [MAPS_API_KEY: mapsKey]
     }
 

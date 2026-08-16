@@ -230,9 +230,9 @@ class _MatchingScreenState extends State<MatchingScreen> {
         _isSearching = false;
       });
 
-      print('✅ Found ${washers.length} real Firestore providers for "${widget.serviceCategory}"');
+      debugPrint('✅ Found ${washers.length} real Firestore providers for "${widget.serviceCategory}"');
     } catch (e) {
-      print('❌ Error searching for real providers: $e');
+      debugPrint('❌ Error searching for real providers: $e');
       setState(() {
         _nearbyWashers = [];
         _isLoading = false;
@@ -393,7 +393,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
         _waitForProviderResponse(createdJobId, provider, finalPrice);
       }
     } catch (e) {
-      print('❌ Error assigning provider: $e');
+      debugPrint('❌ Error assigning provider: $e');
       setState(() {
         _isAssigning = false;
         _selectedWasherId = null;

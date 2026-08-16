@@ -49,12 +49,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _checkBiometricAvailability() async {
     try {
       final isAvailable = await _localAuth.canCheckBiometrics;
-      print('🔐 Biometric available: $isAvailable');
+      debugPrint('🔐 Biometric available: $isAvailable');
       setState(() {
         _biometricEnabled = isAvailable;
       });
     } catch (e) {
-      print('❌ Biometric check failed: $e');
+      debugPrint('❌ Biometric check failed: $e');
     }
   }
 
@@ -172,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError('Biometric authentication failed');
       }
     } catch (e) {
-      print('❌ Biometric auth error: $e');
+      debugPrint('❌ Biometric auth error: $e');
       _showError('Biometric authentication failed: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);

@@ -2,6 +2,7 @@
 // PURPOSE: Find and assign nearby washers to jobs using Firebase
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:math';
 
 class MatchingService {
@@ -66,7 +67,7 @@ class MatchingService {
 
       return nearbyWashers;
     } catch (e) {
-      print('❌ Error finding nearby washers: $e');
+      debugPrint('❌ Error finding nearby washers: $e');
       return [];
     }
   }
@@ -101,9 +102,9 @@ class MatchingService {
         'lastJobAssigned': FieldValue.serverTimestamp(),
       });
       
-      print('✅ Washer $washerId assigned to job $jobId');
+      debugPrint('✅ Washer $washerId assigned to job $jobId');
     } catch (e) {
-      print('❌ Error assigning washer: $e');
+      debugPrint('❌ Error assigning washer: $e');
       rethrow;
     }
   }
@@ -122,7 +123,7 @@ class MatchingService {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting job details: $e');
+      debugPrint('❌ Error getting job details: $e');
       return null;
     }
   }
@@ -147,9 +148,9 @@ class MatchingService {
       }
 
       await _firestore.collection('jobs').doc(jobId).update(updateData);
-      print('✅ Job $jobId status updated to $status');
+      debugPrint('✅ Job $jobId status updated to $status');
     } catch (e) {
-      print('❌ Error updating job status: $e');
+      debugPrint('❌ Error updating job status: $e');
       rethrow;
     }
   }
@@ -173,7 +174,7 @@ class MatchingService {
         };
       }).toList();
     } catch (e) {
-      print('❌ Error getting washer jobs: $e');
+      debugPrint('❌ Error getting washer jobs: $e');
       return [];
     }
   }
@@ -199,7 +200,7 @@ class MatchingService {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting customer active job: $e');
+      debugPrint('❌ Error getting customer active job: $e');
       return null;
     }
   }
@@ -240,7 +241,7 @@ class MatchingService {
 
       return pendingJobs;
     } catch (e) {
-      print('❌ Error getting pending jobs: $e');
+      debugPrint('❌ Error getting pending jobs: $e');
       return [];
     }
   }
@@ -271,9 +272,9 @@ class MatchingService {
         'cancelledAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ Job $jobId cancelled by $cancelledBy');
+      debugPrint('✅ Job $jobId cancelled by $cancelledBy');
     } catch (e) {
-      print('❌ Error cancelling job: $e');
+      debugPrint('❌ Error cancelling job: $e');
       rethrow;
     }
   }
@@ -302,7 +303,7 @@ class MatchingService {
         'todayEarnings': 0,
       };
     } catch (e) {
-      print('❌ Error getting washer stats: $e');
+      debugPrint('❌ Error getting washer stats: $e');
       return {
         'totalJobs': 0,
         'totalEarnings': 0,
@@ -327,9 +328,9 @@ class MatchingService {
         'pendingJobs': FieldValue.increment(-1),
         'todayEarnings': FieldValue.increment(amount),
       });
-      print('✅ Washer $washerId stats updated');
+      debugPrint('✅ Washer $washerId stats updated');
     } catch (e) {
-      print('❌ Error updating washer stats: $e');
+      debugPrint('❌ Error updating washer stats: $e');
       rethrow;
     }
   }
@@ -410,7 +411,7 @@ class MatchingService {
         'lastLocationUpdate': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('❌ Error updating washer location: $e');
+      debugPrint('❌ Error updating washer location: $e');
     }
   }
 }

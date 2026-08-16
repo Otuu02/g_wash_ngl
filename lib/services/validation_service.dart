@@ -226,6 +226,30 @@ class ValidationService {
       errorMessage: 'Invalid phone number. Expected an 11-digit mobile number (e.g. 08031234567).',
     );
   }
+
+  /// Validate password strength (minimum 8 characters, at least one letter and one number or special character)
+  ValidationResult validatePassword(String password) {
+    if (password.isEmpty) {
+      return ValidationResult(isValid: false, errorMessage: 'Password is required');
+    }
+    if (password.length < 8) {
+      return ValidationResult(
+        isValid: false,
+        errorMessage: 'Password must be at least 8 characters long',
+      );
+    }
+    final hasLetter = RegExp(r'[a-zA-Z]').hasMatch(password);
+    final hasDigitOrSpecial = RegExp(r'[0-9!@#$%^&*(),.?":{}|<>]').hasMatch(password);
+
+    if (!hasLetter || !hasDigitOrSpecial) {
+      return ValidationResult(
+        isValid: false,
+        errorMessage: 'Password must contain at least one letter and one number or special character',
+      );
+    }
+
+    return ValidationResult(isValid: true);
+  }
 }
 
 class ValidationResult {

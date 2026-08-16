@@ -173,7 +173,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
         _isSearching = false;
       });
     } catch (e) {
-      print('❌ Error searching for providers: $e');
+      debugPrint('❌ Error searching for providers: $e');
       setState(() {
         _nearbyWashers = [];
         _isLoading = false;
@@ -255,7 +255,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
       }
 
     } catch (e) {
-      print('❌ Error assigning provider: $e');
+      debugPrint('❌ Error assigning provider: $e');
       setState(() {
         _isAssigning = false;
         _selectedWasherId = null;

@@ -174,7 +174,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
           }
         }
       } catch (e) {
-        print('❌ Error fetching washer details: $e');
+        debugPrint('❌ Error fetching washer details: $e');
       }
     }
   }
@@ -387,7 +387,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
       _showPaymentDialog();
       
     } catch (e) {
-      print('❌ Error confirming completion: $e');
+      debugPrint('❌ Error confirming completion: $e');
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -509,7 +509,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
         }
       }
     } catch (e) {
-      print('❌ Payment error: $e');
+      debugPrint('❌ Payment error: $e');
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -604,7 +604,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   Navigator.pop(context);
                 }
               } catch (e) {
-                print('❌ Error cancelling order: $e');
+                debugPrint('❌ Error cancelling order: $e');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Error cancelling order: $e'),

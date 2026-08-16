@@ -119,7 +119,7 @@ class PaymentService {
         message: 'Refund processed successfully',
       );
     } catch (e) {
-      print('❌ Refund failed: $e');
+      debugPrint('❌ Refund failed: $e');
       return PaymentResult(
         success: false,
         message: 'Refund failed: $e',
@@ -148,7 +148,7 @@ class PaymentService {
             : null,
       );
     } catch (e) {
-      print('❌ Error getting payment status: $e');
+      debugPrint('❌ Error getting payment status: $e');
       return null;
     }
   }
@@ -186,7 +186,7 @@ class PaymentService {
         };
       }).toList();
     } catch (e) {
-      print('❌ Error getting transaction history: $e');
+      debugPrint('❌ Error getting transaction history: $e');
       return [];
     }
   }
@@ -230,7 +230,7 @@ class PaymentService {
         'averageEarning': totalJobs > 0 ? totalEarnings / totalJobs : 0,
       };
     } catch (e) {
-      print('❌ Error getting washer earnings: $e');
+      debugPrint('❌ Error getting washer earnings: $e');
       return {
         'totalEarnings': 0,
         'totalJobs': 0,
@@ -255,7 +255,7 @@ class PaymentService {
 
       return snapshot.docs.isNotEmpty;
     } catch (e) {
-      print('❌ Error verifying payment: $e');
+      debugPrint('❌ Error verifying payment: $e');
       return false;
     }
   }
@@ -287,7 +287,7 @@ class PaymentService {
         }
       }
     } catch (e) {
-      print('❌ Error processing webhook: $e');
+      debugPrint('❌ Error processing webhook: $e');
       throw Exception('Webhook processing failed');
     }
   }

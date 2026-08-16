@@ -74,7 +74,7 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
       }
 
     } catch (e) {
-      print('❌ Error accepting job: $e');
+      debugPrint('❌ Error accepting job: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
