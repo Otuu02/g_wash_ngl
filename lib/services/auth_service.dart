@@ -33,7 +33,6 @@ class AuthService extends ChangeNotifier {
     _loadSavedUser();
     _listenToAuthChanges();
     _checkIfWasherOnStartup();
-    seedSoleAdminAccount();
   }
 
   // ============================================================
@@ -60,6 +59,9 @@ class AuthService extends ChangeNotifier {
   // ============================================================
   Future<void> seedSoleAdminAccount() async {
     try {
+      // 🔒 GUARD: Do not run Firestore admin queries if user is not logged in
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
       const adminPhone = '+2348679267153';
       const adminEmail = '2348679267153@gwashng.com';
 

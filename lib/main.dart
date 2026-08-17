@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
@@ -45,7 +46,7 @@ import 'services/security_service.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: FirebaseConfig.web);
-  debugPrint("Handling background FCM message: ${message.messageId}");
+  if (kDebugMode) debugPrint("Handling background FCM message: ${message.messageId}");
 }
 
 void main() async {
@@ -74,26 +75,26 @@ void main() async {
     });
 
     FirebaseMessaging.instance.getToken().then((token) {
-      if (token != null) {
+      if (token != null && kDebugMode) {
         debugPrint('📲 FCM Push Token: $token');
       }
     }).catchError((e) {
-      debugPrint('ℹ️ FCM Token notice: $e');
+      if (kDebugMode) debugPrint('ℹ️ FCM Token notice: $e');
     });
   } catch (e) {
-    debugPrint('ℹ️ FCM Messaging skipped (platform/headless mode): $e');
+    if (kDebugMode) debugPrint('ℹ️ FCM Messaging skipped (platform/headless mode): $e');
   }
   
   try {
     await authService.migrateLocalUsersToFirestore();
-    debugPrint('✅ User migration completed successfully');
+    if (kDebugMode) debugPrint('✅ User migration completed successfully');
   } catch (e) {
-    debugPrint('❌ User migration failed: $e');
+    if (kDebugMode) debugPrint('❌ User migration failed: $e');
   }
   
   // ✅ Load saved notifications on startup
   await notificationService.loadSavedNotifications();
-  debugPrint('✅ Notification service initialized with ${notificationService.notifications.length} notifications');
+  if (kDebugMode) debugPrint('✅ Notification service initialized with ${notificationService.notifications.length} notifications');
   
   runApp(
     provider.MultiProvider(
@@ -112,35 +113,37 @@ class GWashApp extends StatelessWidget {
   const GWashApp({super.key});
 
   Widget _getHomeScreen(AuthService authService) {
-    debugPrint('🔍 Determining home screen:');
-    debugPrint('   isLoggedIn: ${authService.isLoggedIn}');
-    debugPrint('   userRole: ${authService.userRole}');
-    debugPrint('   isWasher: ${authService.isWasher}');
-    debugPrint('   isServiceProvider: ${authService.isServiceProvider}');
+    if (kDebugMode) {
+      debugPrint('🔍 Determining home screen:');
+      debugPrint('   isLoggedIn: ${authService.isLoggedIn}');
+      debugPrint('   userRole: ${authService.userRole}');
+      debugPrint('   isWasher: ${authService.isWasher}');
+      debugPrint('   isServiceProvider: ${authService.isServiceProvider}');
+    }
     
     if (!authService.isLoggedIn) {
-      debugPrint('❌ User not logged in - showing Welcome Screen');
+      if (kDebugMode) debugPrint('❌ User not logged in - showing Welcome Screen');
       return const WelcomeScreen();
     }
     
     if (authService.isWasher) {
-      debugPrint('✅ User is a WASHER - showing Washer Dashboard');
+      if (kDebugMode) debugPrint('✅ User is a WASHER - showing Washer Dashboard');
       return const WasherDashboard();
     }
     
     if (authService.isServiceProvider) {
-      debugPrint('✅ User is a SERVICE PROVIDER - showing Washer Dashboard');
+      if (kDebugMode) debugPrint('✅ User is a SERVICE PROVIDER - showing Washer Dashboard');
       return const WasherDashboard();
     }
     
     if (authService.userRole == 'washer' || 
         authService.userRole == 'cleaner' || 
         authService.userRole == 'laundry_provider') {
-      debugPrint('✅ User role is ${authService.userRole} - showing Washer Dashboard');
+      if (kDebugMode) debugPrint('✅ User role is ${authService.userRole} - showing Washer Dashboard');
       return const WasherDashboard();
     }
     
-    debugPrint('✅ User is a CUSTOMER - showing Home Screen');
+    if (kDebugMode) debugPrint('✅ User is a CUSTOMER - showing Home Screen');
     return const HomeScreen();
   }
 
