@@ -1,35 +1,18 @@
 {
-    "name": "g_wash_ng",
-    "short_name": "g_wash_ng",
+    "name": "G Wash NG",
+    "short_name": "G Wash NG",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0CAF60",
+    "theme_color": "#0CAF60",
+    "description": "On-Demand Car Wash & Home Services Marketplace",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
         {
-            "src": "icons/Icon-192.png",
+            "src": "favicon.png",
             "sizes": "any",
             "type": "image/png"
-        },
-        {
-            "src": "icons/Icon-512.png",
-            "sizes": "any",
-            "type": "image/png"
-        },
-        {
-            "src": "icons/Icon-maskable-192.png",
-            "sizes": "any",
-            "type": "image/png",
-            "purpose": "maskable"
-        },
-        {
-            "src": "icons/Icon-maskable-512.png",
-            "sizes": "any",
-            "type": "image/png",
-            "purpose": "maskable"
         }
     ]
 }

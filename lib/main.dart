@@ -52,6 +52,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // 🔇 SILENCE ALL CONSOLE LOGS ACROSS THE ENTIRE APP
+  debugPrint = (String? message, {int? wrapWidth}) {};
+
   await Firebase.initializeApp(
     options: FirebaseConfig.web,
   );
