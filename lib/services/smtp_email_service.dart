@@ -32,10 +32,10 @@ class SmtpEmailService {
       );
     }
 
-    // 2. Mobile Native SMTP — skip gracefully if credentials not set
+    // 2. Mobile Native SMTP — log warning if credentials not set
     if (username.isEmpty || appPassword.isEmpty) {
-      debugPrint('📧 [Email Service] Credentials not configured — email logged only. To: $recipient | Subject: $subject');
-      return true; // Don't crash the app — just skip
+      debugPrint('❌ [Email Service Error] Gmail credentials missing — email NOT sent. To: $recipient | Subject: $subject');
+      return false;
     }
 
     final smtpServer = gmail(username, appPassword);
@@ -48,7 +48,10 @@ class SmtpEmailService {
       ..text = bodyText ?? bodyHtml.replaceAll(RegExp(r'<[^>]*>'), '');
 
     try {
-      final sendReport = await send(message, smtpServer);
+      final sendReport = await send(message, smtpServer).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => throw Exception('SMTP connection timed out (Port 587 blocked or unreachable)'),
+      );
       debugPrint('✅ [Gmail SMTP Email Sent]: ${sendReport.toString()}');
       return true;
     } catch (e) {

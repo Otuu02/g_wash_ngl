@@ -54,25 +54,37 @@ class Env {
   static String get apiUrl => config['apiUrl'];
 
   // Paystack
-  static String get paystackPublicKey =>
-      const String.fromEnvironment('PAYSTACK_PUBLIC_KEY');
+  static String get paystackPublicKey {
+    const val = String.fromEnvironment('PAYSTACK_PUBLIC_KEY');
+    return val.isNotEmpty ? val : 'pk_live_09b608a9dbb55dc306523bb8cc157fa03efaf8e4';
+  }
 
-  static String get paystackSecretKey =>
-      const String.fromEnvironment('PAYSTACK_SECRET_KEY');
+  static String get paystackSecretKey {
+    const val = String.fromEnvironment('PAYSTACK_SECRET_KEY');
+    return val;
+  }
 
   // Google Maps
-  static String get googleMapsApiKey =>
-      const String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+  static String get googleMapsApiKey {
+    const val = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+    return val;
+  }
 
   // Cloudinary
-  static String get cloudinaryCloudName =>
-      const String.fromEnvironment('CLOUDINARY_CLOUD_NAME');
+  static String get cloudinaryCloudName {
+    const val = String.fromEnvironment('CLOUDINARY_CLOUD_NAME');
+    return val;
+  }
 
-  static String get cloudinaryApiKey =>
-      const String.fromEnvironment('CLOUDINARY_API_KEY');
+  static String get cloudinaryApiKey {
+    const val = String.fromEnvironment('CLOUDINARY_API_KEY');
+    return val;
+  }
 
-  static String get cloudinaryApiSecret =>
-      const String.fromEnvironment('CLOUDINARY_API_SECRET');
+  static String get cloudinaryApiSecret {
+    const val = String.fromEnvironment('CLOUDINARY_API_SECRET');
+    return val;
+  }
 
   // Twilio SMS
   static String get twilioAccountSid {
@@ -82,19 +94,19 @@ class Env {
 
   static String get twilioAuthToken {
     const val = String.fromEnvironment('TWILIO_AUTH_TOKEN');
-    return val.isNotEmpty ? val : 'demo_auth_token_gwash';
+    return val.isNotEmpty ? val : 'd4a4eef460921e820ab4dd2f7d0939a';
   }
 
   static String get twilioPhoneNumber {
     const val = String.fromEnvironment('TWILIO_PHONE_NUMBER');
-    return val.isNotEmpty ? val : '+18005550199';
+    return val.isNotEmpty ? val : '+2347065584504';
   }
 
   // Brevo HTTPS REST API Key (Email & SMS Gateway)
-  // 🔒 SECURITY: Must be injected via --dart-define=BREVO_API_KEY=... at build time.
-  static String get brevoApiKey =>
-      const String.fromEnvironment('BREVO_API_KEY');
-
+  static String get brevoApiKey {
+    const val = String.fromEnvironment('BREVO_API_KEY');
+    return val;
+  }
 
   // Gmail SMTP
   static String get gmailUser {
@@ -102,9 +114,10 @@ class Env {
     return val.isNotEmpty ? val : 'gwashng@gmail.com';
   }
 
-  // 🔒 SECURITY: Must be injected via --dart-define=GMAIL_APP_PASSWORD=... at build time.
-  static String get gmailAppPassword =>
-      const String.fromEnvironment('GMAIL_APP_PASSWORD');
+  static String get gmailAppPassword {
+    const val = String.fromEnvironment('GMAIL_APP_PASSWORD');
+    return val.isNotEmpty ? val : 'xonspumasgtmnlqx';
+  }
 
   static String get smtpHost {
     const val = String.fromEnvironment('SMTP_HOST');
