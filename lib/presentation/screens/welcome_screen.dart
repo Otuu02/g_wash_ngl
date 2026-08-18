@@ -219,13 +219,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                             color: AppColors.primary,
                           ),
                         )
-                      : Image.network(
-                          'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                      : Container(
                           width: 24,
                           height: 24,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.g_mobiledata, size: 24);
-                          },
+                          alignment: Alignment.center,
+                          child: const Text(
+                            'G',
+                            style: TextStyle(
+                              color: Color(0xFF4285F4),
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              fontFamily: 'Roboto',
+                            ),
+                          ),
                         ),
                   label: Text(
                     _isLoading ? 'Signing in...' : 'Continue with Google',

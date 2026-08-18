@@ -1362,27 +1362,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 width: double.infinity,
                 height: double.infinity,
                 errorBuilder: (context, error, stackTrace) {
-                  return Image.network(
-                    'assets/images/$fileName',
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.network(
-                        'assets/assets/images/$fileName',
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey.shade300,
-                            child: const Center(
-                              child: Icon(Icons.image, size: 50, color: AppColors.primary),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                  return Container(
+                    color: Colors.grey.shade300,
+                    child: const Center(
+                      child: Icon(Icons.image, size: 50, color: AppColors.primary),
+                    ),
                   );
                 },
               );

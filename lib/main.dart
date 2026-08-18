@@ -52,8 +52,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 🔇 SILENCE ALL CONSOLE LOGS ACROSS THE ENTIRE APP
+  // 🔇 SILENCE ALL CONSOLE LOGS AND STACK DUMPS ACROSS THE ENTIRE APP
   debugPrint = (String? message, {int? wrapWidth}) {};
+  FlutterError.onError = (FlutterErrorDetails details) {
+    // Suppress stack trace dumps in console
+  };
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    return true; // handled silently
+  };
 
   await Firebase.initializeApp(
     options: FirebaseConfig.web,

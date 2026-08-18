@@ -1,6 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script>
+    // 🔇 Silence all browser console output for production security
+    (function() {
+      var noop = function() {};
+      window.console.log = noop;
+      window.console.info = noop;
+      window.console.warn = noop;
+      window.console.debug = noop;
+      window.console.error = noop;
+    })();
+  </script>
   <base href="/">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
