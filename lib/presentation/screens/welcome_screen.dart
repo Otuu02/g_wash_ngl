@@ -27,30 +27,22 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     {
       'title': 'Professional Car Wash',
       'subtitle': 'Get your car sparkling clean at your doorstep',
-      'icon': Icons.local_car_wash,
-      'color': 0xFF0CAF60,
-      'image': '🚗',
+      'assetImage': 'assets/images/flyer_whychoose.jpg',
     },
     {
       'title': 'Expert House Cleaning',
       'subtitle': 'Professional cleaning services for your home',
-      'icon': Icons.cleaning_services,
-      'color': 0xFF2196F3,
-      'image': '🧹',
+      'assetImage': 'assets/images/flyer_services.jpg',
     },
     {
       'title': 'Premium Laundry Service',
       'subtitle': 'Wash, dry, and fold - we do it all',
-      'icon': Icons.local_laundry_service,
-      'color': 0xFF9C27B0,
-      'image': '👕',
+      'assetImage': 'assets/images/flyer_launch.jpg',
     },
     {
-      'title': 'Safe & Reliable Rides',
-      'subtitle': 'Book a ride anytime, anywhere in Nigeria',
-      'icon': Icons.car_rental,
-      'color': 0xFFFF6B00,
-      'image': '🚘',
+      'title': 'Dispatch Rider Service',
+      'subtitle': 'Fast, reliable delivery anywhere in Nigeria',
+      'assetImage': 'assets/images/flyer_rider.jpg',
     },
   ];
 
@@ -356,56 +348,71 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   Widget _buildPage(Map<String, dynamic> page) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Large icon/image
-          Container(
-            width: 130,
-            height: 130,
-            decoration: BoxDecoration(
-              color: Color(page['color']).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                page['image'],
-                style: const TextStyle(fontSize: 60),
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Real G Wash NG flyer image
+        Expanded(
+          flex: 5,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                page['assetImage'],
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.local_car_wash, size: 60, color: AppColors.primary),
+                  ),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 32),
-          Text(
+        ),
+        const SizedBox(height: 16),
+        // Title
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Text(
             page['title'],
             style: const TextStyle(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
-          Text(
+        ),
+        const SizedBox(height: 6),
+        // Subtitle
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Text(
             page['subtitle'],
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 14,
               color: Colors.grey.shade600,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'G Wash NG',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.primary,
-              fontWeight: FontWeight.w500,
-            ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'G Wash NG',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.primary,
+            fontWeight: FontWeight.w600,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 }
