@@ -32,7 +32,7 @@ flutter pub get
 # Set these in your Vercel dashboard → Project → Settings → Environment Variables.
 echo "🔑 Injecting environment variables from Vercel..."
 
-flutter build web --release --web-renderer html --no-tree-shake-icons \
+flutter build web --release --no-tree-shake-icons \
   --dart-define=PAYSTACK_PUBLIC_KEY="${PAYSTACK_PUBLIC_KEY:-}" \
   --dart-define=PAYSTACK_SECRET_KEY="${PAYSTACK_SECRET_KEY:-}" \
   --dart-define=GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY:-}" \

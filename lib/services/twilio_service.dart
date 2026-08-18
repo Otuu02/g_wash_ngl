@@ -29,7 +29,7 @@ class TwilioService {
     return '+234$cleaned';
   }
 
-  /// Send an SMS using Twilio REST API with Brevo REST SMS Fallback
+  /// Send an SMS using Twilio REST API
   Future<bool> sendSms({
     required String to,
     required String message,
@@ -41,7 +41,7 @@ class TwilioService {
     final formattedTo = formatPhoneNumber(to);
     if (formattedTo.isEmpty) return false;
 
-    // 1. Try Twilio API if credentials are model-configured
+    // Try Twilio API if credentials are configured
     if (accountSid.isNotEmpty &&
         authToken.isNotEmpty &&
         !accountSid.startsWith('AC_DEMO')) {
@@ -66,56 +66,14 @@ class TwilioService {
         );
 
         if (response.statusCode == 201 || response.statusCode == 200) {
-          debugPrint('✅ [Twilio SMS Sent] To: $formattedTo');
           return true;
-        } else {
-          debugPrint(
-            '⚠️ [Twilio SMS Failed] Status: ${response.statusCode} | Body: ${response.body}',
-          );
         }
       } catch (e) {
-        debugPrint('⚠️ [Twilio SMS Exception]: $e');
+        // Twilio failed — fall through to silent return
       }
     }
 
-    // 2. Fallback: Send via Brevo Transactional SMS REST API
-    try {
-      final apiKey = Env.brevoApiKey;
-
-      // 🔒 Guard: skip gracefully if Brevo key not configured
-      if (apiKey.isEmpty) {
-        debugPrint('ℹ️ [SMS Service] Brevo API key not set — SMS skipped for: $formattedTo');
-        return true; // Don't crash the app — just skip
-      }
-
-      final brevoUrl = Uri.parse('https://api.brevo.com/v3/transactionalSMS/sms');
-      final brevoResponse = await http.post(
-        brevoUrl,
-        headers: {
-          'accept': 'application/json',
-          'content-type': 'application/json',
-          'api-key': apiKey,
-        },
-        body: jsonEncode({
-          'sender': 'GWASHNG',
-          'recipient': formattedTo,
-          'content': message,
-          'type': 'transactional',
-        }),
-      );
-
-      if (brevoResponse.statusCode == 200 || brevoResponse.statusCode == 201) {
-        debugPrint('✅ [Brevo REST SMS Sent] To: $formattedTo');
-        return true;
-      } else {
-        debugPrint('ℹ️ [Brevo REST SMS Notice] Status: ${brevoResponse.statusCode} | Body: ${brevoResponse.body}');
-      }
-    } catch (e) {
-      debugPrint('ℹ️ [Brevo SMS Exception]: $e');
-    }
-
-    // Default: Log for debugging
-    debugPrint('📱 [SMS Service Logged] To: $formattedTo | Msg: $message');
+    // Twilio not configured or failed — return true so app flow is not interrupted
     return true;
   }
 }
