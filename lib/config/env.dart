@@ -102,15 +102,6 @@ class Env {
     return val.isNotEmpty ? val : '+2347065584504';
   }
 
-  // Brevo Gateway Key
-  static String get brevoApiKey {
-    const val = String.fromEnvironment('BREVO_API_KEY');
-    if (val.isNotEmpty) return val;
-    final p1 = 'xkeysib-97b7b120f26d2e67df00c3b8897a0058b88d3e91187440409a80fa93437198bb';
-    final p2 = '7fKzZ8fJtL5v21rW';
-    return '$p1-$p2';
-  }
-
   // Gmail SMTP
   static String get gmailUser {
     const val = String.fromEnvironment('GMAIL_USER');

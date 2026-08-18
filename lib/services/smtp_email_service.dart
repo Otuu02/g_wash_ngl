@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server/gmail.dart';
 import '../config/env.dart';
@@ -10,9 +8,7 @@ class SmtpEmailService {
   factory SmtpEmailService() => _instance;
   SmtpEmailService._internal();
 
-  /// Send email using Gmail credentials (gwashng@gmail.com).
-  /// - On Mobile / Desktop: Sends via Gmail SMTP.
-  /// - On Web: Sends via direct Brevo REST API gateway (From: gwashng@gmail.com).
+  /// Send email exclusively using Gmail SMTP credentials (gwashng@gmail.com).
   Future<bool> sendEmail({
     required String recipient,
     required String subject,
@@ -24,8 +20,7 @@ class SmtpEmailService {
     final username = Env.gmailUser;
     final appPassword = Env.gmailAppPassword;
 
-    // 1. Try Gmail SMTP first (native mobile & desktop)
-    if (!kIsWeb && username.isNotEmpty && appPassword.isNotEmpty) {
+    if (username.isNotEmpty && appPassword.isNotEmpty) {
       try {
         final smtpServer = gmail(username, appPassword);
         final message = Message()
@@ -43,54 +38,6 @@ class SmtpEmailService {
       } catch (e) {
         debugPrint('⚠️ [Gmail SMTP Exception]: $e');
       }
-    }
-
-    // 2. Web REST Gateway (Direct delivery from gwashng@gmail.com, zero activation required)
-    return await _sendViaDirectRestApi(
-      recipient: recipient,
-      subject: subject,
-      bodyHtml: bodyHtml,
-      bodyText: bodyText ?? bodyHtml.replaceAll(RegExp(r'<[^>]*>'), ''),
-      senderEmail: username.isNotEmpty ? username : 'gwashng@gmail.com',
-    );
-  }
-
-  /// Direct REST Email Gateway — sends instantly from gwashng@gmail.com with NO form activation required
-  Future<bool> _sendViaDirectRestApi({
-    required String recipient,
-    required String subject,
-    required String bodyHtml,
-    required String bodyText,
-    required String senderEmail,
-  }) async {
-    try {
-      final brevoApiKey = Env.brevoApiKey;
-
-      final url = Uri.parse('https://api.brevo.com/v3/smtp/email');
-      final response = await http.post(
-        url,
-        headers: {
-          'accept': 'application/json',
-          'content-type': 'application/json',
-          'api-key': brevoApiKey,
-        },
-        body: jsonEncode({
-          'sender': {'name': 'G-Wash NG', 'email': senderEmail},
-          'to': [{'email': recipient}],
-          'subject': subject,
-          'htmlContent': bodyHtml,
-          'textContent': bodyText,
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
-        debugPrint('✅ [Direct Web Email Sent] To: $recipient | Subject: $subject');
-        return true;
-      } else {
-        debugPrint('⚠️ [Direct Web Email Response ${response.statusCode}]: ${response.body}');
-      }
-    } catch (e) {
-      debugPrint('⚠️ [Direct Web Email Exception]: $e');
     }
     return false;
   }
