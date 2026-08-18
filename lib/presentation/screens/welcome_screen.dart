@@ -97,7 +97,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         }
 
         final authService = Provider.of<AuthService>(context, listen: false);
-        await authService.refreshCurrentUser();
+        authService.notifyListeners();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -233,7 +233,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                          MaterialPageRoute(builder: (context) => const SignupScreen()),
                         );
                       },
                       style: ElevatedButton.styleFrom(
