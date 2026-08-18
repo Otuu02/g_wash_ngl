@@ -42,7 +42,6 @@ flutter build web --release --web-renderer html --no-tree-shake-icons \
   --dart-define=TWILIO_ACCOUNT_SID="${TWILIO_ACCOUNT_SID:-}" \
   --dart-define=TWILIO_AUTH_TOKEN="${TWILIO_AUTH_TOKEN:-}" \
   --dart-define=TWILIO_PHONE_NUMBER="${TWILIO_PHONE_NUMBER:-}" \
-  --dart-define=BREVO_API_KEY="${BREVO_API_KEY:-}" \
   --dart-define=GMAIL_USER="${GMAIL_USER:-gwashng@gmail.com}" \
   --dart-define=GMAIL_APP_PASSWORD="${GMAIL_APP_PASSWORD:-}" \
   --dart-define=SMTP_HOST="${SMTP_HOST:-smtp.gmail.com}" \
