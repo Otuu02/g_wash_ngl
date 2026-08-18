@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:g_wash_ngl/config/env.dart';
-import 'package:g_wash_ngl/services/smtp_email_service.dart';
+import 'package:g_wash_ng/config/env.dart';
+import 'package:g_wash_ng/services/smtp_email_service.dart';
 
 void main() {
   test('Env should return configured Gmail user and app password by default', () {
