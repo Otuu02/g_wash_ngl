@@ -41,7 +41,7 @@ class CommunicationService {
 
       return twilioSuccess;
     } catch (e) {
-      debugPrint('âŒ Error sending Twilio SMS: $e');
+      debugPrint('Error sending Twilio SMS: $e');
       return false;
     }
   }
@@ -64,7 +64,7 @@ class CommunicationService {
             <h2 style="color: #008080;">G-Wash NG</h2>
             <p style="font-size: 16px; line-height: 1.5;">${body.replaceAll('\n', '<br>')}</p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-            <p style="font-size: 12px; color: #888;">G-Wash NG â€” On-Demand Cleaning & Service Marketplace</p>
+            <p style="font-size: 12px; color: #888;">G-Wash NG - On-Demand Cleaning & Service Marketplace</p>
           </div>
           ''';
 
@@ -88,7 +88,7 @@ class CommunicationService {
 
       return smtpSuccess;
     } catch (e) {
-      debugPrint('âŒ Error sending Gmail SMTP Email: $e');
+      debugPrint('Error sending Email: $e');
       return false;
     }
   }
@@ -108,12 +108,12 @@ class CommunicationService {
     String? providerPhone,
     String? providerEmail,
   }) async {
-    final customerSmsMessage = 'Hello $customerName, your $serviceName booking (â‚¦$price) has been confirmed on G Wash NG. Location: $location.';
-    final customerEmailSubject = 'âœ… Booking Confirmed - G Wash NG';
+    final customerSmsMessage = 'Hello $customerName, your $serviceName booking (NGN $price) has been confirmed on G Wash NG. Location: $location.';
+    final customerEmailSubject = 'Booking Confirmed - G Wash NG';
 
     // 1. In-App Banner Popup & Local Push to Customer
     _notificationService.notify(
-      title: "âœ… Booking Confirmed!",
+      title: "Booking Confirmed!",
       message: "Your $serviceName booking has been placed successfully.",
       type: "booking",
       jobId: jobId,
@@ -133,12 +133,12 @@ class CommunicationService {
 
     // 3. Send SMS & Email to Service Provider (if provider info provided)
     if (providerPhone != null && providerPhone.isNotEmpty) {
-      final providerSmsMessage = 'ðŸš— New Job Alert! Customer: $customerName ($customerPhone) booked $serviceName at $location (â‚¦$price). Please open G Wash NG to accept.';
+      final providerSmsMessage = 'New Job Alert! Customer: $customerName ($customerPhone) booked $serviceName at $location (NGN $price). Please open G Wash NG to accept.';
       await sendRealSms(phone: providerPhone, message: providerSmsMessage);
     }
     if (providerEmail != null && providerEmail.isNotEmpty) {
-      final providerEmailSubject = 'ðŸš¨ New Job Request - G Wash NG';
-      final providerEmailBody = 'Hello $providerName,\n\nYou have a new job request for $serviceName.\nCustomer: $customerName\nPhone: $customerPhone\nLocation: $location\nPrice: â‚¦$price\n\nPlease log in to G Wash NG to accept the request.';
+      final providerEmailSubject = 'New Job Request - G Wash NG';
+      final providerEmailBody = 'Hello $providerName,\n\nYou have a new job request for $serviceName.\nCustomer: $customerName\nPhone: $customerPhone\nLocation: $location\nPrice: NGN $price\n\nPlease log in to G Wash NG to accept the request.';
       await sendRealEmail(
         email: providerEmail,
         subject: providerEmailSubject,
@@ -154,7 +154,7 @@ class CommunicationService {
       'notificationSent': true,
     });
 
-    debugPrint("ðŸ“¢ Booking notifications dispatched for job: $jobId");
+    debugPrint("Booking notifications dispatched for job: $jobId");
   }
 
   // ============================================================
@@ -257,17 +257,17 @@ class CommunicationService {
     required String phone,
     String role = 'customer',
   }) async {
-    final String welcomeSubject = 'ðŸŽ‰ Welcome to G-Wash NG, $userName!';
+    final String welcomeSubject = 'Welcome to G-Wash NG, $userName!';
     final String welcomeMessageText = '''
 Hello $userName,
 
-Welcome to G-Wash NG â€” Nigeria's premier on-demand car wash, house cleaning, laundry, and home service marketplace!
+Welcome to G-Wash NG - Nigeria's premier on-demand car wash, house cleaning, laundry, and home service marketplace!
 
 Your Account Details:
-â€¢ Name: $userName
-â€¢ Phone: $phone
-â€¢ Email: $email
-â€¢ Account Role: ${role.toUpperCase()}
+- Name: $userName
+- Phone: $phone
+- Email: $email
+- Account Role: ${role.toUpperCase()}
 
 Thank you for joining G-Wash NG. You can now book top-rated service providers or manage orders seamlessly.
 
@@ -297,11 +297,11 @@ The G-Wash NG Team
 <body>
   <div class="container">
     <div class="header">
-      <h1>ðŸŽ‰ Welcome to G-Wash NG!</h1>
+      <h1>Welcome to G-Wash NG!</h1>
     </div>
     <div class="content">
       <p style="font-size: 18px; font-weight: 600; color: #0f172a;">Hello $userName,</p>
-      <p>Thank you for creating an account with <strong>G-Wash NG</strong> â€” Nigeria's #1 marketplace for on-demand car wash, house cleaning, laundry, and ride services!</p>
+      <p>Thank you for creating an account with <strong>G-Wash NG</strong> - Nigeria's #1 marketplace for on-demand car wash, house cleaning, laundry, and ride services!</p>
       
       <div class="card">
         <h3>Your Account Summary</h3>
@@ -314,7 +314,7 @@ The G-Wash NG Team
       <p>Your account is active and verified. You can now log in anytime to request services or manage your bookings in real-time.</p>
     </div>
     <div class="footer">
-      <p>Â© 2026 G-Wash NG. All rights reserved.</p>
+      <p>(C) 2026 G-Wash NG. All rights reserved.</p>
       <p>Fast, Trusted & Reliable Home & Vehicle Services in Nigeria</p>
     </div>
   </div>
@@ -322,9 +322,9 @@ The G-Wash NG Team
 </html>
 ''';
 
-    // 1. Send In-App & Local System Notification
+    // 1. Send In-App & Local System Notification (Clean Plain Text)
     _notificationService.notify(
-      title: 'ðŸŽ‰ Account Created Successfully!',
+      title: 'Account Created Successfully!',
       message: 'Welcome to G-Wash NG, $userName! Your account is active.',
       type: 'system',
     );
@@ -337,7 +337,7 @@ The G-Wash NG Team
         body: welcomeMessageText,
         htmlBody: welcomeHtmlBody,
       );
-      debugPrint('ðŸ“§ Welcome email dispatched to $email');
+      debugPrint('Welcome email dispatched to $email');
     }
 
     // 3. Send SMS Alert
@@ -359,7 +359,7 @@ The G-Wash NG Team
     required int price,
     String? providerPhone,
   }) async {
-    final message = 'Hello $customerName, your $serviceName has been completed! Amount: â‚¦$price. Thank you for using G Wash NG.';
+    final message = 'Hello $customerName, your $serviceName has been completed! Amount: NGN $price. Thank you for using G Wash NG.';
 
     // Push & Banner Popup
     _notificationService.notify(
@@ -459,14 +459,14 @@ The G-Wash NG Team
     String? providerEmail,
     double? providerShare,
   }) async {
-    final customerMsg = 'Hello $customerName, your payment of â‚¦${amount.toStringAsFixed(0)} for $serviceName was successful! Ref: $reference.';
+    final customerMsg = 'Hello $customerName, your payment of NGN ${amount.toStringAsFixed(0)} for $serviceName was successful! Ref: $reference.';
     final pShare = providerShare ?? (amount * 0.95);
     final pFee = amount * 0.05;
 
     // Push Notification in Status Bar + Banner Popup
     _notificationService.notify(
       title: 'Payment Successful',
-      message: 'Paid â‚¦${amount.toStringAsFixed(0)} for $serviceName. Ref: $reference',
+      message: 'Paid NGN ${amount.toStringAsFixed(0)} for $serviceName. Ref: $reference',
       type: 'payment',
     );
 
@@ -488,7 +488,7 @@ The G-Wash NG Team
     if (customerEmail.isNotEmpty) {
       await sendRealEmail(
         email: customerEmail,
-        subject: 'ðŸ§¾ Official Payment Receipt #$reference - G Wash NG',
+        subject: 'Official Payment Receipt #$reference - G Wash NG',
         body: customerMsg,
         htmlBody: receiptHtml,
       );
@@ -496,14 +496,14 @@ The G-Wash NG Team
 
     // Payment Received Notification to Provider
     if (providerPhone != null && providerPhone.isNotEmpty) {
-      final providerMsg = 'Payment Received! Customer $customerName paid â‚¦${amount.toStringAsFixed(0)} for $serviceName. â‚¦${pShare.toStringAsFixed(0)} credited to your wallet balance.';
+      final providerMsg = 'Payment Received! Customer $customerName paid NGN ${amount.toStringAsFixed(0)} for $serviceName. NGN ${pShare.toStringAsFixed(0)} credited to your wallet balance.';
       await sendRealSms(phone: providerPhone, message: providerMsg);
     }
     if (providerEmail != null && providerEmail.isNotEmpty) {
       await sendRealEmail(
         email: providerEmail,
-        subject: 'ðŸ’° Payment Received Notice - G Wash NG',
-        body: 'Hello ${providerName ?? 'Provider'},\n\nPayment confirmed for $serviceName.\nCustomer: $customerName\nTotal: â‚¦${amount.toStringAsFixed(0)}\nYour Share (95% Net): â‚¦${pShare.toStringAsFixed(0)}\n\nThank you for providing great service on G Wash NG!',
+        subject: 'Payment Received Notice - G Wash NG',
+        body: 'Hello ${providerName ?? 'Provider'},\n\nPayment confirmed for $serviceName.\nCustomer: $customerName\nTotal: NGN ${amount.toStringAsFixed(0)}\nYour Share (95% Net): NGN ${pShare.toStringAsFixed(0)}\n\nThank you for providing great service on G Wash NG!',
         htmlBody: receiptHtml,
       );
     }
@@ -541,7 +541,7 @@ The G-Wash NG Team
           <h1 style="margin: 0; font-size: 26px; letter-spacing: 1px; font-weight: bold;">G-WASH NG</h1>
           <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">OFFICIAL DIGITAL PAYMENT RECEIPT</p>
           <div style="display: inline-block; margin-top: 15px; background: rgba(255,255,255,0.2); padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid rgba(255,255,255,0.4);">
-            âœ” VERIFIED & CRYPTOGRAPHICALLY SEALED
+            VERIFIED & CRYPTOGRAPHICALLY SEALED
           </div>
         </div>
 
@@ -550,7 +550,7 @@ The G-Wash NG Team
           <!-- Amount Banner -->
           <div style="text-align: center; background: #f0fdf4; padding: 18px; border-radius: 12px; border: 1px solid #bbf7d0; margin-bottom: 24px;">
             <span style="font-size: 13px; color: #166534; font-weight: bold; text-transform: uppercase;">Total Amount Paid</span>
-            <h2 style="margin: 6px 0 0 0; font-size: 32px; color: #15803d; font-weight: bold;">â‚¦${amount.toStringAsFixed(2)}</h2>
+            <h2 style="margin: 6px 0 0 0; font-size: 32px; color: #15803d; font-weight: bold;">NGN ${amount.toStringAsFixed(2)}</h2>
             <span style="font-size: 11px; color: #166534;">Payment Status: <strong>SUCCESSFUL (PAYSTACK LIVE)</strong></span>
           </div>
 
@@ -588,15 +588,15 @@ The G-Wash NG Team
             <table style="width: 100%; font-size: 13px;">
               <tr>
                 <td style="padding: 4px 0; color: #64748b;">Gross Amount Paid</td>
-                <td style="padding: 4px 0; text-align: right; font-weight: bold;">â‚¦${amount.toStringAsFixed(2)}</td>
+                <td style="padding: 4px 0; text-align: right; font-weight: bold;">NGN ${amount.toStringAsFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding: 4px 0; color: #64748b;">Provider Net Earnings (95%)</td>
-                <td style="padding: 4px 0; text-align: right; color: #16a34a; font-weight: bold;">â‚¦${providerShare.toStringAsFixed(2)}</td>
+                <td style="padding: 4px 0; text-align: right; color: #16a34a; font-weight: bold;">NGN ${providerShare.toStringAsFixed(2)}</td>
               </tr>
               <tr>
                 <td style="padding: 4px 0; color: #64748b;">G Wash Platform Fee (5%)</td>
-                <td style="padding: 4px 0; text-align: right; color: #ea580c; font-weight: bold;">â‚¦${platformFee.toStringAsFixed(2)}</td>
+                <td style="padding: 4px 0; text-align: right; color: #ea580c; font-weight: bold;">NGN ${platformFee.toStringAsFixed(2)}</td>
               </tr>
             </table>
           </div>
@@ -615,7 +615,7 @@ The G-Wash NG Team
 
         <!-- Footer -->
         <div style="background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0;">
-          G-Wash NG Marketplace Ltd â€¢ Support: support@gwashng.com â€¢ www.gwashng.com
+          G-Wash NG Marketplace Ltd * Support: support@gwashng.com * www.gwashng.com
         </div>
 
       </div>
@@ -632,7 +632,7 @@ The G-Wash NG Team
     required String userEmail,
     required double amount,
   }) async {
-    final msg = 'Your G Wash NG wallet has been funded with â‚¦${amount.toStringAsFixed(0)}. Total balance updated!';
+    final msg = 'Your G Wash NG wallet has been funded with NGN ${amount.toStringAsFixed(0)}. Total balance updated!';
 
     _notificationService.notify(
       title: 'Wallet Funded',
@@ -661,11 +661,11 @@ The G-Wash NG Team
     required String washerEmail,
     required double amount,
   }) async {
-    final msg = 'Hello $washerName, your withdrawal request for â‚¦${amount.toStringAsFixed(0)} has been received and is being processed by admin.';
+    final msg = 'Hello $washerName, your withdrawal request for NGN ${amount.toStringAsFixed(0)} has been received and is being processed by admin.';
 
     _notificationService.notify(
       title: 'Withdrawal Pending',
-      message: 'Requested â‚¦${amount.toStringAsFixed(0)} payout to your bank account.',
+      message: 'Requested NGN ${amount.toStringAsFixed(0)} payout to your bank account.',
       type: 'payment',
     );
 
@@ -690,11 +690,11 @@ The G-Wash NG Team
     required String washerEmail,
     required double amount,
   }) async {
-    final msg = 'Withdrawal Approved! â‚¦${amount.toStringAsFixed(0)} has been transferred to your bank account.';
+    final msg = 'Withdrawal Approved! NGN ${amount.toStringAsFixed(0)} has been transferred to your bank account.';
 
     _notificationService.notify(
       title: 'Withdrawal Successful',
-      message: 'â‚¦${amount.toStringAsFixed(0)} has been paid to your bank account.',
+      message: 'NGN ${amount.toStringAsFixed(0)} has been paid to your bank account.',
       type: 'payment',
     );
 
@@ -722,10 +722,10 @@ The G-Wash NG Team
     String? providerPhone,
     String? providerEmail,
   }) async {
-    final msg = 'Customer $customerName left a rating of $rating â˜… on your service (Job #$jobId). "${reviewText.isNotEmpty ? reviewText : 'Great service!'}"';
+    final msg = 'Customer $customerName left a rating of $rating stars on your service (Job #$jobId). "${reviewText.isNotEmpty ? reviewText : 'Great service!'}"';
 
     _notificationService.notify(
-      title: 'â­ New Rating & Review Received!',
+      title: 'New Rating & Review Received!',
       message: msg,
       type: 'rating',
       jobId: jobId,
@@ -737,7 +737,7 @@ The G-Wash NG Team
     if (providerEmail != null && providerEmail.isNotEmpty) {
       await sendRealEmail(
         email: providerEmail,
-        subject: 'â­ New Review Received - G Wash NG',
+        subject: 'New Review Received - G Wash NG',
         body: 'Hello ${providerName ?? 'Provider'},\n\n$msg\n\nThank you for maintaining quality service on G Wash NG!',
       );
     }
