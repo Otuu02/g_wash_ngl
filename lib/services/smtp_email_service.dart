@@ -119,9 +119,6 @@ class SmtpEmailService {
         '--gwash_boundary--',
       ].join('\r\n');
 
-      // Base64url encode the raw message (required by Gmail API)
-      final encodedMessage = base64Url.encode(utf8.encode(rawEmail));
-
       // Gmail REST API — send endpoint
       // Auth: Basic with "user:app_password" base64 encoded
       final credentials = base64.encode(utf8.encode('$username:$appPassword'));
