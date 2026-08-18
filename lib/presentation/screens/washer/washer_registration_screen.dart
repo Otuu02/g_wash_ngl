@@ -490,7 +490,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Washer account created! You are now online.'),
+            content: Text('Washer account created! You are now online.'),
             backgroundColor: AppColors.success,
             duration: Duration(seconds: 3),
           ),
