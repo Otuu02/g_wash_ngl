@@ -41,10 +41,14 @@ class TwilioService {
     final formattedTo = formatPhoneNumber(to);
     if (formattedTo.isEmpty) return false;
 
-    // Try Twilio API if credentials are configured
-    if (accountSid.isNotEmpty &&
+    // Only attempt HTTP call if valid, live Twilio credentials are explicitly configured
+    final bool isLiveCredential = accountSid.isNotEmpty &&
         authToken.isNotEmpty &&
-        !accountSid.startsWith('AC_DEMO')) {
+        accountSid.length > 30 &&
+        !accountSid.contains('DEMO') &&
+        !accountSid.contains('65d356c');
+
+    if (isLiveCredential) {
       try {
         final url = Uri.parse(
           'https://api.twilio.com/2010-04-01/Accounts/$accountSid/Messages.json',

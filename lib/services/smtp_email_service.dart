@@ -79,8 +79,6 @@ class SmtpEmailService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         debugPrint('✅ [HTTPS REST Email Sent] To: $recipient');
         return true;
-      } else {
-        debugPrint('⚠️ [HTTPS REST Email Status]: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('⚠️ [HTTPS REST Email Exception]: $e');
