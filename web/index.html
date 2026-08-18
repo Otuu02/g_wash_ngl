@@ -25,6 +25,26 @@
         if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
         return true;
       }, true);
+
+      // 🎥 Auto-close VideoFrame instances before garbage collection to prevent Chromium stalls
+      if (typeof window.VideoFrame !== 'undefined') {
+        try {
+          var OrigVF = window.VideoFrame;
+          var registry = typeof FinalizationRegistry !== 'undefined'
+            ? new FinalizationRegistry(function(handle) {
+                try { if (handle && typeof handle.close === 'function') handle.close(); } catch(err) {}
+              })
+            : null;
+
+          function WrappedVideoFrame(init, options) {
+            var vf = new OrigVF(init, options);
+            if (registry) registry.register(vf, vf);
+            return vf;
+          }
+          WrappedVideoFrame.prototype = OrigVF.prototype;
+          window.VideoFrame = WrappedVideoFrame;
+        } catch (e) {}
+      }
     })();
   </script>
   <base href="/">
