@@ -68,30 +68,32 @@ void main() async {
   final authService = AuthService();
   final notificationService = AppNotificationService();
 
-  // ✅ Initialize Firebase Push Messaging
-  try {
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      if (message.notification != null) {
-        notificationService.notify(
-          title: message.notification!.title ?? 'Notification',
-          message: message.notification!.body ?? '',
-          type: message.data['type'] ?? 'system',
-          jobId: message.data['jobId'],
-        );
-      }
-    });
+  // ✅ Initialize Firebase Push Messaging (Mobile native only to avoid web 403 installation errors)
+  if (!kIsWeb) {
+    try {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        if (message.notification != null) {
+          notificationService.notify(
+            title: message.notification!.title ?? 'Notification',
+            message: message.notification!.body ?? '',
+            type: message.data['type'] ?? 'system',
+            jobId: message.data['jobId'],
+          );
+        }
+      });
 
-    FirebaseMessaging.instance.getToken().then((token) {
-      if (token != null && kDebugMode) {
-        debugPrint('📲 FCM Push Token: $token');
-      }
-    }).catchError((e) {
-      if (kDebugMode) debugPrint('ℹ️ FCM Token notice: $e');
-    });
-  } catch (e) {
-    if (kDebugMode) debugPrint('ℹ️ FCM Messaging skipped (platform/headless mode): $e');
+      FirebaseMessaging.instance.getToken().then((token) {
+        if (token != null && kDebugMode) {
+          debugPrint('📲 FCM Push Token: $token');
+        }
+      }).catchError((e) {
+        if (kDebugMode) debugPrint('ℹ️ FCM Token notice: $e');
+      });
+    } catch (e) {
+      if (kDebugMode) debugPrint('ℹ️ FCM Messaging skipped: $e');
+    }
   }
   
   try {

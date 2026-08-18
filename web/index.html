@@ -2,7 +2,7 @@
 <html>
 <head>
   <script>
-    // 🔇 Silence all browser console output for production security
+    // 🔇 Silence all browser console output and catch uncaught exceptions for production security
     (function() {
       var noop = function() {};
       window.console.log = noop;
@@ -10,6 +10,21 @@
       window.console.warn = noop;
       window.console.debug = noop;
       window.console.error = noop;
+
+      window.onerror = function() { return true; };
+      window.onunhandledrejection = function() { return true; };
+
+      window.addEventListener('error', function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+        return true;
+      }, true);
+
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+        return true;
+      }, true);
     })();
   </script>
   <base href="/">
