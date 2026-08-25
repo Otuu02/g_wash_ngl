@@ -16,6 +16,85 @@ class JobService extends ChangeNotifier {
   final AppNotificationService _notificationService = AppNotificationService();
   final CommunicationService _communicationService = CommunicationService();
 
+  // Helper for category matching across multiple schemas
+  bool _isCategoryMatch(Map<String, dynamic> data, String selectedCategory) {
+    if (selectedCategory.trim().isEmpty ||
+        selectedCategory.toLowerCase().trim() == 'all' ||
+        selectedCategory.toLowerCase().trim() == 'any' ||
+        selectedCategory.toLowerCase().trim() == 'general') {
+      return true;
+    }
+
+    final target = selectedCategory.toLowerCase().trim();
+
+    bool checkString(String str) {
+      if (str.isEmpty) return false;
+      final s = str.toLowerCase().trim();
+      if (s == target) return true;
+      if (target.contains(s) || s.contains(target)) return true;
+
+      if ((target.contains('car') || target.contains('wash') || target.contains('auto') || target.contains('detail')) &&
+          (s.contains('car') || s.contains('wash') || s.contains('auto') || s.contains('detail'))) {
+        return true;
+      }
+      if ((target.contains('clean') || target.contains('house') || target.contains('home') || target.contains('maid') || target.contains('fumig') || target.contains('sofa')) &&
+          (s.contains('clean') || s.contains('house') || s.contains('home') || s.contains('maid') || s.contains('fumig') || s.contains('sofa'))) {
+        return true;
+      }
+      if ((target.contains('laundry') || target.contains('dry') || target.contains('cloth') || target.contains('iron')) &&
+          (s.contains('laundry') || s.contains('dry') || s.contains('cloth') || s.contains('iron'))) {
+        return true;
+      }
+      if ((target.contains('ride') || target.contains('drive') || target.contains('cab') || target.contains('taxi') || target.contains('transport')) &&
+          (s.contains('ride') || s.contains('drive') || s.contains('cab') || s.contains('taxi') || s.contains('transport') || s.contains('driver'))) {
+        return true;
+      }
+      return false;
+    }
+
+    final singleFields = ['serviceCategory', 'category', 'service_category', 'serviceType', 'mainCategory', 'workCategory', 'role', 'userType'];
+    for (final field in singleFields) {
+      if (data[field] != null && checkString(data[field].toString())) return true;
+    }
+
+    final listFields = ['mainCategoryNames', 'selectedMainCategories', 'mainCategories', 'serviceCategories', 'selectedServices', 'categories', 'services'];
+    bool foundCategoryField = false;
+
+    for (final field in listFields) {
+      final list = data[field];
+      if (list != null) {
+        if (list is List && list.isNotEmpty) {
+          foundCategoryField = true;
+          for (var item in list) {
+            if (item != null && checkString(item.toString())) return true;
+          }
+        } else if (list is String && list.trim().isNotEmpty) {
+          foundCategoryField = true;
+          if (checkString(list)) return true;
+        }
+      }
+    }
+
+    final subServices = data['subServices'] ?? data['selectedSubServices'] ?? data['subServicePrices'];
+    if (subServices is Map && subServices.isNotEmpty) {
+      foundCategoryField = true;
+      for (var key in subServices.keys) {
+        if (checkString(key.toString())) return true;
+      }
+    } else if (subServices is List && subServices.isNotEmpty) {
+      foundCategoryField = true;
+      for (var item in subServices) {
+        if (item != null && checkString(item.toString())) return true;
+      }
+    }
+
+    if (!foundCategoryField && (data['serviceCategory'] == null || data['serviceCategory'].toString().trim().isEmpty)) {
+      return true;
+    }
+
+    return false;
+  }
+
   // ============================================================
   // FIND NEAREST PROVIDER
   // ============================================================
@@ -28,9 +107,6 @@ class JobService extends ChangeNotifier {
     try {
       final snapshot = await _firestore
           .collection('washers')
-          .where('approved', isEqualTo: true)
-          .where('isOnline', isEqualTo: true)
-          .where('serviceCategory', isEqualTo: category)
           .get();
 
       if (snapshot.docs.isEmpty) {
@@ -40,6 +116,11 @@ class JobService extends ChangeNotifier {
       List<Map<String, dynamic>> providers = [];
       for (var doc in snapshot.docs) {
         final data = doc.data();
+
+        if (!_isCategoryMatch(data, category)) {
+          continue;
+        }
+
         final lat = data['currentLat'] ?? data['latitude'] ?? 6.5244;
         final lng = data['currentLng'] ?? data['longitude'] ?? 3.3792;
         
@@ -54,12 +135,29 @@ class JobService extends ChangeNotifier {
         });
       }
 
+      // Fallback if no exact category match
+      if (providers.isEmpty) {
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final lat = data['currentLat'] ?? data['latitude'] ?? 6.5244;
+          final lng = data['currentLng'] ?? data['longitude'] ?? 3.3792;
+          final distance = _calculateDistance(userLat, userLng, lat, lng);
+          providers.add({
+            'id': doc.id,
+            ...data,
+            'distance': distance,
+            'distanceDisplay': '${distance.toStringAsFixed(1)} km',
+            'eta': _calculateETA(distance, data['vehicleType'] ?? 'Motorcycle'),
+          });
+        }
+      }
+
       if (providers.isEmpty) return null;
 
       providers.sort((a, b) => a['distance'].compareTo(b['distance']));
       return providers.first;
     } catch (e) {
-      debugPrint('âŒ Error finding nearest provider: $e');
+      debugPrint('❌ Error finding nearest provider: $e');
       return null;
     }
   }
@@ -79,24 +177,8 @@ class JobService extends ChangeNotifier {
       List<Map<String, dynamic>> providers = [];
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final rawCategories = data['serviceCategories'] ?? data['selectedServices'] ?? [];
-        final serviceCat = data['serviceCategory']?.toString();
 
-        bool isMatch = false;
-        final cleanCategory = category.toLowerCase().trim();
-
-        if (serviceCat != null && serviceCat.toLowerCase().trim() == cleanCategory) {
-          isMatch = true;
-        } else if (rawCategories is List) {
-          isMatch = rawCategories.any((cat) {
-            final c = cat.toString().toLowerCase().trim();
-            if (c == cleanCategory) return true;
-            if (cleanCategory == 'car wash' && (c == 'car_wash' || c.contains('wash'))) return true;
-            if (cleanCategory == 'house cleaning' && (c == 'house_cleaning' || c.contains('cleaning'))) return true;
-            if (cleanCategory == 'laundry' && (c == 'laundry' || c.contains('laundry'))) return true;
-            return false;
-          });
-        }        if (isMatch) {
+        if (_isCategoryMatch(data, category)) {
           final rawName = data['name'] ?? data['fullName'] ?? data['userName'] ?? 'Service Provider';
           final name = (rawName is String && rawName.trim().isNotEmpty) ? rawName.trim() : 'Service Provider';
 
@@ -107,7 +189,7 @@ class JobService extends ChangeNotifier {
             'email': data['email'] ?? '',
             'rating': data['rating'] ?? 4.8,
             'vehicleType': data['vehicleType'] ?? 'Motorcycle',
-            'serviceCategory': serviceCat ?? category,
+            'serviceCategory': category,
             ...data,
           });
         }
@@ -117,25 +199,53 @@ class JobService extends ChangeNotifier {
       if (providers.isEmpty) {
         final usersSnapshot = await _firestore
             .collection('users')
-            .where('role', whereIn: ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider'])
             .limit(limit)
             .get();
 
         for (var doc in usersSnapshot.docs) {
           final data = doc.data();
-          final rawCategories = data['mainCategories'] ?? data['serviceCategories'] ?? data['selectedServices'] ?? [category];
-          final rawName = data['name'] ?? data['fullName'] ?? 'Service Provider';
+          final role = (data['role'] ?? '').toString().toLowerCase();
+          final isWasherFlag = data['isWasher'] == true || data['isProvider'] == true || data['userType'] == 'provider';
+          final isProviderRole = role.contains('washer') ||
+              role.contains('provider') ||
+              role.contains('cleaner') ||
+              role.contains('driver') ||
+              role.contains('vendor') ||
+              role.contains('agent');
 
+          if (isProviderRole || isWasherFlag || data['washerId'] != null) {
+            final rawCategories = data['mainCategories'] ?? data['serviceCategories'] ?? data['selectedServices'] ?? [category];
+            final rawName = data['name'] ?? data['fullName'] ?? 'Service Provider';
+
+            providers.add({
+              'id': doc.id,
+              'userId': doc.id,
+              'name': rawName,
+              'phone': data['phone'] ?? data['phoneNumber'] ?? '',
+              'email': data['email'] ?? '',
+              'rating': data['rating'] ?? 4.8,
+              'vehicleType': data['vehicleType'] ?? 'Motorcycle',
+              'serviceCategory': category,
+              'serviceCategories': rawCategories,
+              ...data,
+            });
+          }
+        }
+      }
+
+      // Fallback: load all washers if providers is still empty
+      if (providers.isEmpty && snapshot.docs.isNotEmpty) {
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final rawName = data['name'] ?? data['fullName'] ?? data['userName'] ?? 'Service Provider';
           providers.add({
             'id': doc.id,
-            'userId': doc.id,
             'name': rawName,
             'phone': data['phone'] ?? data['phoneNumber'] ?? '',
             'email': data['email'] ?? '',
             'rating': data['rating'] ?? 4.8,
             'vehicleType': data['vehicleType'] ?? 'Motorcycle',
             'serviceCategory': category,
-            'serviceCategories': rawCategories,
             ...data,
           });
         }

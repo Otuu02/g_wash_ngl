@@ -80,29 +80,99 @@ class _MatchingScreenState extends State<MatchingScreen> {
   }
 
   bool _isCategoryMatch(Map<String, dynamic> data, String selectedCategory) {
-    if (selectedCategory.isEmpty || selectedCategory.toLowerCase().trim() == 'all') return true;
-
-    final target = selectedCategory.toLowerCase().trim();
-    final serviceCat = (data['serviceCategory'] ?? '').toString().toLowerCase().trim();
-
-    if (serviceCat.isNotEmpty) {
-      if (serviceCat == target) return true;
-      if (target.contains('car') && serviceCat.contains('car')) return true;
-      if (target.contains('clean') && serviceCat.contains('clean')) return true;
-      if (target.contains('laundry') && serviceCat.contains('laundry')) return true;
-      if (target.contains('ride') && (serviceCat.contains('ride') || serviceCat.contains('driver'))) return true;
+    if (selectedCategory.trim().isEmpty ||
+        selectedCategory.toLowerCase().trim() == 'all' ||
+        selectedCategory.toLowerCase().trim() == 'any' ||
+        selectedCategory.toLowerCase().trim() == 'general') {
+      return true;
     }
 
-    final cats = data['serviceCategories'] ?? data['selectedServices'];
-    if (cats is List) {
-      for (var item in cats) {
-        final c = item.toString().toLowerCase().trim();
-        if (c == target) return true;
-        if (target.contains('car') && (c.contains('car') || c.contains('wash'))) return true;
-        if (target.contains('clean') && c.contains('clean')) return true;
-        if (target.contains('laundry') && c.contains('laundry')) return true;
-        if (target.contains('ride') && (c.contains('ride') || c.contains('driver'))) return true;
+    final target = selectedCategory.toLowerCase().trim();
+
+    bool checkString(String str) {
+      if (str.isEmpty) return false;
+      final s = str.toLowerCase().trim();
+      if (s == target) return true;
+      if (target.contains(s) || s.contains(target)) return true;
+
+      if ((target.contains('car') || target.contains('wash') || target.contains('auto') || target.contains('detail')) &&
+          (s.contains('car') || s.contains('wash') || s.contains('auto') || s.contains('detail'))) {
+        return true;
       }
+      if ((target.contains('clean') || target.contains('house') || target.contains('home') || target.contains('maid') || target.contains('fumig') || target.contains('sofa')) &&
+          (s.contains('clean') || s.contains('house') || s.contains('home') || s.contains('maid') || s.contains('fumig') || s.contains('sofa'))) {
+        return true;
+      }
+      if ((target.contains('laundry') || target.contains('dry') || target.contains('cloth') || target.contains('iron')) &&
+          (s.contains('laundry') || s.contains('dry') || s.contains('cloth') || s.contains('iron'))) {
+        return true;
+      }
+      if ((target.contains('ride') || target.contains('drive') || target.contains('cab') || target.contains('taxi') || target.contains('transport')) &&
+          (s.contains('ride') || s.contains('drive') || s.contains('cab') || s.contains('taxi') || s.contains('transport') || s.contains('driver'))) {
+        return true;
+      }
+      return false;
+    }
+
+    final singleFields = [
+      'serviceCategory',
+      'category',
+      'service_category',
+      'serviceType',
+      'mainCategory',
+      'workCategory',
+      'role',
+      'userType',
+    ];
+
+    for (final field in singleFields) {
+      if (data[field] != null) {
+        if (checkString(data[field].toString())) return true;
+      }
+    }
+
+    final listFields = [
+      'mainCategoryNames',
+      'selectedMainCategories',
+      'mainCategories',
+      'serviceCategories',
+      'selectedServices',
+      'categories',
+      'services',
+    ];
+
+    bool foundCategoryField = false;
+
+    for (final field in listFields) {
+      final list = data[field];
+      if (list != null) {
+        if (list is List && list.isNotEmpty) {
+          foundCategoryField = true;
+          for (var item in list) {
+            if (item != null && checkString(item.toString())) return true;
+          }
+        } else if (list is String && list.trim().isNotEmpty) {
+          foundCategoryField = true;
+          if (checkString(list)) return true;
+        }
+      }
+    }
+
+    final subServices = data['subServices'] ?? data['selectedSubServices'] ?? data['subServicePrices'];
+    if (subServices is Map && subServices.isNotEmpty) {
+      foundCategoryField = true;
+      for (var key in subServices.keys) {
+        if (checkString(key.toString())) return true;
+      }
+    } else if (subServices is List && subServices.isNotEmpty) {
+      foundCategoryField = true;
+      for (var item in subServices) {
+        if (item != null && checkString(item.toString())) return true;
+      }
+    }
+
+    if (!foundCategoryField && (data['serviceCategory'] == null || data['serviceCategory'].toString().trim().isEmpty)) {
+      return true;
     }
 
     return false;
@@ -125,7 +195,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
           continue;
         }
 
-        final userId = data['userId'] ?? doc.id;
+        final userId = data['userId'] ?? data['uid'] ?? doc.id;
         processedIds.add(userId);
         processedIds.add(doc.id);
 
@@ -171,7 +241,7 @@ class _MatchingScreenState extends State<MatchingScreen> {
           'profileImage': profileImage,
           'distance': _calculateDistance(data),
           'eta': _calculateETA(data['workingRadius'] ?? 10),
-          'serviceCategories': data['serviceCategories'] ?? [widget.serviceCategory],
+          'serviceCategories': data['mainCategoryNames'] ?? data['serviceCategories'] ?? [widget.serviceCategory],
           'bio': data['bio'] ?? 'Professional ${widget.serviceCategory} provider',
         });
       }
@@ -179,16 +249,30 @@ class _MatchingScreenState extends State<MatchingScreen> {
       // 2. Query users collection for registered provider users
       final usersSnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('role', whereIn: ['washer', 'provider', 'cleaner', 'laundry_provider', 'driver', 'service_provider'])
           .get();
 
       for (var doc in usersSnapshot.docs) {
         if (processedIds.contains(doc.id)) continue;
         final data = doc.data();
 
+        final role = (data['role'] ?? '').toString().toLowerCase();
+        final isWasherFlag = data['isWasher'] == true || data['isProvider'] == true || data['userType'] == 'provider';
+        final isProviderRole = role.contains('washer') ||
+            role.contains('provider') ||
+            role.contains('cleaner') ||
+            role.contains('driver') ||
+            role.contains('vendor') ||
+            role.contains('agent');
+
+        if (!isProviderRole && !isWasherFlag && data['washerId'] == null) {
+          continue;
+        }
+
         if (!_isCategoryMatch(data, widget.serviceCategory)) {
           continue;
         }
+
+        processedIds.add(doc.id);
 
         final userName = data['name'] ?? data['fullName'] ?? 'Service Provider';
         String? profileImage = (data['profileImage'] ?? data['photoURL'] ?? data['profilePicture'] ?? data['avatar'] ?? data['washerPhotoURL'])?.toString();
@@ -196,7 +280,6 @@ class _MatchingScreenState extends State<MatchingScreen> {
         if (profileImage != null && profileImage.isNotEmpty) {
           _providerImages[doc.id] = profileImage;
         }
-
 
         final washerPrice = _extractWasherPrice(data, widget.serviceName);
 
@@ -216,9 +299,50 @@ class _MatchingScreenState extends State<MatchingScreen> {
           'profileImage': profileImage,
           'distance': _calculateDistance(data),
           'eta': _calculateETA(data['workingRadius'] ?? 10),
-          'serviceCategories': data['serviceCategories'] ?? data['mainCategories'] ?? [widget.serviceCategory],
+          'serviceCategories': data['mainCategoryNames'] ?? data['serviceCategories'] ?? data['mainCategories'] ?? [widget.serviceCategory],
           'bio': data['bio'] ?? 'Professional ${widget.serviceCategory} provider',
         });
+      }
+
+      // 3. Fallback: If washers list is empty, fetch ALL docs from washers collection without strict category filter
+      if (washers.isEmpty && washersSnapshot.docs.isNotEmpty) {
+        for (var doc in washersSnapshot.docs) {
+          final data = doc.data();
+          final userId = data['userId'] ?? data['uid'] ?? doc.id;
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+
+          String userName = 'Service Provider';
+          if (userDoc.exists) {
+            userName = userDoc.data()?['name'] ?? userDoc.data()?['fullName'] ?? 'Service Provider';
+          } else if (data['name'] != null && data['name'].toString().isNotEmpty) {
+            userName = data['name'].toString();
+          }
+
+          String? profileImage = (data['profileImage'] ?? data['photoURL'] ?? data['profilePicture'] ?? data['avatar'] ?? data['washerPhotoURL'])?.toString();
+
+          washers.add({
+            'id': doc.id,
+            'userId': userId,
+            'name': userName,
+            'phone': data['phone'] ?? (userDoc.exists ? (userDoc.data()?['phone'] ?? '') : ''),
+            'email': data['email'] ?? '',
+            'price': _extractWasherPrice(data, widget.serviceName),
+            'vehicleType': data['vehicleType'] ?? 'Car',
+            'workingRadius': data['workingRadius'] ?? 10,
+            'rating': data['rating'] ?? 4.8,
+            'totalJobs': data['totalJobs'] ?? 0,
+            'totalEarnings': data['totalEarnings'] ?? 0,
+            'isOnline': data['isOnline'] ?? true,
+            'profileImage': profileImage,
+            'distance': _calculateDistance(data),
+            'eta': _calculateETA(data['workingRadius'] ?? 10),
+            'serviceCategories': data['mainCategoryNames'] ?? [widget.serviceCategory],
+            'bio': data['bio'] ?? 'Professional ${widget.serviceCategory} provider',
+          });
+        }
       }
 
       // Sort by distance
