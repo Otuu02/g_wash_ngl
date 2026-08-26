@@ -1242,4 +1242,153 @@ The G-Wash NG Team
 </html>
 ''';
   }
+
+  // ============================================================
+  // SEND PASSWORD RESET OTP NOTIFICATIONS
+  // ============================================================
+  Future<void> sendPasswordResetOtpNotifications({
+    required String userName,
+    required String phone,
+    required String email,
+    required String otpCode,
+  }) async {
+    final msg = 'Hello $userName, your G-Wash NG password reset code is $otpCode. Valid for 10 minutes. Do not share with anyone.';
+
+    _notificationService.notify(
+      title: '🔑 Password Reset Code',
+      message: 'Your 6-digit verification code is $otpCode',
+      type: 'system',
+    );
+
+    if (phone.isNotEmpty) {
+      await sendRealSms(phone: phone, message: msg);
+    }
+    if (email.isNotEmpty) {
+      await sendRealEmail(
+        email: email,
+        subject: '🔑 Password Reset Verification Code - G Wash NG',
+        body: msg,
+        htmlBody: generatePasswordResetOtpHtml(userName: userName, otpCode: otpCode),
+      );
+    }
+  }
+
+  // ============================================================
+  // SEND PASSWORD RESET SUCCESS NOTIFICATIONS
+  // ============================================================
+  Future<void> sendPasswordResetSuccessNotifications({
+    required String userName,
+    required String phone,
+    required String email,
+  }) async {
+    final msg = 'Hello $userName, your G-Wash NG account password has been updated successfully. If you did not make this change, please contact support immediately.';
+
+    _notificationService.notify(
+      title: '✅ Password Changed',
+      message: 'Your account password has been updated successfully.',
+      type: 'system',
+    );
+
+    if (phone.isNotEmpty) {
+      await sendRealSms(phone: phone, message: msg);
+    }
+    if (email.isNotEmpty) {
+      await sendRealEmail(
+        email: email,
+        subject: '🔒 Security Alert: Password Updated - G Wash NG',
+        body: msg,
+        htmlBody: generatePasswordResetSuccessHtml(userName: userName),
+      );
+    }
+  }
+
+  String generatePasswordResetOtpHtml({
+    required String userName,
+    required String otpCode,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #0CAF60 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .otp-box { background-color: #f0fdf4; border: 2px dashed #0CAF60; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
+    .otp-code { font-size: 36px; font-weight: bold; color: #008080; letter-spacing: 8px; margin: 8px 0; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔑 PASSWORD RESET</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">G-Wash NG Security System</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello ${userName.isNotEmpty ? userName : 'User'},</p>
+      <p>We received a request to reset the password for your G-Wash NG account. Use the 6-digit verification code below to complete your password reset:</p>
+      
+      <div class="otp-box">
+        <span style="font-size: 12px; color: #166534; font-weight: bold; text-transform: uppercase;">Verification Code (Valid for 10 Mins)</span>
+        <div class="otp-code">$otpCode</div>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b;">If you did not request a password reset, please ignore this email or contact support if you have security concerns.</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+  }
+
+  String generatePasswordResetSuccessHtml({
+    required String userName,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #0CAF60 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .card { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔒 PASSWORD UPDATED</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">G-Wash NG Security Notice</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello ${userName.isNotEmpty ? userName : 'User'},</p>
+      <p>Your G-Wash NG account password has been updated successfully.</p>
+      
+      <div class="card">
+        <h3 style="margin: 0; color: #15803d; font-size: 18px;">✅ Password Change Confirmed</h3>
+        <p style="margin: 8px 0 0 0; font-size: 14px; color: #166534;">You can now log into your account using your new password.</p>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b;">If you did not perform this password change, please contact support immediately to secure your account.</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+  }
 }

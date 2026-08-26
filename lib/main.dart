@@ -37,6 +37,7 @@ import 'presentation/screens/admin/admin_dashboard_screen.dart';
 import 'presentation/screens/welcome_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/otp_screen.dart';
+import 'presentation/screens/auth/forgot_password_screen.dart';
 
 // Services
 import 'services/auth_service.dart';
@@ -450,6 +451,11 @@ class GWashApp extends StatelessWidget {
                     jobId: args['jobId'] ?? '',
                     washerId: args['washerId'] ?? '',
                   ),
+                );
+
+              case '/forgot-password':
+                return MaterialPageRoute(
+                  builder: (context) => const ForgotPasswordScreen(),
                 );
 
               case '/otp':

@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'dart:math';
 import 'communication_service.dart';
 import 'validation_service.dart';
 import 'security_service.dart';
@@ -1352,9 +1353,267 @@ class AuthService extends ChangeNotifier {
         'role': role,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      debugPrint('âœ… User role updated to $role in Firestore');
+      debugPrint('✅ User role updated to $role in Firestore');
     } catch (e) {
-      debugPrint('âŒ Error updating user role: $e');
+      debugPrint('❌ Error updating user role: $e');
+    }
+  }
+
+  // ============================================================
+  // FORGOT PASSWORD & OTP RESET METHODS
+  // ============================================================
+  Future<Map<String, dynamic>> requestPasswordReset(String inputIdentifier) async {
+    try {
+      final identifier = inputIdentifier.trim();
+      if (identifier.isEmpty) {
+        return {'success': false, 'error': 'Please enter your registered email or phone number'};
+      }
+
+      String targetEmail = '';
+      String targetPhone = '';
+      String targetName = 'User';
+      String targetDocId = '';
+      String collectionName = 'users';
+
+      // 1. Search in users collection by email or phone
+      final usersByEmail = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: identifier.toLowerCase())
+          .limit(1)
+          .get();
+
+      if (usersByEmail.docs.isNotEmpty) {
+        final doc = usersByEmail.docs.first;
+        targetDocId = doc.id;
+        final data = doc.data();
+        targetEmail = (data['email'] ?? '').toString();
+        targetPhone = (data['phone'] ?? '').toString();
+        targetName = (data['name'] ?? 'User').toString();
+      } else {
+        final usersByPhone = await FirebaseFirestore.instance
+            .collection('users')
+            .where('phone', isEqualTo: identifier)
+            .limit(1)
+            .get();
+
+        if (usersByPhone.docs.isNotEmpty) {
+          final doc = usersByPhone.docs.first;
+          targetDocId = doc.id;
+          final data = doc.data();
+          targetEmail = (data['email'] ?? '').toString();
+          targetPhone = (data['phone'] ?? '').toString();
+          targetName = (data['name'] ?? 'User').toString();
+        } else {
+          // Fallback search in washers collection
+          final washersByEmail = await FirebaseFirestore.instance
+              .collection('washers')
+              .where('email', isEqualTo: identifier.toLowerCase())
+              .limit(1)
+              .get();
+
+          if (washersByEmail.docs.isNotEmpty) {
+            final doc = washersByEmail.docs.first;
+            targetDocId = doc.id;
+            collectionName = 'washers';
+            final data = doc.data();
+            targetEmail = (data['email'] ?? '').toString();
+            targetPhone = (data['phone'] ?? '').toString();
+            targetName = (data['name'] ?? 'Partner').toString();
+          } else {
+            final washersByPhone = await FirebaseFirestore.instance
+                .collection('washers')
+                .where('phone', isEqualTo: identifier)
+                .limit(1)
+                .get();
+
+            if (washersByPhone.docs.isNotEmpty) {
+              final doc = washersByPhone.docs.first;
+              targetDocId = doc.id;
+              collectionName = 'washers';
+              final data = doc.data();
+              targetEmail = (data['email'] ?? '').toString();
+              targetPhone = (data['phone'] ?? '').toString();
+              targetName = (data['name'] ?? 'Partner').toString();
+            }
+          }
+        }
+      }
+
+      if (targetDocId.isEmpty) {
+        return {
+          'success': false,
+          'error': 'No account registered with that email or phone number.'
+        };
+      }
+
+      // 2. Generate 6-Digit OTP Code
+      final otpCode = (Random().nextInt(900000) + 100000).toString();
+      final expiresAt = DateTime.now().add(const Duration(minutes: 10));
+
+      // 3. Save OTP record in password_resets collection
+      await FirebaseFirestore.instance.collection('password_resets').add({
+        'identifier': identifier.toLowerCase(),
+        'targetDocId': targetDocId,
+        'collectionName': collectionName,
+        'otp': otpCode,
+        'email': targetEmail,
+        'phone': targetPhone,
+        'name': targetName,
+        'used': false,
+        'expiresAt': Timestamp.fromDate(expiresAt),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 4. Send Notifications via Gmail SMTP & Twilio SMS
+      final commService = CommunicationService();
+      await commService.sendPasswordResetOtpNotifications(
+        userName: targetName,
+        phone: targetPhone,
+        email: targetEmail.isNotEmpty ? targetEmail : identifier,
+        otpCode: otpCode,
+      );
+
+      debugPrint('🔑 Password Reset OTP generated for $identifier: $otpCode');
+
+      return {
+        'success': true,
+        'message': '6-digit verification code sent to your registered email/phone.',
+        'targetEmail': targetEmail,
+        'targetPhone': targetPhone,
+        'targetName': targetName,
+        'otpCode': otpCode,
+      };
+    } catch (e) {
+      debugPrint('❌ Error requesting password reset: $e');
+      return {
+        'success': false,
+        'error': 'Failed to request password reset: $e'
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> verifyPasswordResetOtp({
+    required String identifier,
+    required String otp,
+  }) async {
+    try {
+      final cleanId = identifier.trim().toLowerCase();
+      final cleanOtp = otp.trim();
+
+      if (cleanOtp.length != 6) {
+        return {'success': false, 'error': 'Please enter a valid 6-digit code'};
+      }
+
+      final query = await FirebaseFirestore.instance
+          .collection('password_resets')
+          .where('identifier', isEqualTo: cleanId)
+          .where('otp', isEqualTo: cleanOtp)
+          .where('used', isEqualTo: false)
+          .get();
+
+      if (query.docs.isEmpty) {
+        final phoneQuery = await FirebaseFirestore.instance
+            .collection('password_resets')
+            .where('otp', isEqualTo: cleanOtp)
+            .where('used', isEqualTo: false)
+            .get();
+
+        if (phoneQuery.docs.isEmpty) {
+          return {'success': false, 'error': 'Invalid 6-digit verification code.'};
+        }
+      }
+
+      final doc = query.docs.isNotEmpty ? query.docs.first : (await FirebaseFirestore.instance
+          .collection('password_resets')
+          .where('otp', isEqualTo: cleanOtp)
+          .where('used', isEqualTo: false)
+          .get()).docs.first;
+
+      final data = doc.data();
+      final expiresAt = (data['expiresAt'] as Timestamp?)?.toDate();
+
+      if (expiresAt != null && DateTime.now().isAfter(expiresAt)) {
+        return {'success': false, 'error': 'Verification code has expired. Please request a new one.'};
+      }
+
+      return {
+        'success': true,
+        'resetDocId': doc.id,
+        'targetDocId': data['targetDocId'],
+        'collectionName': data['collectionName'] ?? 'users',
+      };
+    } catch (e) {
+      debugPrint('❌ Error verifying OTP: $e');
+      return {'success': false, 'error': 'Verification failed: $e'};
+    }
+  }
+
+  Future<Map<String, dynamic>> resetUserPassword({
+    required String identifier,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final verifyResult = await verifyPasswordResetOtp(identifier: identifier, otp: otp);
+      if (verifyResult['success'] != true) {
+        return verifyResult;
+      }
+
+      final resetDocId = verifyResult['resetDocId'];
+      final targetDocId = verifyResult['targetDocId'];
+      final collectionName = verifyResult['collectionName'] ?? 'users';
+
+      if (newPassword.length < 6) {
+        return {'success': false, 'error': 'Password must be at least 6 characters long'};
+      }
+
+      // Update password in Firestore
+      if (targetDocId != null && targetDocId.toString().isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection(collectionName)
+            .doc(targetDocId)
+            .set({
+          'password': newPassword,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        if (collectionName == 'washers') {
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(targetDocId).set({
+              'password': newPassword,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
+        }
+      }
+
+      // Mark OTP as used
+      if (resetDocId != null) {
+        await FirebaseFirestore.instance
+            .collection('password_resets')
+            .doc(resetDocId)
+            .update({'used': true, 'usedAt': FieldValue.serverTimestamp()});
+      }
+
+      // Get user email/phone for notification
+      final resetDoc = await FirebaseFirestore.instance.collection('password_resets').doc(resetDocId).get();
+      final rData = resetDoc.data() ?? {};
+      final uName = rData['name'] ?? 'User';
+      final uPhone = rData['phone'] ?? '';
+      final uEmail = rData['email'] ?? '';
+
+      // Send Security Confirmation Notice
+      await CommunicationService().sendPasswordResetSuccessNotifications(
+        userName: uName,
+        phone: uPhone,
+        email: uEmail,
+      );
+
+      debugPrint('🔒 Password updated successfully for $identifier');
+      return {'success': true, 'message': 'Password updated successfully!'};
+    } catch (e) {
+      debugPrint('❌ Error resetting password: $e');
+      return {'success': false, 'error': 'Failed to reset password: $e'};
     }
   }
 }
