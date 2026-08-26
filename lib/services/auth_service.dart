@@ -356,9 +356,9 @@ class AuthService extends ChangeNotifier {
       final formattedPhone = formatPhone(phoneNumber);
       final validator = ValidationService();
       
-      if (formattedPhone == '+2348679267153') {
-        role = 'admin';
-      }
+      // 🔒 SECURITY: Admin role is assigned exclusively from Firestore.
+      // Do NOT auto-assign admin based on phone number here.
+      // To grant admin, set role = 'admin' directly in Firebase Console → Firestore → users collection.
       
       // ðŸ”’ Validation Check 1: Phone Authenticity
       final phoneRes = validator.validatePhone(formattedPhone, allowAdminBypass: role == 'admin');
@@ -462,11 +462,11 @@ class AuthService extends ChangeNotifier {
         'isBlocked': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      debugPrint('âœ… User saved to Firestore: $name with ID: $uid');
+      debugPrint('✅ User saved to Firestore: $name with ID: $uid');
       
       _registeredUsers[formattedPhone] = {
         'name': name,
-        'password': password,
+        // 🔒 SECURITY: Password is never stored locally — authentication is handled exclusively by Firebase Auth
         'phone': formattedPhone,
         'email': userEmail,
         'userId': uid,
@@ -492,14 +492,14 @@ class AuthService extends ChangeNotifier {
           role: role,
         );
       } catch (welcomeErr) {
-        debugPrint('â„¹ï¸ Welcome notification notice: $welcomeErr');
+        debugPrint('ℹ️ Welcome notification notice: $welcomeErr');
       }
 
-      debugPrint('âœ… User logged in after signup: $name (ID: $uid)');
+      debugPrint('✅ User logged in after signup: $name (ID: $uid)');
       return true;
       
     } catch (e) {
-      debugPrint('âŒ Signup error: $e');
+      debugPrint('❌ Signup error: $e');
       return false;
     }
   }
@@ -512,18 +512,15 @@ class AuthService extends ChangeNotifier {
       final formattedPhone = formatPhone(phoneNumber);
       
       if (!isValidPhone(phoneNumber)) {
-        debugPrint('âŒ Invalid phone number format: $formattedPhone');
+        debugPrint('❌ Invalid phone number format: $formattedPhone');
         return false;
       }
       
       final email = '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
       debugPrint('📫 Attempting login for phone: $formattedPhone ($email)');
       
-      // Special check for Admin account — phone alone is NOT enough.
-      // Admin must successfully authenticate via Firebase Auth as well.
-      if (formattedPhone == '+2348679267153') {
-        debugPrint('🛡️ Master Admin login attempt — verifying credentials');
-      }
+      // 🔒 SECURITY: Admin role is determined exclusively from Firestore 'role' field.
+      // No admin bypass based on phone number is allowed here.
 
       // 1. Try signing in directly with Firebase Auth first
       try {
@@ -531,9 +528,9 @@ class AuthService extends ChangeNotifier {
           email: email,
           password: password,
         );
-        debugPrint('âœ… Firebase Auth sign-in successful: ${userCredential.user?.uid}');
+        debugPrint('✅ Firebase Auth sign-in successful: ${userCredential.user?.uid}');
       } on FirebaseAuthException catch (e) {
-        debugPrint('âš ï¸ Firebase Auth sign-in notice (${e.code}): ${e.message}');
+        debugPrint('⚠️ Firebase Auth sign-in notice (${e.code}): ${e.message}');
         
         if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
           // Attempt on-the-fly user creation if new account or test account
@@ -542,21 +539,21 @@ class AuthService extends ChangeNotifier {
               email: email,
               password: password,
             );
-            debugPrint('âœ… Firebase Auth user created on-the-fly: ${newUser.user?.uid}');
+            debugPrint('✅ Firebase Auth user created on-the-fly: ${newUser.user?.uid}');
           } on FirebaseAuthException catch (createErr) {
-            debugPrint('âŒ On-the-fly creation error (${createErr.code}): ${createErr.message}');
+            debugPrint('❌ On-the-fly creation error (${createErr.code}): ${createErr.message}');
             if (createErr.code == 'email-already-in-use') {
               // Account exists in Auth but sign-in failed, meaning wrong password
               return _localLogin(formattedPhone, password);
             }
           } catch (createErr) {
-            debugPrint('âŒ On-the-fly creation fallback error: $createErr');
+            debugPrint('❌ On-the-fly creation fallback error: $createErr');
           }
         } else if (e.code == 'wrong-password') {
           return _localLogin(formattedPhone, password);
         }
       } catch (e) {
-        debugPrint('âš ï¸ Firebase Auth sign-in exception: $e');
+        debugPrint('⚠️ Firebase Auth sign-in exception: $e');
       }
 
       // 2. If Firebase Auth succeeded or user is signed in
@@ -578,7 +575,8 @@ class AuthService extends ChangeNotifier {
             final data = userDoc.data() as Map<String, dynamic>;
             _userName = data['name'] ?? 'User';
             _userPhone = data['phone'] ?? formattedPhone;
-            _userRole = data['role'] ?? (formattedPhone == '+2348679267153' ? 'admin' : 'customer');
+            // 🔒 SECURITY: Role determined solely from Firestore data — no hardcoded phone fallbacks
+            _userRole = data['role'] ?? 'customer';
             _serviceCategory = data['serviceCategory'];
             debugPrint('✅ Loaded profile from Firestore for $uid (role: $_userRole)');
           } else {
@@ -596,9 +594,10 @@ class AuthService extends ChangeNotifier {
               _userRole = data['role'] ?? 'customer';
               _serviceCategory = data['serviceCategory'];
             } else {
-              // Create default user doc in Firestore
-              final defaultRole = formattedPhone == '+2348679267153' ? 'admin' : 'customer';
-              _userName = formattedPhone == '+2348679267153' ? 'Admin User' : 'User';
+              // Create default user doc in Firestore — role always defaults to 'customer'
+              // 🔒 SECURITY: Admin role must be assigned manually from the Firebase Console or admin panel
+              const defaultRole = 'customer';
+              _userName = 'User';
               _userPhone = formattedPhone;
               _userRole = defaultRole;
               
@@ -622,13 +621,14 @@ class AuthService extends ChangeNotifier {
           debugPrint('⚠️ Firestore fetch error post-auth: $fsError');
           _userName ??= 'User';
           _userPhone ??= formattedPhone;
-          _userRole ??= formattedPhone == '+2348679267153' ? 'admin' : 'customer';
+          // 🔒 SECURITY: Default to 'customer' when Firestore is unreachable — admin role requires Firestore confirmation
+          _userRole ??= 'customer';
         }
         
         // Register in local memory map
         _registeredUsers[formattedPhone] = {
           'name': _userName ?? 'User',
-          'password': password,
+          // 🔒 SECURITY: Password is never cached in memory — Firebase Auth handles all authentication
           'phone': formattedPhone,
           'userId': uid,
           'role': _userRole ?? 'customer',
@@ -636,7 +636,7 @@ class AuthService extends ChangeNotifier {
         
         await _saveUserState();
         notifyListeners();
-        debugPrint('âœ… User login fully complete: $_userName (role: $_userRole)');
+        debugPrint('✅ User login fully complete: $_userName (role: $_userRole)');
         return true;
       }
       
@@ -1367,6 +1367,22 @@ class AuthService extends ChangeNotifier {
       final identifier = inputIdentifier.trim();
       if (identifier.isEmpty) {
         return {'success': false, 'error': 'Please enter your registered email or phone number'};
+      }
+
+      // 🔒 SECURITY: Rate Limiting — max 3 OTP requests per identifier per hour
+      final oneHourAgo = Timestamp.fromDate(DateTime.now().subtract(const Duration(hours: 1)));
+      final recentRequests = await FirebaseFirestore.instance
+          .collection('password_resets')
+          .where('identifier', isEqualTo: identifier.toLowerCase())
+          .where('createdAt', isGreaterThan: oneHourAgo)
+          .get();
+
+      if (recentRequests.docs.length >= 3) {
+        debugPrint('🚫 OTP rate limit hit for: $identifier');
+        return {
+          'success': false,
+          'error': 'Too many reset requests. Please wait an hour before trying again.'
+        };
       }
 
       String targetEmail = '';

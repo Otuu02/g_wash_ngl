@@ -2,6 +2,7 @@
 // PURPOSE: Complete 3-step Forgot Password workflow (Email/Phone OTP -> Verify -> Reset Password)
 
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
@@ -450,7 +451,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           style: const TextStyle(fontSize: 14, color: AppColors.grey600, height: 1.5),
         ),
 
-        if (_demoOtpHint != null) ...[
+        // 🔒 SECURITY: OTP hint only shown in debug/development builds, never in production
+        if (kDebugMode && _demoOtpHint != null) ...[
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -465,7 +467,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'OTP Code generated: $_demoOtpHint (sent via Email & SMS)',
+                    '[DEBUG ONLY] OTP: $_demoOtpHint (sent via Email & SMS)',
                     style: const TextStyle(fontSize: 13, color: Colors.blue, fontWeight: FontWeight.bold),
                   ),
                 ),

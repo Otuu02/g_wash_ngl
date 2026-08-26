@@ -154,8 +154,9 @@ class ValidationService {
       return ValidationResult(isValid: false, errorMessage: 'Phone number is required');
     }
 
-    // Admin bypass check for admin number
-    if (allowAdminBypass && (phone == '+2348679267153' || cleaned == '2348679267153')) {
+    // 🔒 SECURITY: Admin bypass relies only on the allowAdminBypass flag passed from Firestore role validation
+    // No specific phone numbers are hardcoded here
+    if (allowAdminBypass) {
       return ValidationResult(isValid: true);
     }
 

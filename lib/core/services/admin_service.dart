@@ -140,9 +140,9 @@ class AdminService {
       final users = await _firestore.collection('users').get();
       for (var doc in users.docs) {
         final data = doc.data();
-        final phone = (data['phone'] ?? '').toString();
         final role = (data['role'] ?? '').toString();
-        if (role != 'admin' && phone != '+2348679267153' && phone != '08679267153') {
+        // 🔒 SECURITY: Admin protection based on Firestore 'role' field only — no hardcoded phone numbers
+        if (role != 'admin') {
           await doc.reference.delete();
         }
       }
