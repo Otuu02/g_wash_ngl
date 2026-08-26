@@ -119,7 +119,7 @@ class CommunicationService {
       jobId: jobId,
     );
 
-    // 2. Send SMS & Email to Customer
+    // 2. Send SMS & Rich HTML Email to Customer
     if (customerPhone.isNotEmpty) {
       await sendRealSms(phone: customerPhone, message: customerSmsMessage);
     }
@@ -128,21 +128,37 @@ class CommunicationService {
         email: customerEmail,
         subject: customerEmailSubject,
         body: customerSmsMessage,
+        htmlBody: generateBookingEmailHtml(
+          customerName: customerName,
+          serviceName: serviceName,
+          price: price,
+          location: location,
+          jobId: jobId,
+        ),
       );
     }
 
-    // 3. Send SMS & Email to Service Provider (if provider info provided)
+    // 3. Send SMS & Rich HTML Email to Service Provider (if provider info provided)
     if (providerPhone != null && providerPhone.isNotEmpty) {
       final providerSmsMessage = 'New Job Alert! Customer: $customerName ($customerPhone) booked $serviceName at $location (NGN $price). Please open G Wash NG to accept.';
       await sendRealSms(phone: providerPhone, message: providerSmsMessage);
     }
     if (providerEmail != null && providerEmail.isNotEmpty) {
-      final providerEmailSubject = 'New Job Request - G Wash NG';
+      final providerEmailSubject = '⚡ New Job Request - G Wash NG';
       final providerEmailBody = 'Hello $providerName,\n\nYou have a new job request for $serviceName.\nCustomer: $customerName\nPhone: $customerPhone\nLocation: $location\nPrice: NGN $price\n\nPlease log in to G Wash NG to accept the request.';
       await sendRealEmail(
         email: providerEmail,
         subject: providerEmailSubject,
         body: providerEmailBody,
+        htmlBody: generateNewJobAlertHtml(
+          providerName: providerName ?? '',
+          customerName: customerName,
+          customerPhone: customerPhone,
+          serviceName: serviceName,
+          location: location,
+          price: price,
+          jobId: jobId,
+        ),
       );
     }
 
@@ -209,6 +225,75 @@ class CommunicationService {
     }
 
     debugPrint("Status update notifications dispatched for job: $jobId");
+  }
+
+  // ============================================================
+  // SEND JOB ACCEPTED NOTIFICATIONS (Customer & Provider)
+  // ============================================================
+  Future<void> sendJobAcceptedNotifications({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String customerEmail,
+    required String providerName,
+    required String serviceName,
+    String eta = '15 mins',
+    String? providerPhone,
+    String? providerEmail,
+    String? location,
+  }) async {
+    final customerSms = '🎉 G-Wash NG Alert: $providerName has accepted your $serviceName request and is en route! ETA: $eta.';
+    final providerSms = 'Job Acceptance Confirmed! You accepted job #$jobId ($serviceName) for $customerName.';
+
+    // Push notification
+    _notificationService.notify(
+      title: '🎉 Order Accepted!',
+      message: '$providerName accepted your $serviceName request and is on their way!',
+      type: 'booking',
+      jobId: jobId,
+    );
+
+    // Email & SMS to Customer
+    if (customerPhone.isNotEmpty) {
+      await sendRealSms(phone: customerPhone, message: customerSms);
+    }
+    if (customerEmail.isNotEmpty) {
+      await sendRealEmail(
+        email: customerEmail,
+        subject: '🎉 Order Accepted by $providerName - G Wash NG',
+        body: 'Hello $customerName,\n\nGreat news! $providerName has accepted your request for $serviceName and is en route!\n\nThank you for choosing G Wash NG.',
+        htmlBody: generateJobAcceptedHtml(
+          customerName: customerName,
+          providerName: providerName,
+          providerPhone: providerPhone ?? '',
+          serviceName: serviceName,
+          jobId: jobId,
+          eta: eta,
+        ),
+      );
+    }
+
+    // Email & SMS to Washer
+    if (providerPhone != null && providerPhone.isNotEmpty) {
+      await sendRealSms(phone: providerPhone, message: providerSms);
+    }
+    if (providerEmail != null && providerEmail.isNotEmpty) {
+      await sendRealEmail(
+        email: providerEmail,
+        subject: 'Job Acceptance Confirmed (#$jobId) - G Wash NG',
+        body: 'Hello $providerName,\n\nYou have accepted $serviceName for customer $customerName ($customerPhone). Location: ${location ?? 'Customer Location'}.',
+        htmlBody: generateWasherJobAcceptedHtml(
+          providerName: providerName,
+          customerName: customerName,
+          customerPhone: customerPhone,
+          serviceName: serviceName,
+          location: location ?? 'Customer Location',
+          jobId: jobId,
+        ),
+      );
+    }
+
+    debugPrint("Job accepted notifications dispatched for job: $jobId");
   }
 
   // ============================================================
@@ -502,9 +587,17 @@ The G-Wash NG Team
     if (providerEmail != null && providerEmail.isNotEmpty) {
       await sendRealEmail(
         email: providerEmail,
-        subject: 'Payment Received Notice - G Wash NG',
+        subject: '💰 Payment Received Notice - G Wash NG',
         body: 'Hello ${providerName ?? 'Provider'},\n\nPayment confirmed for $serviceName.\nCustomer: $customerName\nTotal: NGN ${amount.toStringAsFixed(0)}\nYour Share (95% Net): NGN ${pShare.toStringAsFixed(0)}\n\nThank you for providing great service on G Wash NG!',
-        htmlBody: receiptHtml,
+        htmlBody: generateProviderPaymentReceivedHtml(
+          providerName: providerName ?? 'Provider',
+          customerName: customerName,
+          serviceName: serviceName,
+          grossAmount: amount,
+          providerShare: pShare,
+          platformFee: pFee,
+          reference: reference,
+        ),
       );
     }
 
@@ -558,19 +651,19 @@ The G-Wash NG Team
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px;">
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 12px 0; color: #64748b;">Transaction Reference</td>
-              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">${reference}</td>
+              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">$reference</td>
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 12px 0; color: #64748b;">Customer Name</td>
-              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">${customerName}</td>
+              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">$customerName</td>
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 12px 0; color: #64748b;">Service Rendered</td>
-              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">${serviceName}</td>
+              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">$serviceName</td>
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 12px 0; color: #64748b;">Assigned Service Provider</td>
-              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">${providerName}</td>
+              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">$providerName</td>
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 12px 0; color: #64748b;">Payment Method</td>
@@ -578,7 +671,7 @@ The G-Wash NG Team
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 12px 0; color: #64748b;">Date & Time</td>
-              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">${formattedDate}</td>
+              <td style="padding: 12px 0; text-align: right; font-weight: bold; color: #0f172a;">$formattedDate</td>
             </tr>
           </table>
 
@@ -660,6 +753,9 @@ The G-Wash NG Team
     required String washerPhone,
     required String washerEmail,
     required double amount,
+    String bankName = '',
+    String accountNumber = '',
+    String accountName = '',
   }) async {
     final msg = 'Hello $washerName, your withdrawal request for NGN ${amount.toStringAsFixed(0)} has been received and is being processed by admin.';
 
@@ -675,8 +771,15 @@ The G-Wash NG Team
     if (washerEmail.isNotEmpty) {
       await sendRealEmail(
         email: washerEmail,
-        subject: 'Withdrawal Request Submitted - G Wash NG',
+        subject: '⌛ Withdrawal Request Submitted - G Wash NG',
         body: msg,
+        htmlBody: generateWithdrawalRequestedHtml(
+          washerName: washerName,
+          amount: amount,
+          bankName: bankName.isNotEmpty ? bankName : 'Bank Account',
+          accountNumber: accountNumber.isNotEmpty ? accountNumber : 'Connected Account',
+          accountName: accountName.isNotEmpty ? accountName : washerName,
+        ),
       );
     }
   }
@@ -689,6 +792,8 @@ The G-Wash NG Team
     required String washerPhone,
     required String washerEmail,
     required double amount,
+    String bankName = '',
+    String accountNumber = '',
   }) async {
     final msg = 'Withdrawal Approved! NGN ${amount.toStringAsFixed(0)} has been transferred to your bank account.';
 
@@ -704,8 +809,14 @@ The G-Wash NG Team
     if (washerEmail.isNotEmpty) {
       await sendRealEmail(
         email: washerEmail,
-        subject: 'Payout Transfer Completed - G Wash NG',
+        subject: '🎉 Payout Transfer Completed - G Wash NG',
         body: msg,
+        htmlBody: generateWithdrawalApprovedHtml(
+          washerName: washerName,
+          amount: amount,
+          bankName: bankName,
+          accountNumber: accountNumber,
+        ),
       );
     }
   }
@@ -741,5 +852,394 @@ The G-Wash NG Team
         body: 'Hello ${providerName ?? 'Provider'},\n\n$msg\n\nThank you for maintaining quality service on G Wash NG!',
       );
     }
+  }
+
+  // ============================================================
+  // HTML EMAIL TEMPLATE GENERATORS
+  // ============================================================
+  String generateBookingEmailHtml({
+    required String customerName,
+    required String serviceName,
+    required int price,
+    required String location,
+    required String jobId,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #0CAF60 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .badge { display: inline-block; background: #dcfce7; color: #15803d; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 13px; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>G-WASH NG</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">Booking Confirmed</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello $customerName,</p>
+      <p>Your service booking has been placed successfully on <strong>G-Wash NG</strong>. We are matching you with a nearby top-rated service provider.</p>
+      
+      <div class="card">
+        <div style="font-size: 14px; font-weight: bold; color: #008080; margin-bottom: 10px; text-transform: uppercase;">Job Summary (#$jobId)</div>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr style="border-bottom: 1px dashed #e2e8f0;"><td style="padding: 8px 0; color: #64748b;">Service Requested</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$serviceName</td></tr>
+          <tr style="border-bottom: 1px dashed #e2e8f0;"><td style="padding: 8px 0; color: #64748b;">Total Amount</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #008080;">NGN ${price.toStringAsFixed(0)}</td></tr>
+          <tr style="border-bottom: 1px dashed #e2e8f0;"><td style="padding: 8px 0; color: #64748b;">Service Location</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$location</td></tr>
+          <tr><td style="padding: 8px 0; color: #64748b;">Booking Status</td><td style="padding: 8px 0; text-align: right;"><span class="badge">CONFIRMED</span></td></tr>
+        </table>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b;">You will receive another update as soon as your service provider accepts and is en route.</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+      <p>On-Demand Vehicle & Home Care Services in Nigeria</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+  }
+
+  String generateNewJobAlertHtml({
+    required String providerName,
+    required String customerName,
+    required String customerPhone,
+    required String serviceName,
+    required String location,
+    required int price,
+    required String jobId,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #004d4d 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .card { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚡ NEW JOB REQUEST</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">G-Wash NG Provider Alert</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello ${providerName.isNotEmpty ? providerName : 'Partner'},</p>
+      <p>You have received a new service job request! Open your G-Wash NG app immediately to accept this order.</p>
+      
+      <div class="card">
+        <div style="font-size: 14px; font-weight: bold; color: #166534; margin-bottom: 10px; text-transform: uppercase;">Job Details (#$jobId)</div>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Service</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$serviceName</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Job Value</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #15803d;">NGN ${price.toStringAsFixed(0)}</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Customer Name</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$customerName</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Customer Phone</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$customerPhone</td></tr>
+          <tr><td style="padding: 8px 0; color: #475569;">Location</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$location</td></tr>
+        </table>
+      </div>
+
+      <div style="text-align: center;">
+        <p style="font-size: 14px; color: #475569;">Log into your G-Wash NG app now to accept and navigate to the customer.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+  }
+
+  String generateJobAcceptedHtml({
+    required String customerName,
+    required String providerName,
+    required String providerPhone,
+    required String serviceName,
+    required String jobId,
+    required String eta,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #0CAF60 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .card { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎉 ORDER ACCEPTED!</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">G-Wash NG Provider En Route</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello $customerName,</p>
+      <p>Great news! Your service provider <strong>$providerName</strong> has accepted your request for <strong>$serviceName</strong> and is en route!</p>
+      
+      <div class="card">
+        <div style="font-size: 14px; font-weight: bold; color: #166534; margin-bottom: 10px; text-transform: uppercase;">Assigned Provider Info (#$jobId)</div>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Service Provider</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$providerName</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Provider Phone</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #008080;">$providerPhone</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Estimated Arrival (ETA)</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #15803d;">$eta</td></tr>
+          <tr><td style="padding: 8px 0; color: #475569;">Status</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #16a34a;">ACCEPTED & EN ROUTE</td></tr>
+        </table>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b;">You can track your provider live inside the G-Wash NG app or call them directly if you need to provide extra directions.</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+  }
+
+  String generateWasherJobAcceptedHtml({
+    required String providerName,
+    required String customerName,
+    required String customerPhone,
+    required String serviceName,
+    required String location,
+    required String jobId,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #004d4d 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>✅ JOB ACCEPTANCE CONFIRMED</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">G-Wash NG Dispatch Notice</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello $providerName,</p>
+      <p>You have successfully accepted job <strong>#$jobId</strong> ($serviceName). Below are the customer details and service location.</p>
+      
+      <div class="card">
+        <div style="font-size: 14px; font-weight: bold; color: #008080; margin-bottom: 10px; text-transform: uppercase;">Customer & Location Summary</div>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr style="border-bottom: 1px dashed #e2e8f0;"><td style="padding: 8px 0; color: #64748b;">Customer Name</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$customerName</td></tr>
+          <tr style="border-bottom: 1px dashed #e2e8f0;"><td style="padding: 8px 0; color: #64748b;">Customer Phone</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #008080;">$customerPhone</td></tr>
+          <tr style="border-bottom: 1px dashed #e2e8f0;"><td style="padding: 8px 0; color: #64748b;">Service Location</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$location</td></tr>
+          <tr><td style="padding: 8px 0; color: #64748b;">Service Type</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$serviceName</td></tr>
+        </table>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b;">Please open the G-Wash NG app to update your status (En Route, Arrived, In Progress, Completed) as you execute the job.</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+  }
+
+  String generateProviderPaymentReceivedHtml({
+    required String providerName,
+    required String customerName,
+    required String serviceName,
+    required double grossAmount,
+    required double providerShare,
+    required double platformFee,
+    required String reference,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #0CAF60 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .card { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>💰 PAYMENT RECEIVED!</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">G-Wash NG Provider Earnings Alert</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello $providerName,</p>
+      <p>Payment for <strong>$serviceName</strong> has been processed successfully. Your net earnings have been credited to your G-Wash NG wallet balance!</p>
+      
+      <div class="card">
+        <div style="text-align: center; margin-bottom: 15px;">
+          <span style="font-size: 12px; color: #166534; font-weight: bold; text-transform: uppercase;">Net Earnings Credited (95%)</span>
+          <h2 style="margin: 4px 0 0 0; font-size: 28px; color: #15803d; font-weight: bold;">NGN ${providerShare.toStringAsFixed(2)}</h2>
+        </div>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Transaction Ref</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$reference</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Customer Name</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$customerName</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Gross Job Value</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">NGN ${grossAmount.toStringAsFixed(2)}</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">G-Wash Platform Fee (5%)</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #ea580c;">NGN ${platformFee.toStringAsFixed(2)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #475569;">Wallet Status</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #16a34a;">CREDITED & AVAILABLE</td></tr>
+        </table>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b;">You can view your updated wallet balance and request payouts directly in your provider dashboard.</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+  }
+
+  String generateWithdrawalRequestedHtml({
+    required String washerName,
+    required double amount,
+    required String bankName,
+    required String accountNumber,
+    required String accountName,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #004d4d 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .card { background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⌛ WITHDRAWAL REQUEST SUBMITTED</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">G-Wash NG Payout System</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello $washerName,</p>
+      <p>Your withdrawal payout request for <strong>NGN ${amount.toStringAsFixed(0)}</strong> has been received and is currently being processed by admin.</p>
+      
+      <div class="card">
+        <div style="font-size: 14px; font-weight: bold; color: #92400e; margin-bottom: 10px; text-transform: uppercase;">Payout Details</div>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr style="border-bottom: 1px dashed #fcd34d;"><td style="padding: 8px 0; color: #78350f;">Requested Amount</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #008080;">NGN ${amount.toStringAsFixed(2)}</td></tr>
+          <tr style="border-bottom: 1px dashed #fcd34d;"><td style="padding: 8px 0; color: #78350f;">Bank Name</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$bankName</td></tr>
+          <tr style="border-bottom: 1px dashed #fcd34d;"><td style="padding: 8px 0; color: #78350f;">Account Number</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$accountNumber</td></tr>
+          <tr style="border-bottom: 1px dashed #fcd34d;"><td style="padding: 8px 0; color: #78350f;">Account Name</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$accountName</td></tr>
+          <tr><td style="padding: 8px 0; color: #78350f;">Request Status</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #d97706;">PENDING ADMIN APPROVAL</td></tr>
+        </table>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b;">Payout transfers are processed quickly. You will receive a confirmation email as soon as the transfer to your bank account is finalized.</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
+  }
+
+  String generateWithdrawalApprovedHtml({
+    required String washerName,
+    required double amount,
+    required String bankName,
+    required String accountNumber,
+  }) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .header { background: linear-gradient(135deg, #008080 0%, #0CAF60 100%); padding: 30px; text-align: center; color: white; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
+    .content { padding: 24px; color: #334155; line-height: 1.6; }
+    .card { background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .footer { background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎉 PAYOUT TRANSFER COMPLETED!</h1>
+      <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">G-Wash NG Withdrawal Approved</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 16px; font-weight: bold; color: #0f172a;">Hello $washerName,</p>
+      <p>Your withdrawal payout of <strong>NGN ${amount.toStringAsFixed(0)}</strong> has been approved and successfully transferred to your bank account!</p>
+      
+      <div class="card">
+        <div style="font-size: 14px; font-weight: bold; color: #166534; margin-bottom: 10px; text-transform: uppercase;">Bank Transfer Summary</div>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Amount Transferred</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #15803d;">NGN ${amount.toStringAsFixed(2)}</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Bank Name</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">${bankName.isNotEmpty ? bankName : 'Bank Account'}</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Account Number</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">${accountNumber.isNotEmpty ? accountNumber : 'Connected Account'}</td></tr>
+          <tr><td style="padding: 8px 0; color: #475569;">Payout Status</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #16a34a;">TRANSFERRED & COMPLETED</td></tr>
+        </table>
+      </div>
+
+      <p style="font-size: 13px; color: #64748b;">Thank you for your hard work and quality service on G-Wash NG!</p>
+    </div>
+    <div class="footer">
+      <p>© 2026 G-Wash NG. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
+''';
   }
 }

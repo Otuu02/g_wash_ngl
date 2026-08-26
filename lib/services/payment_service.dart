@@ -922,14 +922,26 @@ class PaymentService {
         });
       });
 
-      final wPhone = washerData['phone'] ?? '';
-      final wEmail = washerData['email'] ?? '';
+      final wPhone = (washerData['phone'] ?? washerData['phoneNumber'] ?? '').toString();
+      String wEmail = (washerData['email'] ?? '').toString();
+
+      if (wEmail.isEmpty) {
+        try {
+          final uDoc = await _firestore.collection('users').doc(washerId).get();
+          if (uDoc.exists && (uDoc.data()?['email'] ?? '').toString().isNotEmpty) {
+            wEmail = uDoc.data()!['email'].toString();
+          }
+        } catch (_) {}
+      }
 
       await _communicationService.sendWithdrawalRequestedNotifications(
         washerName: washerName,
         washerPhone: wPhone,
         washerEmail: wEmail,
         amount: amount,
+        bankName: bankName,
+        accountNumber: accountNumber,
+        accountName: accountName,
       );
 
       return {
@@ -938,7 +950,7 @@ class PaymentService {
         'amount': amount,
       };
     } catch (e) {
-      debugPrint('âŒ Withdrawal request error: $e');
+      debugPrint('❌ Withdrawal request error: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -958,7 +970,7 @@ class PaymentService {
 
       return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
     } catch (e) {
-      debugPrint('âŒ Error fetching payout requests: $e');
+      debugPrint('❌ Error fetching payout requests: $e');
       return [];
     }
   }
@@ -975,6 +987,8 @@ class PaymentService {
       final washerId = data['washerId'];
       final washerName = data['washerName'] ?? 'Provider';
       final amount = (data['amount'] ?? 0).toDouble();
+      final bankName = (data['bankName'] ?? '').toString();
+      final accountNumber = (data['accountNumber'] ?? '').toString();
 
       await _firestore.collection('payout_requests').doc(payoutId).update({
         'status': 'approved',
@@ -984,8 +998,17 @@ class PaymentService {
       if (washerId != null) {
         final washerDoc = await _firestore.collection('washers').doc(washerId).get();
         final washerData = washerDoc.data() ?? {};
-        final wPhone = washerData['phone'] ?? '';
-        final wEmail = washerData['email'] ?? '';
+        final wPhone = (washerData['phone'] ?? washerData['phoneNumber'] ?? '').toString();
+        String wEmail = (washerData['email'] ?? '').toString();
+
+        if (wEmail.isEmpty) {
+          try {
+            final uDoc = await _firestore.collection('users').doc(washerId).get();
+            if (uDoc.exists && (uDoc.data()?['email'] ?? '').toString().isNotEmpty) {
+              wEmail = uDoc.data()!['email'].toString();
+            }
+          } catch (_) {}
+        }
 
         await _firestore.collection('washers').doc(washerId).update({
           'pendingWithdrawal': FieldValue.increment(-amount),
@@ -997,6 +1020,8 @@ class PaymentService {
           washerPhone: wPhone,
           washerEmail: wEmail,
           amount: amount,
+          bankName: bankName,
+          accountNumber: accountNumber,
         );
       }
 

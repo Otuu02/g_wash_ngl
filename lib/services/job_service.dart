@@ -481,44 +481,50 @@ class JobService extends ChangeNotifier {
 
       final jobData = snapshot.data() ?? {};
       final washerDoc = await _firestore.collection('washers').doc(washerId).get();
-      final washerName = washerDoc.data()?['name'] ?? jobData['washerName'] ?? 'Service Provider';
+      final washerData = washerDoc.data() ?? {};
+      final washerName = washerData['name'] ?? washerData['fullName'] ?? jobData['washerName'] ?? 'Service Provider';
+      final washerPhone = (washerData['phone'] ?? washerData['phoneNumber'] ?? jobData['washerPhone'] ?? '').toString();
+      String washerEmail = (washerData['email'] ?? jobData['washerEmail'] ?? '').toString();
+
+      if (washerEmail.isEmpty) {
+        try {
+          final uDoc = await _firestore.collection('users').doc(washerId).get();
+          if (uDoc.exists && (uDoc.data()?['email'] ?? '').toString().isNotEmpty) {
+            washerEmail = uDoc.data()!['email'].toString();
+          }
+        } catch (_) {}
+      }
 
       await jobRef.update({
         'status': 'accepted',
         'acceptedAt': FieldValue.serverTimestamp(),
         'washerId': washerId,
         'washerName': washerName,
+        'washerPhone': washerPhone,
+        'washerEmail': washerEmail,
       });
 
-      // Send System Push Notification to Customer
-      _notificationService.addNotification(
-        title: '🎉 Order Accepted!',
-        message: '$washerName accepted your ${jobData['serviceName'] ?? 'service'} request and is on their way!',
-        type: 'booking',
-        jobId: jobId,
-      );
-
-      // Send Real Email & SMS to Customer upon Acceptance
       final customerEmail = (jobData['customerEmail'] ?? '').toString();
       final customerPhone = (jobData['customerPhone'] ?? '').toString();
       final customerName = (jobData['customerName'] ?? 'Customer').toString();
       final serviceName = (jobData['serviceName'] ?? 'Service').toString();
+      final location = (jobData['location'] ?? 'Customer Location').toString();
 
-      if (customerEmail.isNotEmpty) {
-        await _communicationService.sendRealEmail(
-          email: customerEmail,
-          subject: '🎉 Order Accepted by $washerName - G Wash NG',
-          body: 'Hello $customerName,\n\nGreat news! $washerName has accepted your request for $serviceName and is on their way!\n\nThank you for choosing G Wash NG.',
-        );
-      }
-      if (customerPhone.isNotEmpty) {
-        await _communicationService.sendRealSms(
-          phone: customerPhone,
-          message: '🎉 G Wash NG Alert: $washerName has accepted your $serviceName request and is en route to your location!',
-        );
-      }
+      // Send Real Multi-channel Notifications (Push, SMS, Rich HTML Email) to Customer & Provider
+      await _communicationService.sendJobAcceptedNotifications(
+        jobId: jobId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        customerEmail: customerEmail,
+        providerName: washerName,
+        serviceName: serviceName,
+        eta: '15 mins',
+        providerPhone: washerPhone,
+        providerEmail: washerEmail,
+        location: location,
+      );
 
-      debugPrint('✅ Job $jobId accepted by $washerId');
+      debugPrint('✅ Job $jobId accepted by $washerId ($washerName)');
     } catch (e) {
       debugPrint('❌ Error accepting job request: $e');
       rethrow;
