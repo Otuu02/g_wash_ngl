@@ -95,8 +95,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithPassword() async {
-    if (_phoneController.text.isEmpty) {
-      _showError('Please enter your phone number');
+    final identifier = _phoneController.text.trim();
+    if (identifier.isEmpty) {
+      _showError('Please enter your phone number or email address');
       return;
     }
     if (_passwordController.text.isEmpty) {
@@ -114,16 +115,15 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final authService = Provider.of<AuthService>(context, listen: false);
-    final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
-    final success = await authService.login(phone, password);
+    final success = await authService.login(identifier, password);
 
     setState(() => _isLoading = false);
 
     if (success) {
       _failedAttempts = 0;
       _lockoutUntil = null;
-      await _saveCredentials(phone, password);
+      await _saveCredentials(identifier, password);
       _navigateToHome(authService);
     } else {
       _failedAttempts++;
@@ -132,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError('Account locked for $_lockoutMinutes minutes after $_maxLoginAttempts failed attempts.');
       } else {
         final remaining = _maxLoginAttempts - _failedAttempts;
-        _showError('Invalid phone number or password. $remaining attempt(s) remaining.');
+        _showError('Invalid login details or password. $remaining attempt(s) remaining.');
       }
     }
   }
@@ -385,11 +385,11 @@ class _LoginScreenState extends State<LoginScreen> {
               
               TextField(
                 controller: _phoneController,
-                keyboardType: TextInputType.phone,
+                keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  prefixText: '+234 ',
-                  prefixIcon: Icon(Icons.phone_android),
+                  labelText: 'Phone Number or Email Address',
+                  hintText: 'e.g. 08012345678 or user@gmail.com',
+                  prefixIcon: Icon(Icons.person_outline),
                   border: OutlineInputBorder(),
                   focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(color: AppColors.primary, width: 2),

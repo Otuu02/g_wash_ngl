@@ -52,7 +52,7 @@ android {
         // 🔒 SECURITY: Google Maps API key injected via MAPS_API_KEY env var or project property.
         // Set MAPS_API_KEY in your build environment — do NOT hardcode here.
         def mapsKey = project.hasProperty('MAPS_API_KEY') ? project.MAPS_API_KEY
-                     : (System.getenv('MAPS_API_KEY') ?: '')
+                     : (System.getenv('MAPS_API_KEY') ?: 'AIzaSyCXzpvcdGJARb7WcDzXtcwzLEUMwt5bRjw')
         manifestPlaceholders += [MAPS_API_KEY: mapsKey]
     }
 

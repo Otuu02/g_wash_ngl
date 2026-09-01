@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>G-Wash NG | Nigeria's #1 On-Demand Marketplace for Car Wash, Cleaning & Laundry</title>
+  
+  <!-- SEO & Social Meta Tags -->
+  <meta name="description" content="Book professional doorstep car washing, house cleaning, dry cleaning, and dispatch riders in Nigeria. Real-time provider pricing, live GPS tracking, and secure Paystack payments.">
+  <meta name="keywords" content="book car wash Nigeria, house cleaning Lagos, laundry Abuja, on-demand cleaners, mobile auto detailing, G-Wash NG, become a washer, register cleaner Nigeria">
+  <meta name="theme-color" content="#0CAF60">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="G-Wash NG - Book Doorstep Cleaning & Auto Detailing Online">
+  <meta property="og:description" content="Book verified local washers, cleaners & couriers or register as a provider. Transparent rates, live GPS tracking, and Paystack security.">
+  <meta property="og:image" content="assets/flyer_launch.jpg">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/logo_small.png">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ==================== TOP ANNOUNCEMENT BAR ==================== 
+  <div class="announcement-bar">
+    <div class="container announcement-inner">
+      <span class="announcement-badge">🇳🇬 ONLINE BOOKINGS OPEN</span>
+      <span class="announcement-text">Book online instantly or join our verified provider network in Lagos, Abuja &amp; Port Harcourt!</span>
+      <a href="/app/#/booking" class="announcement-link-btn">
+        <i class="fa-solid fa-calendar-check"></i> Book a Service Online <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+  </div> -->
+
+  <!-- ==================== HEADER / NAVBAR ==================== -->
+  <header class="header" id="header">
+    <div class="container nav-container">
+      <a href="#" class="brand-logo">
+        <img src="assets/logo_small.png" alt="G-Wash NG Logo" class="brand-img">
+        <div class="brand-text">
+          <span class="brand-name">G-WASH <span class="text-green">NG</span></span>
+        </div>
+      </a>
+
+      <nav class="nav-menu" id="nav-menu">
+        <ul class="nav-list">
+          <li><a href="#services" class="nav-link">Services</a></li>
+          <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
+          <li><a href="#why-us" class="nav-link">Why G-Wash</a></li>
+          <li><a href="#faq" class="nav-link">FAQ</a></li>
+        </ul>
+        <div class="mobile-drawer-actions">
+          <a href="/app/#/login" class="btn btn-secondary btn-block">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Login
+          </a>
+          <a href="/app/#/washer-registration" class="btn btn-outline-nav btn-block">
+            <i class="fa-solid fa-user-plus"></i> Be a Washer
+          </a>
+          <a href="/app/#/booking" class="btn btn-primary btn-block pulse-btn">
+            <i class="fa-solid fa-calendar-check"></i> Book a Service Online
+          </a>
+          <a href="app-release.apk" class="btn btn-apk-link btn-block" download="g_wash_ng-release.apk">
+            <i class="fa-brands fa-android"></i> Download Android APK
+          </a>
+        </div>
+      </nav>
+
+      <div class="nav-actions">
+        <!-- Login Button -->
+        <a href="/app/#/login" class="btn btn-ghost-nav desktop-only">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Login
+        </a>
+
+        <!-- Become a Washer / Provider Button -->
+        <a href="/app/#/washer-registration" class="btn btn-outline-nav desktop-only">
+          <i class="fa-solid fa-user-plus"></i> Be a Washer
+        </a>
+
+        <!-- Book a Service CTA -->
+        <a href="/app/#/booking" class="btn btn-primary-nav pulse-btn">
+          <i class="fa-solid fa-calendar-check"></i> <span>Book a Service</span>
+        </a>
+
+        <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle navigation menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== HERO SECTION ==================== -->
+  <section class="hero-section" id="home">
+    <div class="hero-bg-glow glow-1"></div>
+    <div class="hero-bg-glow glow-2"></div>
+    
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="hero-pill">
+          <span class="pulse-dot"></span>
+          <span>Nigeria's Premier Doorstep Service Marketplace</span>
+        </div>
+
+        <h1 class="hero-title">
+          Your Clean, <br>
+          <span class="gradient-text">Your Way!</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          Trusted doorstep car wash, cleaning, laundry &amp; ride services delivered fast, reliably, and conveniently wherever you are in Nigeria.
+        </p>
+
+        <!-- Hero Business Action Buttons -->
+        <div class="hero-cta-group">
+          <!-- Primary Business Action: Book a Service -->
+          <a href="/app/#/booking" class="btn btn-primary btn-lg pulse-shadow">
+            <i class="fa-solid fa-calendar-check fa-lg"></i>
+            <div class="btn-text-wrapper">
+              <span class="btn-subtext">Instant Online Dispatch</span>
+              <span class="btn-maintext">Book a Service Now</span>
+            </div>
+          </a>
+
+          <!-- Secondary Business Action: Be a Washer / Provider -->
+          <a href="/app/#/washer-registration" class="btn btn-secondary btn-lg">
+            <i class="fa-solid fa-handshake fa-lg text-green"></i>
+            <div class="btn-text-wrapper">
+              <span class="btn-subtext">Earn 95% Revenue Share</span>
+              <span class="btn-maintext">Be a Washer / Provider</span>
+            </div>
+          </a>
+
+          <!-- Android APK Direct Download -->
+          <a href="app-release.apk" class="btn btn-apk-link" download="g_wash_ng-release.apk">
+            <i class="fa-brands fa-android"></i> Download Android APK (65MB)
+          </a>
+        </div>
+
+        <!-- Trust Badges -->
+        <div class="hero-trust">
+          <div class="trust-item">
+            <div class="trust-icon"><i class="fa-solid fa-location-dot"></i></div>
+            <div class="trust-text">
+              <strong>Doorstep Service</strong>
+              <span>Delivered right to your location</span>
+            </div>
+          </div>
+          <div class="trust-item">
+            <div class="trust-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="trust-text">
+              <strong>100% Vetted Pros</strong>
+              <span>Verified ID & police background check</span>
+            </div>
+          </div>
+          <div class="trust-item">
+            <div class="trust-icon"><i class="fa-solid fa-lock"></i></div>
+            <div class="trust-text">
+              <strong>Paystack Escrow</strong>
+              <span>Pay securely; released on satisfaction</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero Visual Phone UI Mockup -->
+      <div class="hero-visual">
+        <div class="phone-mockup-wrapper">
+          <div class="phone-device">
+            <!-- Screen Header -->
+            <div class="phone-screen">
+              <div class="phone-notch"></div>
+              <div class="phone-app-header">
+                <div class="phone-app-brand">
+                  <img src="assets/logo_small.png" alt="Logo" class="mini-logo">
+                  <div>
+                    <span class="app-title">G-Wash Live</span>
+                    <span class="app-loc"><i class="fa-solid fa-location-arrow"></i> Lekki Phase 1, Lagos</span>
+                  </div>
+                </div>
+                <div class="badge-live"><span class="pulse-dot-mini"></span> Live Match</div>
+              </div>
+
+              <!-- Map Simulation -->
+              <div class="phone-map-view">
+                <div class="map-grid-lines"></div>
+                <div class="map-route-line"></div>
+                <div class="map-pin user-pin" title="Your Location">
+                  <i class="fa-solid fa-house"></i>
+                  <span class="pin-label">You</span>
+                </div>
+                <div class="map-pin washer-pin" title="Washer En Route">
+                  <i class="fa-solid fa-car-side"></i>
+                  <span class="pin-label">Washer Musa (4 mins)</span>
+                </div>
+              </div>
+
+              <!-- Floating Job Card -->
+              <div class="phone-card live-card">
+                <div class="washer-profile-row">
+                  <div class="washer-avatar">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80" alt="Washer Musa">
+                    <span class="avatar-verified"><i class="fa-solid fa-check"></i></span>
+                  </div>
+                  <div class="washer-details">
+                    <div class="washer-name">Musa Ibrahim <span class="rating-badge">★ 4.9 (128)</span></div>
+                    <div class="washer-service">Doorstep Full Wash & Detailing</div>
+                  </div>
+                </div>
+
+                <div class="otp-verification-banner">
+                  <span class="otp-label"><i class="fa-solid fa-key"></i> Security OTP Code:</span>
+                  <span class="otp-code">5 8 9 2</span>
+                </div>
+
+                <div class="job-status-timeline">
+                  <div class="timeline-step completed"><i class="fa-solid fa-check"></i> <span>Booked</span></div>
+                  <div class="timeline-step active"><i class="fa-solid fa-car"></i> <span>En Route</span></div>
+                  <div class="timeline-step"><i class="fa-solid fa-soap"></i> <span>Service</span></div>
+                  <div class="timeline-step"><i class="fa-solid fa-star"></i> <span>Done</span></div>
+                </div>
+              </div>
+
+              <!-- Action button inside simulator -->
+              <div class="phone-simulator-action">
+                <a href="/app/#/booking" class="btn btn-primary btn-sm btn-block">
+                  <i class="fa-solid fa-calendar-check"></i> Book a Service Online
+                </a>
+              </div>
+
+              <!-- Quick Services Carousel -->
+              <div class="phone-service-chips">
+                <a href="/app/#/booking" class="service-chip active"><i class="fa-solid fa-car"></i> Car Wash</a>
+                <a href="/app/#/booking" class="service-chip"><i class="fa-solid fa-broom"></i> Cleaning</a>
+                <a href="/app/#/booking" class="service-chip"><i class="fa-solid fa-shirt"></i> Laundry</a>
+                <a href="/app/#/booking" class="service-chip"><i class="fa-solid fa-motorcycle"></i> Courier</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Badges around the phone -->
+          <div class="floating-bubble bubble-top">
+            <div class="bubble-icon bg-green"><i class="fa-solid fa-tags"></i></div>
+            <div>
+              <strong>Transparent Pricing</strong>
+              <small>No hidden charges or surge</small>
+            </div>
+          </div>
+
+          <div class="floating-bubble bubble-bottom">
+            <div class="bubble-icon bg-orange"><i class="fa-solid fa-bolt"></i></div>
+            <div>
+              <strong>Live Dispatch</strong>
+              <small>Matched in &lt; 60 seconds</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== STATS BANNER ==================== -->
+  <section class="stats-strip">
+    <div class="container stats-grid">
+      <div class="stat-box">
+        <div class="stat-number">100%</div>
+        <div class="stat-label">Provider-Defined Pricing</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">4.9 / 5.0</div>
+        <div class="stat-label">Average Service Rating</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">&lt; 15 mins</div>
+        <div class="stat-label">Average Arrival Time</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">₦0 Hidden Fees</div>
+        <div class="stat-label">Paystack Secured Escrow</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== QUICK BUSINESS ACTION CALLOUT ==================== -->
+  <section class="quick-cta-bar">
+    <div class="container quick-cta-inner">
+      <div class="quick-cta-text">
+        <h3>Ready to experience frictionless doorstep service?</h3>
+        <p>Book online now in under 2 minutes or register your business to start receiving paid jobs.</p>
+      </div>
+      <div class="quick-cta-buttons">
+        <a href="/app/#/booking" class="btn btn-primary">
+          <i class="fa-solid fa-calendar-check"></i> Book a Service
+        </a>
+        <a href="/app/#/washer-registration" class="btn btn-white">
+          <i class="fa-solid fa-user-plus"></i> Be a Washer / Provider
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== SERVICES SECTION ==================== -->
+  <section class="services-section" id="services">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">SERVICE DIRECTORY</span>
+        <h2 class="section-title">Doorstep Services Available on G-Wash</h2>
+        <p class="section-subtitle">Select a service, view verified providers in your area, and book instantly online.</p>
+      </div>
+
+      <!-- Service Category Tabs -->
+      <div class="service-tabs-wrapper">
+        <div class="service-tabs" role="tablist">
+          <button class="service-tab-btn active" data-target="car-wash">
+            <i class="fa-solid fa-car"></i> Car Wash &amp; Detailing
+          </button>
+          <button class="service-tab-btn" data-target="house-cleaning">
+            <i class="fa-solid fa-broom"></i> House &amp; Office Cleaning
+          </button>
+          <button class="service-tab-btn" data-target="laundry">
+            <i class="fa-solid fa-shirt"></i> Laundry &amp; Dry Clean
+          </button>
+          <button class="service-tab-btn" data-target="dispatch">
+            <i class="fa-solid fa-taxi"></i> Ride &amp; Dispatch Service
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab Content 1: Car Wash -->
+      <div class="service-panel active" id="panel-car-wash">
+        <div class="cards-grid">
+          <div class="service-card">
+            <div class="card-badge">Doorstep Service</div>
+            <div class="card-icon-header icon-red"><i class="fa-solid fa-car-side"></i></div>
+            <h3 class="card-title">Exterior Pressure Wash</h3>
+            <p class="card-desc">High-pressure snow foam wash, wheel & rim cleaning, tyre dressing shine, and scratch-free hand dry.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Snow foam pre-soak & hand wash</li>
+              <li><i class="fa-solid fa-circle-check"></i> Microfiber scratch-free dry</li>
+              <li><i class="fa-solid fa-circle-check"></i> Tire dressing & rim scrub</li>
+              <li><i class="fa-solid fa-circle-check"></i> Certified professional equipment</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card featured-card">
+            <div class="card-badge bg-primary">Most Popular</div>
+            <div class="card-icon-header icon-green"><i class="fa-solid fa-spray-can-sparkles"></i></div>
+            <h3 class="card-title">Full Interior & Exterior</h3>
+            <p class="card-desc">Exterior foam pressure wash plus deep interior vacuuming, dashboard UV polish, and deodorization.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Complete exterior pressure wash</li>
+              <li><i class="fa-solid fa-circle-check"></i> Deep vacuum seats, carpets & boot</li>
+              <li><i class="fa-solid fa-circle-check"></i> UV dashboard protection polish</li>
+              <li><i class="fa-solid fa-circle-check"></i> Premium cabin fragrance</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-primary btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div class="card-badge">Specialized</div>
+            <div class="card-icon-header icon-blue"><i class="fa-solid fa-oil-can"></i></div>
+            <h3 class="card-title">Engine Bay Steam Wash</h3>
+            <p class="card-desc">Safe degreasing, steam pressure wash of engine bay, and rubber hose conditioning.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Electrical component safety wrapping</li>
+              <li><i class="fa-solid fa-circle-check"></i> Heavy-duty engine degreasing</li>
+              <li><i class="fa-solid fa-circle-check"></i> Plastic & hose rejuvenation</li>
+              <li><i class="fa-solid fa-circle-check"></i> Certified auto detailing pro</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div class="card-badge bg-gold">VIP Treatment</div>
+            <div class="card-icon-header icon-gold"><i class="fa-solid fa-gem"></i></div>
+            <h3 class="card-title">Executive Detailing & Wax</h3>
+            <p class="card-desc">Machine buffing, ceramic wax sealant, deep upholstery shampoo & premium leather restoration.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> High-grade carnauba/ceramic wax</li>
+              <li><i class="fa-solid fa-circle-check"></i> Leather seat deep conditioning</li>
+              <li><i class="fa-solid fa-circle-check"></i> Headlight restoration & polish</li>
+              <li><i class="fa-solid fa-circle-check"></i> Paint protection guarantee</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 2: House Cleaning -->
+      <div class="service-panel" id="panel-house-cleaning">
+        <div class="cards-grid">
+          <div class="service-card">
+            <div class="card-badge">Routine</div>
+            <div class="card-icon-header icon-orange"><i class="fa-solid fa-house"></i></div>
+            <h3 class="card-title">Standard House Cleaning</h3>
+            <p class="card-desc">Sweeping, vacuuming, mopping, surface dusting, bathroom disinfection, and waste removal.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Floor vacuuming & mopping</li>
+              <li><i class="fa-solid fa-circle-check"></i> Kitchen countertop wipe down</li>
+              <li><i class="fa-solid fa-circle-check"></i> Toilet & sink scrubbing</li>
+              <li><i class="fa-solid fa-circle-check"></i> Eco-friendly detergents</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card featured-card">
+            <div class="card-badge bg-primary">Intensive</div>
+            <div class="card-icon-header icon-green"><i class="fa-solid fa-sparkles"></i></div>
+            <h3 class="card-title">Deep Sanitization Clean</h3>
+            <p class="card-desc">Top-to-bottom disinfection including inside appliances, tile grout scrubbing, and window frames.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Complete deep disinfection</li>
+              <li><i class="fa-solid fa-circle-check"></i> Kitchen grease degreasing</li>
+              <li><i class="fa-solid fa-circle-check"></i> Window tracks & skirting boards</li>
+              <li><i class="fa-solid fa-circle-check"></i> Tiles & grout scrubbing</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-primary btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div class="card-badge">Relocation</div>
+            <div class="card-icon-header icon-purple"><i class="fa-solid fa-boxes-packing"></i></div>
+            <h3 class="card-title">Move-In / Move-Out Clean</h3>
+            <p class="card-desc">Prepare a newly rented apartment or restore your old home to pristine inspection condition.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Empty space total scrub</li>
+              <li><i class="fa-solid fa-circle-check"></i> Wall marks & cobweb removal</li>
+              <li><i class="fa-solid fa-circle-check"></i> Full bathroom & kitchen renewal</li>
+              <li><i class="fa-solid fa-circle-check"></i> Same-day handover ready</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div class="card-badge">Commercial</div>
+            <div class="card-icon-header icon-blue"><i class="fa-solid fa-building"></i></div>
+            <h3 class="card-title">Office & Commercial</h3>
+            <p class="card-desc">Workstation sanitization, conference rooms, restroom management, and waste recycling.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Desk & keyboard disinfection</li>
+              <li><i class="fa-solid fa-circle-check"></i> Reception & meeting room upkeep</li>
+              <li><i class="fa-solid fa-circle-check"></i> Flexible after-hours slots</li>
+              <li><i class="fa-solid fa-circle-check"></i> Fully insured cleaning crew</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 3: Laundry -->
+      <div class="service-panel" id="panel-laundry">
+        <div class="cards-grid">
+          <div class="service-card">
+            <div class="card-icon-header icon-blue"><i class="fa-solid fa-soap"></i></div>
+            <h3 class="card-title">Wash & Fold</h3>
+            <p class="card-desc">Everyday laundry washed with quality detergents, tumble-dried, and neatly folded.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Color sorting protection</li>
+              <li><i class="fa-solid fa-circle-check"></i> Fabric softener rinse</li>
+              <li><i class="fa-solid fa-circle-check"></i> Neatly folded & bagged</li>
+              <li><i class="fa-solid fa-circle-check"></i> 24-48 hr fast turnaround</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card featured-card">
+            <div class="card-badge bg-primary">Popular</div>
+            <div class="card-icon-header icon-green"><i class="fa-solid fa-shirt"></i></div>
+            <h3 class="card-title">Wash & Crisp Iron</h3>
+            <p class="card-desc">Full machine wash, fabric softening, starch if preferred, and crisp steam ironing on hangers.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Steam ironed with sharp creases</li>
+              <li><i class="fa-solid fa-circle-check"></i> Button & collar care</li>
+              <li><i class="fa-solid fa-circle-check"></i> Delivered on protective hangers</li>
+              <li><i class="fa-solid fa-circle-check"></i> Executive wardrobe packaging</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-primary btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div class="card-icon-header icon-purple"><i class="fa-solid fa-vest"></i></div>
+            <h3 class="card-title">Executive Dry Cleaning</h3>
+            <p class="card-desc">Specialized treatment for suits, native agbada, gowns, duvets, and delicate fabrics.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Stain pre-spotting treatment</li>
+              <li><i class="fa-solid fa-circle-check"></i> Eco solvent dry cleaning</li>
+              <li><i class="fa-solid fa-circle-check"></i> Protective garment bag packaging</li>
+              <li><i class="fa-solid fa-circle-check"></i> Luxury fabric preservation</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div class="card-icon-header icon-orange"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <h3 class="card-title">Steam Ironing Only</h3>
+            <p class="card-desc">Professional steam press and wrinkle removal for already-washed garments.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> High-pressure commercial steam</li>
+              <li><i class="fa-solid fa-circle-check"></i> Heavy fabrics & native wear</li>
+              <li><i class="fa-solid fa-circle-check"></i> Same day turnaround</li>
+              <li><i class="fa-solid fa-circle-check"></i> Hanger delivery ready</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book This Service
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content 4: Ride & Dispatch -->
+      <div class="service-panel" id="panel-dispatch">
+        <div class="cards-grid">
+          <div class="service-card featured-card">
+            <div class="card-badge bg-primary">Express Courier</div>
+            <div class="card-icon-header icon-purple"><i class="fa-solid fa-motorcycle"></i></div>
+            <h3 class="card-title">Express City Dispatch</h3>
+            <p class="card-desc">Prompt pickup and delivery of parcels, laundry, auto parts, and documents across Lagos, Abuja, Port Harcourt.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Under 45 minutes average delivery</li>
+              <li><i class="fa-solid fa-circle-check"></i> Live GPS route tracking on map</li>
+              <li><i class="fa-solid fa-circle-check"></i> Digital recipient signature confirmation</li>
+              <li><i class="fa-solid fa-circle-check"></i> Secure cargo box storage</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-primary btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Book Dispatch Rider
+            </a>
+          </div>
+
+          <div class="service-card">
+            <div class="card-badge">Doorstep Pickup</div>
+            <div class="card-icon-header icon-blue"><i class="fa-solid fa-car-rear"></i></div>
+            <h3 class="card-title">On-Demand Ride Service</h3>
+            <p class="card-desc">Safe, comfortable, and reliable rides across the city with vetted professional drivers.</p>
+            <ul class="card-features">
+              <li><i class="fa-solid fa-circle-check"></i> Air-conditioned clean vehicles</li>
+              <li><i class="fa-solid fa-circle-check"></i> Verified and ID-checked drivers</li>
+              <li><i class="fa-solid fa-circle-check"></i> Real-time route tracking</li>
+              <li><i class="fa-solid fa-circle-check"></i> Cashless Paystack payment</li>
+            </ul>
+            <a href="/app/#/booking" class="btn btn-card">
+              <i class="fa-solid fa-calendar-check"></i> Request a Ride
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== HOW IT WORKS ==================== -->
+  <section class="how-it-works-section" id="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">EASY & EFFORTLESS</span>
+        <h2 class="section-title">How G-Wash Works in 3 Steps</h2>
+        <p class="section-subtitle">Connect with verified service professionals in minutes.</p>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">01</div>
+          <div class="step-icon bg-green"><i class="fa-solid fa-user-plus"></i></div>
+          <h3 class="step-title">1. Register</h3>
+          <p class="step-desc">Create your account quickly or book instantly online. Choose your address in Lagos, Abuja, Port Harcourt or let GPS find you.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">02</div>
+          <div class="step-icon bg-blue"><i class="fa-solid fa-calendar-check"></i></div>
+          <h3 class="step-title">2. Book a Service</h3>
+          <p class="step-desc">Choose the service you need and schedule it. View upfront transparent rates and track your pro's live GPS route to your gate.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">03</div>
+          <div class="step-icon bg-orange"><i class="fa-solid fa-circle-check"></i></div>
+          <h3 class="step-title">3. Relax</h3>
+          <p class="step-desc">Our certified pro arrives with full gear. Confirm with your 4-digit OTP code; payment is released only upon your 100% satisfaction.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== WHY CHOOSE US ==================== -->
+  <section class="why-us-section" id="why-us">
+    <div class="container">
+      <div class="why-grid">
+        <div class="why-content">
+          <span class="section-tag">THE G-WASH DIFFERENCE</span>
+          <h2 class="section-title">Built with Nigerian Quality & Trust in Mind</h2>
+          <p class="section-subtitle">We solved every pain point of roadside car washes and unreliable home cleaners.</p>
+
+          <div class="feature-rows">
+            <div class="feature-item">
+              <div class="feature-icon bg-green-subtle"><i class="fa-solid fa-user-shield"></i></div>
+              <div>
+                <h4>Certified, ID-Vetted Service Pros</h4>
+                <p>Every washer and cleaner undergoes national ID verification, residential verification, and police record checks.</p>
+              </div>
+            </div>
+
+            <div class="feature-item">
+              <div class="feature-icon bg-blue-subtle"><i class="fa-solid fa-lock"></i></div>
+              <div>
+                <h4>Escrow-Protected Paystack Payments</h4>
+                <p>No cash hassles or overcharging. Pay seamlessly with Paystack via Debit Card, Bank Transfer, or In-App Wallet.</p>
+              </div>
+            </div>
+
+            <div class="feature-item">
+              <div class="feature-icon bg-orange-subtle"><i class="fa-solid fa-shield-heart"></i></div>
+              <div>
+                <h4>Waterless & Eco-Friendly Options</h4>
+                <p>Our providers carry their own high-pressure portable equipment, power backups, and biodegradable detailing chemicals.</p>
+              </div>
+            </div>
+
+            <div class="feature-item">
+              <div class="feature-icon bg-purple-subtle"><i class="fa-solid fa-bell"></i></div>
+              <div>
+                <h4>Live SMS & Push Updates</h4>
+                <p>Get instant SMS notifications when your provider is en route, arrives, and finishes the job with before/after photos.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="why-visual">
+          <div class="why-image-card">
+            <img src="assets/flyer_whychoose.jpg" alt="Why Choose G-Wash NG Flyer" class="flyer-img">
+            <div class="flyer-caption">
+              <span><i class="fa-solid fa-circle-check"></i> Official G-Wash Nigeria Standards</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== OFFICIAL FLYERS SHOWCASE ==================== -->
+  <section class="flyers-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">OFFICIAL CAMPAIGNS</span>
+        <h2 class="section-title">G-Wash in the Spotlight</h2>
+        <p class="section-subtitle">Check out our official marketing flyers and service announcements.</p>
+      </div>
+
+      <div class="flyers-grid">
+        <div class="flyer-card">
+          <img src="assets/flyer_launch.jpg" alt="Launch Campaign" loading="lazy">
+          <div class="flyer-overlay">
+            <h4>Grand Launch Campaign</h4>
+            <span>Nigeria-Wide Doorstep Detailing</span>
+          </div>
+        </div>
+
+        <div class="flyer-card">
+          <img src="assets/flyer_services.jpg" alt="All Services Flyer" loading="lazy">
+          <div class="flyer-overlay">
+            <h4>Complete Service Catalog</h4>
+            <span>Car Wash • House Cleaning • Laundry</span>
+          </div>
+        </div>
+
+        <div class="flyer-card">
+          <img src="assets/flyer_rider.jpg" alt="Rider Dispatch Flyer" loading="lazy">
+          <div class="flyer-overlay">
+            <h4>Dispatch & Logistics</h4>
+            <span>Doorstep Courier Solutions</span>
+          </div>
+        </div>
+
+        <div class="flyer-card">
+          <img src="assets/flyer_whychoose.jpg" alt="Why Choose Flyer" loading="lazy">
+          <div class="flyer-overlay">
+            <h4>Safety & Reliability</h4>
+            <span>Why Millions Trust G-Wash</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== BECOME A WASHER / PROVIDER ==================== -->
+  <section class="provider-cta-section" id="providers">
+    <div class="container">
+      <div class="provider-banner">
+        <div class="provider-content">
+          <span class="provider-badge">SET YOUR OWN RATES</span>
+          <h2 class="provider-title">Earn More as an Independent G-Wash Pro</h2>
+          <p class="provider-subtitle">
+            Are you an auto detailer, professional home cleaner, dry cleaner, or dispatch rider? Join Nigeria's premier service network. You decide your prices, work on your schedule, and keep 95% of your earnings.
+          </p>
+
+          <div class="provider-perks">
+            <div class="perk"><i class="fa-solid fa-circle-check"></i> <strong>Set Your Own Prices:</strong> Total pricing freedom on all jobs</div>
+            <div class="perk"><i class="fa-solid fa-circle-check"></i> <strong>95% Revenue Share:</strong> Best payout rate in the market</div>
+            <div class="perk"><i class="fa-solid fa-circle-check"></i> <strong>Instant Withdrawals:</strong> Daily payouts straight to your Nigerian bank account</div>
+          </div>
+
+          <div class="provider-cta-btns">
+            <a href="/app/#/washer-registration" class="btn btn-white btn-lg">
+              <i class="fa-solid fa-user-plus"></i> Be a Washer / Provider Now
+            </a>
+            <a href="mailto:gwashng@gmail.com" class="btn btn-outline-white btn-lg">
+              <i class="fa-solid fa-envelope"></i> Partner Inquiries
+            </a>
+          </div>
+        </div>
+
+        <div class="provider-badge-box">
+          <div class="payout-stat">
+            <span class="payout-number">95%</span>
+            <span class="payout-desc">Direct Payout to You</span>
+          </div>
+          <div class="payout-stat">
+            <span class="payout-number">₦0</span>
+            <span class="payout-desc">Registration Fee</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TESTIMONIALS ==================== -->
+  <section class="testimonials-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">TESTIMONIALS</span>
+        <h2 class="section-title">Loved by Thousands Across Nigeria</h2>
+        <p class="section-subtitle">Real experiences from verified car owners and households.</p>
+      </div>
+
+      <div class="testimonials-grid">
+        <div class="testi-card">
+          <div class="testi-stars">★★★★★</div>
+          <p class="testi-text">"I booked an exterior wash and engine detailing while at my office in Victoria Island. The washer arrived right on time with all his gear and finished in 45 minutes. Fantastic experience!"</p>
+          <div class="testi-author">
+            <div class="author-avatar bg-blue-subtle">TO</div>
+            <div>
+              <strong>Tunde Oladipo</strong>
+              <small>Victoria Island, Lagos • Verified Customer</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="testi-card featured-testi">
+          <div class="testi-stars">★★★★★</div>
+          <p class="testi-text">"The deep house cleaning service saved my life after our house renovation in Lekki. The cleaning team arrived promptly and scrubbed every single corner and tile grout. Upfront transparent pricing, no stories!"</p>
+          <div class="testi-author">
+            <div class="author-avatar bg-green-subtle">CA</div>
+            <div>
+              <strong>Chidinma Agu</strong>
+              <small>Lekki Phase 1, Lagos • Verified Customer</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="testi-card">
+          <div class="testi-stars">★★★★★</div>
+          <p class="testi-text">"As an auto detailer in Abuja, joining G-Wash gave me steady jobs and great income. I get direct bookings daily, and payments land safely in my GTBank account same day."</p>
+          <div class="testi-author">
+            <div class="author-avatar bg-orange-subtle">EB</div>
+            <div>
+              <strong>Emeka Bello</strong>
+              <small>Maitama, Abuja • Registered Detailer</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FAQS ==================== -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">COMMON QUESTIONS</span>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-subtitle">Got questions about pricing and booking? We've got clear answers.</p>
+      </div>
+
+      <div class="faq-accordion">
+        <div class="faq-item active">
+          <button class="faq-question">
+            <span>How do I book a car wash or cleaning service online?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>You can click the <strong>"Book a Service"</strong> button anywhere on this page, choose your desired service, enter your phone number and address in Lagos, Abuja, or Port Harcourt, and tap submit. A certified pro will be dispatched to your location!</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>How is service pricing decided on G-Wash?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Pricing on G-Wash is clear, affordable, and upfront. Every service has transparent standard rates with zero hidden charges. Payment is secured safely by Paystack escrow and only released when the job is completed to your satisfaction.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>How does the security OTP work?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>When a provider is matched to your job, the app generates a unique 4-digit OTP code on your screen. When the provider physically arrives at your gate or doorstep, you give them the code so they can verify their identity and commence the job safely.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>What payment methods do you accept?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>We process payments securely via Paystack. You can pay using Nigerian Debit/Credit Cards (Mastercard, Visa, Verve), Bank USSD transfer, or top up your in-app G-Wash Wallet for one-tap instant bookings.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>How do I become a registered washer or cleaner?</span>
+            <i class="fa-solid fa-chevron-down"></i>
+          </button>
+          <div class="faq-answer">
+            <p>Click <strong>"Be a Washer"</strong> on this page or download the G-Wash app. Fill out the provider form with your phone number and service category. Once approved, you can start receiving job requests and keeping 95% of your earnings!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== APP DOWNLOAD BANNER ==================== -->
+  <section class="download-banner-section" id="download">
+    <div class="container">
+      <div class="download-banner">
+        <div class="download-content">
+          <span class="announcement-badge bg-white-trans">TAKE G-WASH WITH YOU</span>
+          <h2 class="download-title">Take G-Wash With You Anywhere</h2>
+          <p class="download-desc">Download the G-Wash Android app and access your favorite services directly from your phone.</p>
+
+          <div class="download-btn-row">
+            <a href="app-release.apk" class="btn btn-white btn-xl" download="g_wash_ng-release.apk">
+              <i class="fa-brands fa-android fa-2x"></i>
+              <div class="btn-text-align-left">
+                <small>Direct APK File (65MB)</small>
+                <strong>Download Android APK</strong>
+              </div>
+            </a>
+            <a href="/app/#/booking" class="btn btn-outline-white btn-xl">
+              <i class="fa-solid fa-calendar-check"></i> Book Online Now
+            </a>
+          </div>
+
+          <div class="download-security-note">
+            <span><i class="fa-solid fa-shield-halved"></i> 100% Virus-Free & Signed APK</span>
+            <span><i class="fa-solid fa-bolt"></i> Android 8.0+ Compatible</span>
+          </div>
+        </div>
+
+        <div class="download-qr-box">
+          <div class="qr-card">
+            <div class="qr-code-placeholder">
+              <i class="fa-solid fa-qrcode fa-5x"></i>
+            </div>
+            <span class="qr-text">Scan with your phone to download directly</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div class="footer-brand-col">
+        <a href="#" class="brand-logo footer-logo">
+          <img src="assets/logo_small.png" alt="G-Wash NG Logo">
+          <div class="brand-text">
+            <span class="brand-name text-white">G-WASH <span class="text-green">NG</span></span>
+            <span class="brand-tagline">On-Demand Marketplace</span>
+          </div>
+        </a>
+        <p class="footer-about">
+          Nigeria's premier on-demand marketplace connecting vehicle owners, households, and businesses with certified car detailers, professional cleaners, laundry providers, and dispatch couriers.
+        </p>
+        <div class="social-links">
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" aria-label="Twitter / X"><i class="fa-brands fa-x-twitter"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-heading">Services</h4>
+        <ul class="footer-links">
+          <li><a href="/app/#/booking">Car Wash &amp; Detailing</a></li>
+          <li><a href="/app/#/booking">Engine Steam Wash</a></li>
+          <li><a href="/app/#/booking">House Deep Cleaning</a></li>
+          <li><a href="/app/#/booking">Office Cleaning</a></li>
+          <li><a href="/app/#/booking">Laundry &amp; Dry Clean</a></li>
+          <li><a href="/app/#/booking">Dispatch Courier</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-heading">Business Actions</h4>
+        <ul class="footer-links">
+          <li><a href="/app/#/booking" class="text-green"><strong><i class="fa-solid fa-calendar-check"></i> Book a Service</strong></a></li>
+          <li><a href="/app/#/washer-registration" class="text-green"><strong><i class="fa-solid fa-user-plus"></i> Be a Washer / Provider</strong></a></li>
+          <li><a href="/app/#/login">Customer / Provider Login</a></li>
+          <li><a href="/app/#/welcome">Create Free Account</a></li>
+          <li><a href="app-release.apk" download>Download Android App</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="footer-heading">Contact & Support</h4>
+        <ul class="footer-contact-list">
+          <li><i class="fa-solid fa-envelope text-green"></i> gwashng@gmail.com</li>
+          <li><i class="fa-solid fa-phone text-green"></i> +234 706 558 4504</li>
+        </ul>
+        <div class="payment-badges">
+          <span>Secured by:</span>
+          <div class="pay-icons">
+            <span class="pay-badge"><i class="fa-solid fa-credit-card"></i> Paystack</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="container footer-bottom-inner">
+        <p>&copy; 2026 G-Wash Nigeria Limited. All rights reserved.</p>
+        <div class="legal-links">
+          <a href="#">Privacy Policy</a>
+          <span>•</span>
+          <a href="#">Terms of Service</a>
+          <span>•</span>
+          <a href="#">Safety Guidelines</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- All booking / registration / login goes directly to the Flutter web app -->
+  <!-- App routes: /app/#/booking  /app/#/login  /app/#/washer-registration     -->
+  <!-- ========================================================================= -->
+
+  <!-- (Modals removed — buttons now link to the real Flutter app screens) -->
+  <!-- PLACEHOLDER for future modal-book-service (keeping id for compatibility) -->
+  <div class="modal-overlay" id="modal-book-service">
+    <div class="modal-card">
+      <button class="modal-close-btn" onclick="closeModal('modal-book-service')">&times;</button>
+      
+      <div class="modal-header">
+        <div class="modal-badge-tag"><i class="fa-solid fa-bolt"></i> FAST ONLINE BOOKING</div>
+        <h3 class="modal-title">Book a Doorstep Service</h3>
+        <p class="modal-subtitle">Fill in your details below and a certified nearby pro will be dispatched to your location.</p>
+      </div>
+
+      <form id="booking-form" class="modal-form" onsubmit="handleBookingSubmit(event)">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input type="text" id="book-name" class="form-input" placeholder="e.g. Babatunde Adeleke" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone Number *</label>
+            <input type="tel" id="book-phone" class="form-input" placeholder="e.g. 0801 234 5678" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Select Service Required *</label>
+          <select id="book-service-select" class="form-select" required>
+            <option value="Car Wash: Full Interior & Exterior" selected>Car Wash: Full Interior & Exterior Detailing</option>
+            <option value="Car Wash: Exterior Pressure Wash">Car Wash: Exterior Pressure Wash</option>
+            <option value="Car Wash: Engine Bay Steam Wash">Car Wash: Engine Bay Steam Wash</option>
+            <option value="Car Wash: Executive Detailing & Wax">Car Wash: Executive Detailing & Wax</option>
+            <option value="House Cleaning: Standard Upkeep">House Cleaning: Standard Upkeep</option>
+            <option value="House Cleaning: Deep Sanitization">House Cleaning: Deep Sanitization</option>
+            <option value="House Cleaning: Move-In / Move-Out">House Cleaning: Move-In / Move-Out</option>
+            <option value="Commercial / Office Cleaning">Commercial / Office Cleaning</option>
+            <option value="Laundry: Wash & Fold">Laundry: Wash & Fold</option>
+            <option value="Laundry: Wash & Crisp Iron">Laundry: Wash & Crisp Iron</option>
+            <option value="Laundry: Executive Dry Cleaning">Laundry: Executive Dry Cleaning</option>
+            <option value="Express City Dispatch">Express City Dispatch Rider</option>
+            <option value="On-Demand Ride Service">On-Demand Ride Service</option>
+          </select>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">City / State *</label>
+            <select id="book-city" class="form-select" required>
+              <option value="Lagos (Island - Lekki, VI, Ikoyi)">Lagos (Island - Lekki, VI, Ikoyi)</option>
+              <option value="Lagos (Mainland - Ikeja, Surulere, Yaba)">Lagos (Mainland - Ikeja, Surulere, Yaba)</option>
+              <option value="Abuja (Maitama, Wuse, Garki, Jabi)">Abuja (Maitama, Wuse, Garki, Jabi)</option>
+              <option value="Port Harcourt (GRA, Trans-Amadi)">Port Harcourt (GRA, Trans-Amadi)</option>
+              <option value="Ibadan (Bodija, Oluyole, Ring Road)">Ibadan (Bodija, Oluyole, Ring Road)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preferred Date & Time *</label>
+            <input type="datetime-local" id="book-datetime" class="form-input" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Exact Delivery / Service Address *</label>
+          <input type="text" id="book-address" class="form-input" placeholder="e.g. Plot 14, Admiralty Way, Lekki Phase 1" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Special Notes / Vehicle Model (Optional)</label>
+          <input type="text" id="book-notes" class="form-input" placeholder="e.g. 2022 Toyota Prado / 3-Bedroom Flat">
+        </div>
+
+        <div class="form-pricing-notice">
+          <i class="fa-solid fa-circle-check text-green"></i> <span>Transparent upfront pricing. 100% escrow payment secured by Paystack.</span>
+        </div>
+
+        <button type="submit" id="book-submit-btn" class="btn btn-primary btn-block btn-lg">
+          <i class="fa-solid fa-paper-plane"></i> Confirm & Request Dispatch
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: BE A WASHER / PROVIDER REGISTRATION -->
+  <div class="modal-overlay" id="modal-provider-register">
+    <div class="modal-card">
+      <button class="modal-close-btn" onclick="closeModal('modal-provider-register')">&times;</button>
+      
+      <div class="modal-header">
+        <div class="modal-badge-tag bg-gold"><i class="fa-solid fa-handshake"></i> PROVIDER ONBOARDING</div>
+        <h3 class="modal-title">Be a Washer / Service Provider</h3>
+        <p class="modal-subtitle">Earn up to ₦250,000+ monthly with 95% payout share and instant daily bank withdrawals.</p>
+      </div>
+
+      <form id="provider-form" class="modal-form" onsubmit="handleProviderSubmit(event)">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input type="text" id="provider-name" class="form-input" placeholder="e.g. Musa Ibrahim" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone Number *</label>
+            <input type="tel" id="provider-phone" class="form-input" placeholder="e.g. 0802 345 6789" required>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Email Address *</label>
+            <input type="email" id="provider-email" class="form-input" placeholder="e.g. musa@gmail.com" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Primary Service Category *</label>
+            <select id="provider-role" class="form-select" required>
+              <option value="washer" selected>Car Washer & Auto Detailer</option>
+              <option value="cleaner">House & Office Cleaner</option>
+              <option value="laundry_provider">Laundry & Dry Cleaner</option>
+              <option value="driver">Dispatch Courier Rider</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Years of Experience *</label>
+            <select id="provider-exp" class="form-select" required>
+              <option value="1-2 years">1 - 2 Years</option>
+              <option value="3-5 years" selected>3 - 5 Years</option>
+              <option value="5+ years">5+ Years Professional</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Residential Address / Workshop Location *</label>
+          <input type="text" id="provider-address" class="form-input" placeholder="e.g. 12 Obafemi Awolowo Way, Ikeja" required>
+        </div>
+
+        <div class="form-pricing-notice bg-gold-subtle">
+          <i class="fa-solid fa-circle-check text-gold"></i> <span>Zero registration fee. You set your own prices and keep 95% of every job.</span>
+        </div>
+
+        <button type="submit" id="provider-submit-btn" class="btn btn-primary btn-block btn-lg">
+          <i class="fa-solid fa-user-check"></i> Submit Provider Application
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: ACCOUNT LOGIN -->
+  <div class="modal-overlay" id="modal-auth-login">
+    <div class="modal-card modal-card-sm">
+      <button class="modal-close-btn" onclick="closeModal('modal-auth-login')">&times;</button>
+      
+      <div class="modal-header text-center">
+        <img src="assets/logo_small.png" alt="Logo" class="auth-modal-logo">
+        <h3 class="modal-title">Welcome Back to G-Wash</h3>
+        <p class="modal-subtitle">Log in to manage your bookings and provider wallet.</p>
+      </div>
+
+      <form id="login-form" class="modal-form" onsubmit="handleLoginSubmit(event)">
+        <div class="form-group">
+          <label class="form-label">Phone Number or Email *</label>
+          <input type="text" id="login-identifier" class="form-input" placeholder="e.g. 08012345678 or user@gwash.ng" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password *</label>
+          <input type="password" id="login-password" class="form-input" placeholder="Enter your password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg">
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In to Account
+        </button>
+
+        <div class="auth-switch-prompt">
+          <span>Don't have an account?</span>
+          <button type="button" class="btn-link" onclick="switchModal('modal-auth-login', 'modal-auth-signup')">Create Free Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: CUSTOMER SIGN UP -->
+  <div class="modal-overlay" id="modal-auth-signup">
+    <div class="modal-card modal-card-sm">
+      <button class="modal-close-btn" onclick="closeModal('modal-auth-signup')">&times;</button>
+      
+      <div class="modal-header text-center">
+        <img src="assets/logo_small.png" alt="Logo" class="auth-modal-logo">
+        <h3 class="modal-title">Create Free G-Wash Account</h3>
+        <p class="modal-subtitle">Enjoy 1-tap bookings, live tracking, and special promos.</p>
+      </div>
+
+      <form id="signup-form" class="modal-form" onsubmit="handleSignupSubmit(event)">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" id="signup-name" class="form-input" placeholder="e.g. Chioma Eze" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Phone Number *</label>
+          <input type="tel" id="signup-phone" class="form-input" placeholder="e.g. 0803 456 7890" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Email Address (Optional)</label>
+          <input type="email" id="signup-email" class="form-input" placeholder="e.g. chioma@gmail.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password *</label>
+          <input type="password" id="signup-password" class="form-input" placeholder="Create a secure password" minlength="6" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block btn-lg">
+          <i class="fa-solid fa-user-plus"></i> Create Account
+        </button>
+
+        <div class="auth-switch-prompt">
+          <span>Already registered?</span>
+          <button type="button" class="btn-link" onclick="switchModal('modal-auth-signup', 'modal-auth-login')">Sign In</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: SUCCESS CONFIRMATION MODAL -->
+  <div class="modal-overlay" id="modal-success-notice">
+    <div class="modal-card modal-card-sm text-center">
+      <div class="success-icon-badge">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+      <h3 class="modal-title" id="success-modal-title">Action Successful!</h3>
+      <p class="modal-subtitle" id="success-modal-msg">Your request has been received.</p>
+      
+      <div class="success-details-card" id="success-details-card">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <button class="btn btn-primary btn-block" onclick="closeModal('modal-success-notice')">
+        <i class="fa-solid fa-check"></i> Done
+      </button>
+    </div>
+  </div>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js"></script>
+</body>
+</html>

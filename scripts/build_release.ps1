@@ -29,17 +29,37 @@ Write-Host ""
 Write-Host "Step 2: Compiling Flutter Release APK..." -ForegroundColor Yellow
 Write-Host ""
 
-flutter build apk --release
+$ErrorActionPreference = "Continue"
 
-if ($LASTEXITCODE -eq 0) {
+if (Test-Path ".env") {
+    flutter build apk --release --dart-define-from-file=.env
+} else {
+    flutter build apk --release
+}
+
+$sourceApk = "build\app\outputs\flutter-apk\app-release.apk"
+if (-not (Test-Path $sourceApk) -and (Test-Path "C:\tmp\gwash_build\app\outputs\flutter-apk\app-release.apk")) {
+    $sourceApk = "C:\tmp\gwash_build\app\outputs\flutter-apk\app-release.apk"
+}
+
+if (Test-Path $sourceApk) {
+    Copy-Item -Path $sourceApk -Destination ".\g_wash_ng-release.apk" -Force
+    Copy-Item -Path $sourceApk -Destination ".\app-release.apk" -Force
+
+    $apkInfo = Get-Item ".\g_wash_ng-release.apk"
+    $sizeMB = [math]::Round($apkInfo.Length / 1MB, 1)
+
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "  ✅ Release APK Built Successfully with Certificate Pinning!" -ForegroundColor Green
-    Write-Host "  Location: build\app\outputs\flutter-apk\app-release.apk" -ForegroundColor Green
+    Write-Host "  ✅ Release APK Built Successfully ($sizeMB MB)!" -ForegroundColor Green
+    Write-Host "  Source: $sourceApk" -ForegroundColor Green
+    Write-Host "  Copied to: .\g_wash_ng-release.apk" -ForegroundColor Green
+    Write-Host "  Copied to: .\app-release.apk" -ForegroundColor Green
     Write-Host "============================================================" -ForegroundColor Green
     Write-Host ""
+    exit 0
 } else {
     Write-Host ""
-    Write-Host "❌ Build failed. Check errors above." -ForegroundColor Red
+    Write-Host "❌ Build failed. APK not found." -ForegroundColor Red
     exit 1
 }

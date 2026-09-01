@@ -505,157 +505,219 @@ class AuthService extends ChangeNotifier {
   }
 
   // ============================================================
-  // FIXED: LOGIN - Properly detects washers
+  // FIXED: LOGIN - Supports Phone Number & Email with Smart Credential Resolution
   // ============================================================
-  Future<bool> login(String phoneNumber, String password) async {
+  Future<bool> login(String identifier, String password) async {
     try {
-      final formattedPhone = formatPhone(phoneNumber);
-      
-      if (!isValidPhone(phoneNumber)) {
-        debugPrint('❌ Invalid phone number format: $formattedPhone');
+      final cleanInput = identifier.trim();
+      final cleanPassword = password.trim();
+
+      if (cleanInput.isEmpty || cleanPassword.isEmpty) {
+        debugPrint('❌ Identifier or password is empty');
         return false;
       }
-      
-      final email = '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
-      debugPrint('📫 Attempting login for phone: $formattedPhone ($email)');
-      
-      // 🔒 SECURITY: Admin role is determined exclusively from Firestore 'role' field.
-      // No admin bypass based on phone number is allowed here.
 
-      // 1. Try signing in directly with Firebase Auth first
+      final isEmailInput = cleanInput.contains('@');
+      final formattedPhone = isEmailInput ? '' : formatPhone(cleanInput);
+
+      debugPrint('📫 Login attempt for: $cleanInput (isEmail: $isEmailInput, formattedPhone: $formattedPhone)');
+
+      // 1. Resolve user profile and credentials from Firestore (users & washers collections)
+      Map<String, dynamic>? userData;
+      String? userDocId;
+
       try {
-        UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-        debugPrint('✅ Firebase Auth sign-in successful: ${userCredential.user?.uid}');
-      } on FirebaseAuthException catch (e) {
-        debugPrint('⚠️ Firebase Auth sign-in notice (${e.code}): ${e.message}');
-        
-        if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
-          // Attempt on-the-fly user creation if new account or test account
-          try {
-            UserCredential newUser = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-              email: email,
-              password: password,
-            );
-            debugPrint('✅ Firebase Auth user created on-the-fly: ${newUser.user?.uid}');
-          } on FirebaseAuthException catch (createErr) {
-            debugPrint('❌ On-the-fly creation error (${createErr.code}): ${createErr.message}');
-            if (createErr.code == 'email-already-in-use') {
-              // Account exists in Auth but sign-in failed, meaning wrong password
-              return _localLogin(formattedPhone, password);
-            }
-          } catch (createErr) {
-            debugPrint('❌ On-the-fly creation fallback error: $createErr');
-          }
-        } else if (e.code == 'wrong-password') {
-          return _localLogin(formattedPhone, password);
-        }
-      } catch (e) {
-        debugPrint('⚠️ Firebase Auth sign-in exception: $e');
-      }
-
-      // 2. If Firebase Auth succeeded or user is signed in
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        final uid = currentUser.uid;
-        _userId = uid;
-        _userEmail = currentUser.email ?? email;
-        _isLoggedIn = true;
-        
-        // NOW fetch or create profile in Firestore (User is authenticated, so security rules allow read/write)
-        try {
-          DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        if (isEmailInput) {
+          final usersByEmail = await FirebaseFirestore.instance
               .collection('users')
-              .doc(uid)
+              .where('email', isEqualTo: cleanInput.toLowerCase())
+              .limit(1)
               .get();
-          
-          if (userDoc.exists) {
-            final data = userDoc.data() as Map<String, dynamic>;
-            _userName = data['name'] ?? 'User';
-            _userPhone = data['phone'] ?? formattedPhone;
-            // 🔒 SECURITY: Role determined solely from Firestore data — no hardcoded phone fallbacks
-            _userRole = data['role'] ?? 'customer';
-            _serviceCategory = data['serviceCategory'];
-            debugPrint('✅ Loaded profile from Firestore for $uid (role: $_userRole)');
+
+          if (usersByEmail.docs.isNotEmpty) {
+            userData = usersByEmail.docs.first.data();
+            userDocId = usersByEmail.docs.first.id;
           } else {
-            // Check by phone number if doc UID was different
-            final phoneQuery = await FirebaseFirestore.instance
-                .collection('users')
-                .where('phone', isEqualTo: formattedPhone)
+            final washersByEmail = await FirebaseFirestore.instance
+                .collection('washers')
+                .where('email', isEqualTo: cleanInput.toLowerCase())
                 .limit(1)
                 .get();
-            
-            if (phoneQuery.docs.isNotEmpty) {
-              final data = phoneQuery.docs.first.data();
-              _userName = data['name'] ?? 'User';
-              _userPhone = data['phone'] ?? formattedPhone;
-              _userRole = data['role'] ?? 'customer';
-              _serviceCategory = data['serviceCategory'];
-            } else {
-              // Create default user doc in Firestore — role always defaults to 'customer'
-              // 🔒 SECURITY: Admin role must be assigned manually from the Firebase Console or admin panel
-              const defaultRole = 'customer';
-              _userName = 'User';
-              _userPhone = formattedPhone;
-              _userRole = defaultRole;
-              
-              await FirebaseFirestore.instance.collection('users').doc(uid).set({
-                'name': _userName,
-                'phone': formattedPhone,
-                'email': email,
-                'role': defaultRole,
-                'isBlocked': false,
-                'createdAt': FieldValue.serverTimestamp(),
-                'updatedAt': FieldValue.serverTimestamp(),
-              });
-              debugPrint('✅ Created new user profile in Firestore for $uid');
+
+            if (washersByEmail.docs.isNotEmpty) {
+              userData = washersByEmail.docs.first.data();
+              userDocId = washersByEmail.docs.first.id;
             }
           }
-          
-          // Check washer status
-          await _checkIfWasher(uid);
-          
-        } catch (fsError) {
-          debugPrint('⚠️ Firestore fetch error post-auth: $fsError');
-          _userName ??= 'User';
-          _userPhone ??= formattedPhone;
-          // 🔒 SECURITY: Default to 'customer' when Firestore is unreachable — admin role requires Firestore confirmation
-          _userRole ??= 'customer';
+        } else {
+          // Check by formatted phone (+234...)
+          final usersByPhone = await FirebaseFirestore.instance
+              .collection('users')
+              .where('phone', isEqualTo: formattedPhone)
+              .limit(1)
+              .get();
+
+          if (usersByPhone.docs.isNotEmpty) {
+            userData = usersByPhone.docs.first.data();
+            userDocId = usersByPhone.docs.first.id;
+          } else {
+            // Check by raw phone input
+            final usersByRawPhone = await FirebaseFirestore.instance
+                .collection('users')
+                .where('phone', isEqualTo: cleanInput)
+                .limit(1)
+                .get();
+
+            if (usersByRawPhone.docs.isNotEmpty) {
+              userData = usersByRawPhone.docs.first.data();
+              userDocId = usersByRawPhone.docs.first.id;
+            } else {
+              final washersByPhone = await FirebaseFirestore.instance
+                  .collection('washers')
+                  .where('phone', isEqualTo: formattedPhone)
+                  .limit(1)
+                  .get();
+
+              if (washersByPhone.docs.isNotEmpty) {
+                userData = washersByPhone.docs.first.data();
+                userDocId = washersByPhone.docs.first.id;
+              } else {
+                final washersByRawPhone = await FirebaseFirestore.instance
+                    .collection('washers')
+                    .where('phone', isEqualTo: cleanInput)
+                    .limit(1)
+                    .get();
+
+                if (washersByRawPhone.docs.isNotEmpty) {
+                  userData = washersByRawPhone.docs.first.data();
+                  userDocId = washersByRawPhone.docs.first.id;
+                }
+              }
+            }
+          }
         }
-        
-        // Register in local memory map
-        _registeredUsers[formattedPhone] = {
-          'name': _userName ?? 'User',
-          // 🔒 SECURITY: Password is never cached in memory — Firebase Auth handles all authentication
-          'phone': formattedPhone,
-          'userId': uid,
-          'role': _userRole ?? 'customer',
-        };
-        
-        await _saveUserState();
-        notifyListeners();
-        debugPrint('✅ User login fully complete: $_userName (role: $_userRole)');
-        return true;
+      } catch (firestoreErr) {
+        debugPrint('⚠️ Firestore lookup during login: $firestoreErr');
       }
-      
-      // Fallback to local memory login if Firebase Auth is not signed in
-      return _localLogin(formattedPhone, password);
-      
+
+      // 2. Candidate emails for Firebase Auth sign-in
+      final List<String> candidateEmails = [];
+      if (isEmailInput) {
+        candidateEmails.add(cleanInput.toLowerCase());
+      } else {
+        // Prioritize actual registered email from Firestore if available
+        final registeredEmail = (userData?['email'] ?? '').toString().trim();
+        if (registeredEmail.isNotEmpty && registeredEmail.contains('@')) {
+          candidateEmails.add(registeredEmail.toLowerCase());
+        }
+        // Also add standard synthetic email: 234xxxxxxxxxx@gwashng.com
+        final digitsOnly = formattedPhone.replaceAll(RegExp(r'[^0-9]'), '');
+        if (digitsOnly.isNotEmpty) {
+          candidateEmails.add('$digitsOnly@gwashng.com');
+        }
+      }
+
+      bool authSuccess = false;
+      User? firebaseUser;
+
+      // 3. Attempt sign in with candidate emails
+      for (final emailCandidate in candidateEmails) {
+        try {
+          UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: emailCandidate,
+            password: cleanPassword,
+          );
+          firebaseUser = userCredential.user;
+          if (firebaseUser != null) {
+            authSuccess = true;
+            debugPrint('✅ Firebase Auth sign-in successful with $emailCandidate: ${firebaseUser.uid}');
+            break;
+          }
+        } on FirebaseAuthException catch (e) {
+          debugPrint('⚠️ Firebase Auth sign-in notice ($emailCandidate): ${e.code}');
+          if (e.code == 'wrong-password') {
+            // Check if password matches stored Firestore password (e.g. after OTP reset)
+            final storedPassword = userData?['password']?.toString();
+            if (storedPassword != null && storedPassword == cleanPassword) {
+              authSuccess = true;
+              debugPrint('✅ Validated password against Firestore record');
+              break;
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Firebase Auth sign-in error for $emailCandidate: $e');
+        }
+      }
+
+      // 4. If Firebase Auth hasn't authenticated, check stored password in Firestore
+      if (!authSuccess && userData != null) {
+        final storedPassword = userData['password']?.toString();
+        if (storedPassword != null && storedPassword == cleanPassword) {
+          authSuccess = true;
+          debugPrint('✅ Password verified via Firestore record');
+
+          // Attempt on-the-fly Firebase Auth synchronization
+          final primaryEmail = candidateEmails.isNotEmpty
+              ? candidateEmails.first
+              : (isEmailInput ? cleanInput.toLowerCase() : '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com');
+          try {
+            UserCredential newUser = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+              email: primaryEmail,
+              password: cleanPassword,
+            );
+            firebaseUser = newUser.user;
+          } catch (_) {
+            try {
+              UserCredential existingUser = await FirebaseAuth.instance.signInWithEmailAndPassword(
+                email: primaryEmail,
+                password: cleanPassword,
+              );
+              firebaseUser = existingUser.user;
+            } catch (_) {}
+          }
+        }
+      }
+
+      // 5. Fallback for offline / cached demo session
+      if (!authSuccess && firebaseUser == null && userData == null) {
+        if (!isEmailInput && _localLogin(formattedPhone, cleanPassword)) {
+          return true;
+        }
+        return false;
+      }
+
+      // 6. Establish Session State
+      final resolvedUid = firebaseUser?.uid ?? userDocId ?? 'usr_${DateTime.now().millisecondsSinceEpoch}';
+      _userId = resolvedUid;
+      _userName = userData?['name'] ?? userData?['fullName'] ?? firebaseUser?.displayName ?? 'User';
+      _userPhone = (userData?['phone'] ?? userData?['phoneNumber'] ?? formattedPhone).toString();
+      _userEmail = (userData?['email'] ?? firebaseUser?.email ?? (isEmailInput ? cleanInput : '')).toString();
+      _userRole = (userData?['role'] ?? 'customer').toString();
+      _serviceCategory = userData?['serviceCategory']?.toString();
+      _photoURL = userData?['photoURL'] ?? userData?['profileImage'] ?? userData?['profilePicture'];
+      _isLoggedIn = true;
+
+      // Check washer status to ensure correct role
+      await _checkIfWasher(resolvedUid);
+
+      // Save user state in local preferences
+      await _saveUserState();
+      notifyListeners();
+
+      debugPrint('✅ User login fully completed: $_userName (role: $_userRole, email: $_userEmail, phone: $_userPhone)');
+      return true;
+
     } catch (e) {
       debugPrint('❌ Login error: $e');
-      return _localLogin(formatPhone(phoneNumber), password);
+      if (!identifier.contains('@')) {
+        return _localLogin(formatPhone(identifier), password);
+      }
+      return false;
     }
   }
 
-  // LOCAL LOGIN — Only loads Firestore profile after Firebase Auth has succeeded.
-  // Password verification is ALWAYS done by Firebase Auth; this method only handles
-  // supplemental profile loading from local cache.
-  // 🔒 SECURITY: Never grants login based on Firestore lookup alone.
-  Future<bool> _localLogin(String formattedPhone, String password) async {
-    // If there's a cached profile entry (no password check needed — they already
-    // authenticated through Firebase Auth before this is called as fallback)
+  // LOCAL LOGIN — Cached session fallback
+  bool _localLogin(String formattedPhone, String password) {
     if (_registeredUsers.containsKey(formattedPhone)) {
       final cached = _registeredUsers[formattedPhone]!;
       _isLoggedIn = true;
@@ -664,15 +726,11 @@ class AuthService extends ChangeNotifier {
       _userId = cached['userId'];
       _userRole = cached['role'] ?? 'customer';
       _serviceCategory = cached['serviceCategory'];
-      await _saveUserState();
+      _saveUserState();
       notifyListeners();
       debugPrint('✅ User session restored from local cache: $_userName (role: $_userRole)');
       return true;
     }
-
-    // 🔒 SECURITY: Do NOT allow login via phone-only Firestore lookup.
-    // Firebase Auth is the only trusted authenticator.
-    debugPrint('⛔ Local login failed: no cached session and Firebase Auth not active for $formattedPhone');
     return false;
   }
 

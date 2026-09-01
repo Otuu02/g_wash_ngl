@@ -1,7 +1,7 @@
 {
   "name": "g-wash-ngl",
   "buildCommand": "bash build.sh",
-  "outputDirectory": "build/web",
+  "outputDirectory": "public",
   "cleanUrls": true,
   "headers": [
     {
