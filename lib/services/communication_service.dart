@@ -3,6 +3,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../config/env.dart';
 import 'app_notification_service.dart';
 import 'twilio_service.dart';
 import 'smtp_email_service.dart';
@@ -1074,6 +1075,8 @@ The G-Wash NG Team
 </html>
     ''';
   }
+
+  String generateBookingEmailHtml({
     required String customerName,
     required String serviceName,
     required int price,
