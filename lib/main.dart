@@ -97,16 +97,14 @@ void main() async {
     }
   }
   
-  try {
-    await authService.migrateLocalUsersToFirestore();
-    if (kDebugMode) debugPrint('✅ User migration completed successfully');
-  } catch (e) {
+  // Run background initialization asynchronously so the UI renders immediately
+  authService.migrateLocalUsersToFirestore().catchError((e) {
     if (kDebugMode) debugPrint('❌ User migration failed: $e');
-  }
+  });
   
-  // ✅ Load saved notifications on startup
-  await notificationService.loadSavedNotifications();
-  if (kDebugMode) debugPrint('✅ Notification service initialized with ${notificationService.notifications.length} notifications');
+  notificationService.loadSavedNotifications().catchError((e) {
+    if (kDebugMode) debugPrint('❌ Notification load failed: $e');
+  });
   
   runApp(
     provider.MultiProvider(
