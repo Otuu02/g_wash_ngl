@@ -82,7 +82,7 @@ class AppConfig {
   };
   
   // ==================== COMMISSION CONFIGURATION ====================
-  static const double platformCommissionPercentage = 15.0;  // 15% commission
+  static const double platformCommissionPercentage = 10.0;  // 10% commission
   static const int washerMonthlySubscriptionFee = 5000;      // ₦5,000 per month
   
   // ==================== WASHER REQUIREMENTS ====================

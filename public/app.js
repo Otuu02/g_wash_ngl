@@ -1,4 +1,4 @@
-// ==========================================================================
+﻿// ==========================================================================
 // G-WASH NG LANDING PAGE JAVASCRIPT
 // Interactive Features: Business Booking Funnel, Provider Registration,
 // Realtime Firestore Integration, Dynamic Service Modals & Responsive Layout
@@ -185,7 +185,7 @@ async function handleProviderSubmit(event) {
     <div class="detail-row"><span>Applicant Name:</span> <strong>${name}</strong></div>
     <div class="detail-row"><span>Service Category:</span> <strong>${role.toUpperCase()}</strong></div>
     <div class="detail-row"><span>Operating Location:</span> <strong>${city}</strong></div>
-    <div class="detail-row"><span>Revenue Share:</span> <strong class="text-green">95% of all completed jobs</strong></div>
+    <div class="detail-row"><span>Revenue Share:</span> <strong class="text-green">90% of all completed jobs</strong></div>
   `;
   openModal('modal-success-notice');
 }
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { top: '20px', right: '20px', label: 'Washer Musa (4 mins)' },
       { top: '40px', right: '50px', label: 'Washer Musa (2 mins)' },
       { top: '60px', right: '80px', label: 'Washer Musa (Arriving!)' },
-      { top: '70px', right: '100px', label: 'Washer Arrived 📍' }
+      { top: '70px', right: '100px', label: 'Washer Arrived ðŸ“' }
     ];
 
     setInterval(() => {
@@ -341,3 +341,4 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 });
+

@@ -284,7 +284,37 @@ class _IncomingJobDialogState extends State<IncomingJobDialog> with SingleTicker
                 ),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
+
+              // 🔒 Provider Payment Notice Box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                ),
+                child: const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.shield_outlined, color: Color(0xFFB45309), size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'This booking must be paid through G Wash. Do not request cash or direct transfer from the customer. Your earnings will be settled through your G Wash account after the job is completed.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF78350F),
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
 
               // 🔘 Action Buttons
               if (_isProcessing)

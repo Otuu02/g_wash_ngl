@@ -53,8 +53,9 @@ class _JobRequestScreenState extends State<JobRequestScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Job Accepted Successfully! Customer notified.'),
+            content: Text('🎉 Job Accepted! Remember: All payments must be made through G Wash. Do not request offline cash/transfer.'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
           ),
         );
 

@@ -51,8 +51,8 @@ class PaymentReceiptDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double providerShare = amount * 0.95;
-    final double platformFee = amount * 0.05;
+    final double providerShare = amount * 0.90; // 90% Provider Share
+    final double platformFee = amount * 0.10;   // 10% G Wash Commission
     final formattedDate = DateFormat('dd/MM/yyyy • hh:mm a').format(timestamp);
     final verifyHash = 'GWASH-VERIFIED-${reference.replaceAll(RegExp(r'[^A-Za-z0-9]'), '')}-SEALED';
 

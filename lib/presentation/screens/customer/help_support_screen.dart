@@ -328,7 +328,7 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
     final q = query.toLowerCase().trim();
 
     if (q.contains('escrow') || q.contains('pay') || q.contains('payment') || q.contains('money') || q.contains('paystack')) {
-      return '🔒 Payments on G Wash NG are processed via Paystack and held safely in Escrow until your service is completed. Once the provider completes the task, 95% is paid to them and 5% to platform commission.';
+      return '🔒 Payments on G Wash NG are processed via Paystack and held safely in Escrow until your service is completed. Once the provider completes the task, 90% is paid to them and 10% to platform commission. Never pay offline cash!';
     }
     if (q.contains('proof') || q.contains('photo') || q.contains('picture') || q.contains('finish') || q.contains('complete')) {
       return '📸 Service providers are required to upload a mandatory Photo Proof of completion before Escrow funds can be released to their wallet balance.';
@@ -337,7 +337,7 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
       return '🚚 You can track your assigned washer in real-time on the Tracking screen once they accept your job booking!';
     }
     if (q.contains('earn') || q.contains('washer') || q.contains('share') || q.contains('payout') || q.contains('commission')) {
-      return '💵 Washers earn 95% of every completed job! Payouts are updated live in their wallet balance.';
+      return '💵 Washers earn 90% of every completed job! Payouts are updated live in their wallet balance.';
     }
     if (q.contains('cancel') || q.contains('refund')) {
       return '❌ You can cancel any booking before the washer arrives for a full refund back to your wallet or card.';

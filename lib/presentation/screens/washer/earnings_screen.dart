@@ -468,7 +468,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                               children: [
                                 Icon(Icons.savings, color: Colors.green, size: 18),
                                 SizedBox(width: 6),
-                                Text('Net Earned (95%)', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text('Net Earned (90%)', style: TextStyle(fontSize: 12, color: Colors.grey)),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -496,7 +496,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                               children: [
                                 Icon(Icons.pie_chart, color: Colors.orange, size: 18),
                                 SizedBox(width: 6),
-                                Text('5% Platform Fee', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text('10% Platform Fee', style: TextStyle(fontSize: 12, color: Colors.grey)),
                               ],
                             ),
                             const SizedBox(height: 8),

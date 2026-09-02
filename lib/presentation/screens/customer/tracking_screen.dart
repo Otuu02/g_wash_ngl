@@ -15,6 +15,7 @@ import '../../../services/app_notification_service.dart';
 import '../../../services/job_service.dart';
 import '../customer/rating_screen.dart';
 import 'payment_screen.dart';
+import '../../widgets/payment_safety_dialog.dart';
 
 class TrackingScreen extends StatefulWidget {
   final String jobId;
@@ -831,6 +832,17 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 ],
               ),
             ),
+          IconButton(
+            tooltip: 'Report Offline Payment Request',
+            icon: const Icon(Icons.shield_outlined, color: Colors.orange),
+            onPressed: () => ReportOfflinePaymentDialog.show(
+              context,
+              jobId: widget.jobId,
+              washerId: _washerId,
+              washerName: widget.washerName,
+              serviceName: widget.serviceName,
+            ),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -839,6 +851,62 @@ class _TrackingScreenState extends State<TrackingScreen> {
           padding: const EdgeInsets.only(bottom: 40),
           child: Column(
             children: [
+              // 🔒 G WASH IN-APP PAYMENT PROTECTION NOTICE BANNER
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock_outline, color: Color(0xFFB45309), size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'G Wash Payment Protection Active',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF92400E)),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Never pay cash or transfer directly to provider. Pay safely through G Wash.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF78350F)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => ReportOfflinePaymentDialog.show(
+                        context,
+                        jobId: widget.jobId,
+                        washerId: _washerId,
+                        washerName: widget.washerName,
+                        serviceName: widget.serviceName,
+                      ),
+                      child: Text(
+                        'Report',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade800,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               // ============================================================
               // MAP VIEW - Prominent Live Map with OpenStreetMap Real-Time Tiles
               // ============================================================

@@ -26,5 +26,18 @@ void main() {
       bool isValid = amount > 0 && jobId.isNotEmpty && userId.isNotEmpty;
       expect(isValid, isTrue);
     });
+
+    test('Validate 10% G Wash commission and 90% provider earnings calculation', () {
+      const double grossAmount = 10000.0;
+      const double platformCommissionRate = 0.10; // 10%
+      const double providerShareRate = 0.90;       // 90%
+
+      final double platformFee = grossAmount * platformCommissionRate;
+      final double providerShare = grossAmount * providerShareRate;
+
+      expect(platformFee, equals(1000.0));
+      expect(providerShare, equals(9000.0));
+      expect(platformFee + providerShare, equals(grossAmount));
+    });
   });
 }

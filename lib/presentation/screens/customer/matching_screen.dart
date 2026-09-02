@@ -11,6 +11,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../services/job_service.dart';
 import '../../../services/auth_service.dart';
 import 'tracking_screen.dart';
+import '../../widgets/payment_safety_dialog.dart';
 
 class MatchingScreen extends StatefulWidget {
   final String? jobId;
@@ -782,23 +783,31 @@ class _MatchingScreenState extends State<MatchingScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
-                Navigator.pushReplacement(
+                // 🔒 Mandatory Payment & Safety Notice
+                final agreed = await PaymentSafetyDialog.show(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => TrackingScreen(
-                      jobId: jobId,
-                      washerName: providerName,
-                      pickupAddress: widget.location,
-                      pickupLocation: LatLng(widget.latitude ?? 6.5244, widget.longitude ?? 3.3792),
-                      serviceName: widget.serviceName,
-                      price: price,
-                      washerId: providerId,
-                      washerImage: providerImage,
-                    ),
-                  ),
+                  providerName: providerName,
                 );
+
+                if (agreed == true && mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TrackingScreen(
+                        jobId: jobId,
+                        washerName: providerName,
+                        pickupAddress: widget.location,
+                        pickupLocation: LatLng(widget.latitude ?? 6.5244, widget.longitude ?? 3.3792),
+                        serviceName: widget.serviceName,
+                        price: price,
+                        washerId: providerId,
+                        washerImage: providerImage,
+                      ),
+                    ),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,

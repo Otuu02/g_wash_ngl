@@ -304,7 +304,7 @@ class _WasherDashboardState extends State<WasherDashboard> {
         final price = (data['price'] ?? 0) as num;
         final washerShare = (data['providerShare'] != null && data['providerShare'] is num)
             ? (data['providerShare'] as num).round()
-            : (price * 0.95).round(); // 95% washer share
+            : (price * 0.90).round(); // 90% washer share
 
         final authService = Provider.of<AuthService>(context, listen: false);
         final currentUserId = authService.userId ?? '';

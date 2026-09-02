@@ -48,8 +48,8 @@ class AdminService {
           if (isCompleted && isPaid) {
             final price = (data['price'] ?? 0).toDouble();
             totalGrossRevenue += price;
-            totalPlatformRevenue += (price * 0.05); // 5% platform commission
-            totalWasherPayouts += (price * 0.95);   // 95% washer share
+            totalPlatformRevenue += (price * 0.10); // 10% platform commission
+            totalWasherPayouts += (price * 0.90);   // 90% washer share
           }
         }
       }
@@ -65,8 +65,8 @@ class AdminService {
         for (var doc in paymentsQuery.docs) {
           final data = doc.data();
           final gross = (data['amount'] ?? 0.0).toDouble();
-          final fee = (data['platformFee'] ?? (gross * 0.05)).toDouble();
-          final share = (data['providerShare'] ?? (gross * 0.95)).toDouble();
+          final fee = (data['platformFee'] ?? (gross * 0.10)).toDouble();
+          final share = (data['providerShare'] ?? (gross * 0.90)).toDouble();
 
           if (gross > 0 && totalGrossRevenue == 0) {
             totalGrossRevenue += gross;

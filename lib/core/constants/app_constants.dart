@@ -47,7 +47,7 @@ class AppConstants {
   static const int basicWashPrice = 3000;
   static const int interiorCleaningPrice = 5000;
   static const int fullDetailingPrice = 10000;
-  static const double platformCommission = 0.15;    // 15%
+  static const double platformCommission = 0.10;    // 10%
   static const int washerSubscriptionFee = 5000;    // Monthly fee
   
   // ==================== VALIDATION ====================

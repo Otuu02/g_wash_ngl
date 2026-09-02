@@ -176,10 +176,10 @@ class PaymentService {
         throw ArgumentError('Invalid payment parameters: amount, jobId, and userId must be valid.');
       }
 
-      // Calculate 5% Platform Fee & 95% Provider Share
+      // Calculate 10% Platform Fee & 90% Provider Share (Customer 100%, G Wash 10%, Provider 90%)
       final double grossAmount = amount.toDouble();
-      final double platformFee = grossAmount * 0.05; // 5% platform commission
-      final double providerShare = grossAmount * 0.95; // 95% goes to washer
+      final double platformFee = grossAmount * 0.10; // 10% platform commission
+      final double providerShare = grossAmount * 0.90; // 90% goes to washer
 
       final paymentRef = _firestore.collection('payments').doc();
       final paymentId = paymentRef.id;
@@ -278,8 +278,8 @@ class PaymentService {
       final price = (jobData['price'] ?? 0).toDouble();
 
       final double grossAmount = price;
-      final double platformFee = grossAmount * 0.05; // 5%
-      final double providerShare = grossAmount * 0.95; // 95%
+      final double platformFee = grossAmount * 0.10; // 10% platform commission
+      final double providerShare = grossAmount * 0.90; // 90% provider earnings
 
       if (paymentQuery.docs.isNotEmpty) {
         final paymentDoc = paymentQuery.docs.first;
@@ -692,14 +692,10 @@ class PaymentService {
           .collection('payments')
           .where('washerId', isEqualTo: washerId)
           .where('status', isEqualTo: 'completed')
-          .where('paymentDate', isGreaterThanOrEqualTo: startOfDay)
-          .where('paymentDate', isLessThan: endOfDay)
-          .get();
-
-      double total = 0;
+          .where('paymentDate', isGreat      double total = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.95);
+        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.90);
         total += (share as num).toDouble();
       }
 
@@ -715,7 +711,7 @@ class PaymentService {
         }).toList(),
       };
     } catch (e) {
-      debugPrint('âŒ Error getting daily earnings: $e');
+      debugPrint('❌ Error getting daily earnings: $e');
       return {
         'date': date,
         'total': 0,
@@ -726,7 +722,7 @@ class PaymentService {
   }
 
   // ============================================================
-  // GET MONTHLY EARNINGS (Washer - 95% Net Share)
+  // GET MONTHLY EARNINGS (Washer - 90% Net Share)
   // ============================================================
   Future<Map<String, dynamic>> getMonthlyEarnings(String washerId, int year, int month) async {
     try {
@@ -744,7 +740,7 @@ class PaymentService {
       double total = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.95);
+        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.90);
         total += (share as num).toDouble();
       }
 
@@ -761,7 +757,7 @@ class PaymentService {
         }).toList(),
       };
     } catch (e) {
-      debugPrint('âŒ Error getting monthly earnings: $e');
+      debugPrint('❌ Error getting monthly earnings: $e');
       return {
         'year': year,
         'month': month,
@@ -773,7 +769,7 @@ class PaymentService {
   }
 
   // ============================================================
-  // GET TOTAL EARNINGS (Washer - 95% Net Share)
+  // GET TOTAL EARNINGS (Washer - 90% Net Share)
   // ============================================================
   Future<double> getTotalEarnings(String washerId) async {
     try {
@@ -786,7 +782,9 @@ class PaymentService {
       double total = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
-        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.95);
+        final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.90);
+        total += (share as num).toDouble();
+      }= data['providerShare'] ?? ((data['amount'] ?? 0) * 0.95);
         total += (share as num).toDouble();
       }
 

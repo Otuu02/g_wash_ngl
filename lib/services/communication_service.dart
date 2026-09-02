@@ -545,8 +545,8 @@ The G-Wash NG Team
     double? providerShare,
   }) async {
     final customerMsg = 'Hello $customerName, your payment of NGN ${amount.toStringAsFixed(0)} for $serviceName was successful! Ref: $reference.';
-    final pShare = providerShare ?? (amount * 0.95);
-    final pFee = amount * 0.05;
+    final pShare = providerShare ?? (amount * 0.90);
+    final pFee = amount * 0.10;
 
     // Push Notification in Status Bar + Banner Popup
     _notificationService.notify(

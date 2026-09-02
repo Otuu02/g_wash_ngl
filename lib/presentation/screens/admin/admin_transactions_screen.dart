@@ -64,8 +64,8 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen>
           for (var doc in docs) {
             final data = doc.data() as Map<String, dynamic>;
             final gross = (data['amount'] ?? 0.0).toDouble();
-            final fee = (data['platformFee'] ?? (gross * 0.05)).toDouble();
-            final share = (data['providerShare'] ?? (gross * 0.95)).toDouble();
+            final fee = (data['platformFee'] ?? (gross * 0.10)).toDouble();
+            final share = (data['providerShare'] ?? (gross * 0.90)).toDouble();
 
             totalGrossVolume += gross;
             totalPlatformRevenue += fee;
@@ -80,11 +80,11 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen>
                 color: AppColors.primary.withOpacity(0.06),
                 child: Row(
                   children: [
-                    _buildFinancialKPI('5% Platform Revenue', totalPlatformRevenue, Colors.orange, Icons.pie_chart),
+                    _buildFinancialKPI('10% Platform Fee', totalPlatformRevenue, Colors.orange, Icons.pie_chart),
                     const SizedBox(width: 8),
                     _buildFinancialKPI('Gross Volume', totalGrossVolume, Colors.blue, Icons.payments),
                     const SizedBox(width: 8),
-                    _buildFinancialKPI('Washer 95% Share', totalWasherPayouts, Colors.green, Icons.account_balance_wallet),
+                    _buildFinancialKPI('Washer 90% Share', totalWasherPayouts, Colors.green, Icons.account_balance_wallet),
                   ],
                 ),
               ),
@@ -175,8 +175,8 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen>
           itemBuilder: (context, index) {
             final data = docs[index].data() as Map<String, dynamic>;
             final gross = (data['amount'] ?? 0.0).toDouble();
-            final fee = (data['platformFee'] ?? (gross * 0.05)).toDouble();
-            final net = (data['providerShare'] ?? (gross * 0.95)).toDouble();
+            final fee = (data['platformFee'] ?? (gross * 0.10)).toDouble();
+            final net = (data['providerShare'] ?? (gross * 0.90)).toDouble();
             final customerName = data['userName'] ?? 'Customer';
             final serviceName = data['serviceName'] ?? 'Service';
             final method = data['paymentMethod'] ?? 'Paystack';
