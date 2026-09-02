@@ -56,3 +56,11 @@ else
   echo "❌ Build failed — build/web directory not found!"
   exit 1
 fi
+
+# ─── Copy Flutter Web Build → public/app/ ────────────────────────────────────
+# This makes the Flutter app available at /app/ on Vercel alongside the landing page.
+echo "📂 Copying Flutter web build to public/app/..."
+mkdir -p public/app
+cp -r build/web/. public/app/
+echo "✅ public/app/ ready:"
+ls -la public/app/
