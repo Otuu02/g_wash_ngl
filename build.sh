@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e  # Exit immediately on any error
 
+git config --global --add safe.directory "*" || true
+
 echo "🚀 Starting G-Wash NG Vercel build..."
 
 # ─── Install Flutter ─────────────────────────────────────────────────────────

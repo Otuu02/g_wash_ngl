@@ -784,8 +784,6 @@ class PaymentService {
         final data = doc.data();
         final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.90);
         total += (share as num).toDouble();
-      }= data['providerShare'] ?? ((data['amount'] ?? 0) * 0.95);
-        total += (share as num).toDouble();
       }
 
       return total;

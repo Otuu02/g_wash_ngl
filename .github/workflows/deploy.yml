@@ -28,6 +28,8 @@ jobs:
           flutter config --enable-web
           flutter pub get
           flutter build web --release --no-tree-shake-icons
+          mkdir -p public/app
+          cp -r build/web/. public/app/
 
 
       - name: Deploy to Vercel
