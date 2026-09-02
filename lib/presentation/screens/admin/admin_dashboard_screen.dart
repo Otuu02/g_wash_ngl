@@ -711,7 +711,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
   }
 
-  Future<void> _deleteUser(String userId) async {
+  bool _isAdminUser(Map<String, dynamic> user) {
+    final role = (user['role'] ?? '').toString().toLowerCase();
+    final email = (user['email'] ?? '').toString().toLowerCase();
+    return role == 'admin' || email.contains('gwashng@gmail.com');
+  }
+
+  Future<void> _deleteUser(String userId, Map<String, dynamic> user) async {
+    // 🔒 Protect the admin account — cannot be deleted
+    if (_isAdminUser(user)) {
+      _showSnackBar('The G Wash Admin account cannot be deleted.', isError: true);
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -823,7 +835,23 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         ),
         title: Text(user['name'] ?? 'Unknown'),
         subtitle: Text(user['phone'] ?? 'No phone'),
-        trailing: Row(
+        trailing: _isAdminUser(user)
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1565C0),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.shield, color: Colors.white, size: 14),
+                    SizedBox(width: 4),
+                    Text('Protected', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              )
+            : Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
@@ -849,7 +877,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-              onPressed: () => _deleteUser(user['id']),
+              onPressed: () => _deleteUser(user['id'], user),
               tooltip: 'Delete User',
             ),
           ],
