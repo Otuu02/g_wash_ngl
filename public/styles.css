@@ -1898,6 +1898,27 @@ button {
   text-align: center;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
   width: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qr-code-wrapper {
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--grey-200);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-code-img {
+  width: 160px;
+  height: 160px;
+  object-fit: contain;
+  display: block;
 }
 
 .qr-code-placeholder {
