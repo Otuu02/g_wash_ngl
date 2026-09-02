@@ -98,10 +98,6 @@ void main() async {
   }
   
   // Run background initialization asynchronously so the UI renders immediately
-  authService.migrateLocalUsersToFirestore().catchError((e) {
-    if (kDebugMode) debugPrint('❌ User migration failed: $e');
-  });
-  
   notificationService.loadSavedNotifications().catchError((e) {
     if (kDebugMode) debugPrint('❌ Notification load failed: $e');
   });

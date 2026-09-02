@@ -1015,10 +1015,10 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> refreshUserData() async {
-    debugPrint('ðŸ”„ Refreshing user data from Firestore...');
+    debugPrint('🔄 Refreshing user data from Firestore...');
     
     if (!_isLoggedIn || _userId == null) {
-      debugPrint('âŒ Cannot refresh: user not logged in');
+      debugPrint('❌ Cannot refresh: user not logged in');
       return;
     }
     
@@ -1027,52 +1027,19 @@ class AuthService extends ChangeNotifier {
       await _checkIfWasher(_userId!);
       await _saveUserState();
       notifyListeners();
-      debugPrint('âœ… User data refreshed: $_userName (role: $_userRole)');
+      debugPrint('✅ User data refreshed: $_userName (role: $_userRole)');
     } catch (e) {
-      debugPrint('âŒ Error refreshing user data: $e');
+      debugPrint('❌ Error refreshing user data: $e');
     }
   }
 
   // ============================================================
-  // Migrate local users to Firestore
+  // Migrate local users to Firestore (Deprecated / Guarded)
   // ============================================================
   Future<void> migrateLocalUsersToFirestore() async {
-    int successCount = 0;
-    int failCount = 0;
-    
-    await _loadSavedUser();
-    
-    for (var entry in _registeredUsers.entries) {
-      final phone = entry.key;
-      final userData = entry.value;
-      
-      try {
-        final existing = await FirebaseFirestore.instance
-            .collection('users')
-            .where('phone', isEqualTo: phone)
-            .limit(1)
-            .get();
-        
-        if (existing.docs.isEmpty) {
-          final docRef = await FirebaseFirestore.instance.collection('users').add({
-            'name': userData['name'] ?? 'Unknown',
-            'phone': phone,
-            'role': userData['role'] ?? 'customer',
-            'isBlocked': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-          successCount++;
-          debugPrint('âœ… Migrated user: ${userData['name']} (ID: ${docRef.id})');
-        } else {
-          debugPrint('â­ï¸ User already exists: ${userData['name']}');
-        }
-      } catch (e) {
-        failCount++;
-        debugPrint('âŒ Failed to migrate user: $e');
-      }
-    }
-    
-    debugPrint('âœ… Migration complete: $successCount added, $failCount failed');
+    // 🔒 Single source of truth is Firestore.
+    // Automatic local migration is disabled to prevent re-creation of deleted accounts.
+    debugPrint('🔒 Local user migration is disabled.');
   }
 
   // ==================== SERVICE PROVIDER METHODS ====================

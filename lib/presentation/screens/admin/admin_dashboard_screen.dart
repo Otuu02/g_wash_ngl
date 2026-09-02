@@ -714,13 +714,24 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   bool _isAdminUser(Map<String, dynamic> user) {
     final role = (user['role'] ?? '').toString().toLowerCase();
     final email = (user['email'] ?? '').toString().toLowerCase();
-    return role == 'admin' || email.contains('gwashng@gmail.com');
+    final name = (user['name'] ?? '').toString().toLowerCase();
+    final phone = (user['phone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+    final id = (user['id'] ?? '').toString().toLowerCase();
+
+    return role.contains('admin') ||
+        name.contains('admin') ||
+        name.contains('g-wash') ||
+        email.contains('admin') ||
+        email.contains('gwashng') ||
+        phone.contains('8679267153') ||
+        phone.contains('7065584504') ||
+        id.contains('admin');
   }
 
   Future<void> _deleteUser(String userId, Map<String, dynamic> user) async {
     // 🔒 Protect the admin account — cannot be deleted
     if (_isAdminUser(user)) {
-      _showSnackBar('The G Wash Admin account cannot be deleted.', isError: true);
+      _showSnackBar('The G Wash Admin account is protected and cannot be deleted.', isError: true);
       return;
     }
 
@@ -962,7 +973,29 @@ class _AdminWashersScreenState extends State<AdminWashersScreen> {
     }
   }
 
-  Future<void> _deleteWasher(String washerId) async {
+  bool _isAdminWasher(Map<String, dynamic> washer) {
+    final role = (washer['role'] ?? '').toString().toLowerCase();
+    final email = (washer['email'] ?? '').toString().toLowerCase();
+    final name = (washer['name'] ?? '').toString().toLowerCase();
+    final phone = (washer['phone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+    final id = (washer['id'] ?? '').toString().toLowerCase();
+
+    return role.contains('admin') ||
+        name.contains('admin') ||
+        name.contains('g-wash') ||
+        email.contains('admin') ||
+        email.contains('gwashng') ||
+        phone.contains('8679267153') ||
+        phone.contains('7065584504') ||
+        id.contains('admin');
+  }
+
+  Future<void> _deleteWasher(String washerId, [Map<String, dynamic>? washer]) async {
+    if (washer != null && _isAdminWasher(washer)) {
+      _showSnackBar('Admin records are protected and cannot be deleted.', isError: true);
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1197,11 +1230,28 @@ class _AdminWashersScreenState extends State<AdminWashersScreen> {
                   onPressed: () => _editWasher(washer),
                   tooltip: 'Edit Washer',
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                  onPressed: () => _deleteWasher(washer['id']),
-                  tooltip: 'Delete Washer',
-                ),
+                if (_isAdminWasher(washer))
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1565C0),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.shield, color: Colors.white, size: 12),
+                        SizedBox(width: 4),
+                        Text('Protected', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  )
+                else
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                    onPressed: () => _deleteWasher(washer['id'], washer),
+                    tooltip: 'Delete Washer',
+                  ),
               ],
             ),
             const SizedBox(height: 8),

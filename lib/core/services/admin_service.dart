@@ -191,14 +191,44 @@ class AdminService {
   }
 
   // ============================================================
-  // DELETE USER - FIXED
+  // DELETE USER - FIXED & PROTECTED
   // ============================================================
   Future<void> deleteUser(String userId) async {
     try {
+      // 🔒 GUARD: Prevent deleting protected admin account
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        final data = userDoc.data() ?? {};
+        final role = (data['role'] ?? '').toString().toLowerCase();
+        final email = (data['email'] ?? '').toString().toLowerCase();
+        final name = (data['name'] ?? '').toString().toLowerCase();
+        final phone = (data['phone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+        
+        if (role.contains('admin') ||
+            name.contains('admin') ||
+            name.contains('g-wash') ||
+            email.contains('admin') ||
+            email.contains('gwashng') ||
+            phone.contains('8679267153') ||
+            phone.contains('7065584504') ||
+            userId.toLowerCase().contains('admin')) {
+          throw Exception('The G Wash Admin account is protected and cannot be deleted.');
+        }
+      }
+
       // 1. Delete user document from Firestore
       await _firestore.collection('users').doc(userId).delete();
       
-      // 2. Delete any related jobs
+      // 2. Cascade delete from washers collection if matching
+      try {
+        final washerQuery = await _firestore.collection('washers').where('userId', isEqualTo: userId).get();
+        for (var w in washerQuery.docs) {
+          await w.reference.delete();
+        }
+        await _firestore.collection('washers').doc(userId).delete();
+      } catch (_) {}
+
+      // 3. Delete any related jobs
       final jobs = await _firestore
           .collection('jobs')
           .where('customerId', isEqualTo: userId)
@@ -208,7 +238,7 @@ class AdminService {
         await job.reference.delete();
       }
       
-      // 3. Delete user from Firebase Auth (if exists)
+      // 4. Delete user from Firebase Auth (if exists)
       try {
         final user = _auth.currentUser;
         if (user != null && user.uid == userId) {
@@ -218,7 +248,7 @@ class AdminService {
         debugPrint('⚠️ Could not delete user from Auth: $e');
       }
       
-      debugPrint('✅ User $userId deleted successfully');
+      debugPrint('✅ User $userId deleted permanently');
     } catch (e) {
       debugPrint('❌ Error deleting user: $e');
       rethrow;
