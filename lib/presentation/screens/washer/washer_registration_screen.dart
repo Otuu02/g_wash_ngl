@@ -376,17 +376,36 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         return;
       }
 
-      // Build selected services data
+      // Build selected services data & provider custom prices
       List<String> selectedMainCategories = _selectedMainCategories;
       Map<String, List<String>> selectedSubServices = _selectedSubServices;
       Map<String, String> subServicePrices = {};
+      Map<String, int> servicePrices = {};
+      int? primaryPrice;
       
       for (var entry in selectedSubServices.entries) {
         final mainCategoryId = entry.key;
+        final subList = _getSubServices(mainCategoryId);
         for (var subId in entry.value) {
           final key = '${mainCategoryId}_$subId';
-          final price = _servicePriceControllers[key]?.text.trim() ?? '0';
-          subServicePrices[key] = price;
+          final priceStr = _servicePriceControllers[key]?.text.trim() ?? '0';
+          final priceInt = int.tryParse(priceStr) ?? 0;
+          
+          subServicePrices[key] = priceStr;
+          subServicePrices[subId] = priceStr;
+          
+          final subObj = subList.firstWhere(
+            (s) => s['id'] == subId,
+            orElse: () => {'name': subId},
+          );
+          final displayName = (subObj['name'] ?? subId).toString();
+          
+          if (priceInt > 0) {
+            primaryPrice ??= priceInt;
+            servicePrices[displayName] = priceInt;
+            servicePrices[subId] = priceInt;
+            servicePrices[key] = priceInt;
+          }
         }
       }
 
@@ -443,6 +462,9 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'mainCategoryNames': mainCategoryNames,
         'selectedSubServices': selectedSubServices,
         'subServicePrices': subServicePrices,
+        'servicePrices': servicePrices,
+        'price': primaryPrice ?? 0,
+        'customPrice': primaryPrice ?? 0,
         'vehicleType': _selectedVehicleType ?? 'None / Walking',
         'workingRadius': _workingRadius.toInt(),
         'bankName': _selectedBank ?? '',
@@ -451,7 +473,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'isVerified': false,
         'isOnline': true,
         'approved': true,
-        'rating': 0.0,
+        'rating': 5.0,
         'totalJobs': 0,
         'totalEarnings': 0,
         'pendingJobs': 0,
@@ -471,6 +493,10 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         'washerId': washerRef.id,
         'mainCategories': selectedMainCategories,
         'subServices': selectedSubServices,
+        'subServicePrices': subServicePrices,
+        'servicePrices': servicePrices,
+        'price': primaryPrice ?? 0,
+        'customPrice': primaryPrice ?? 0,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
@@ -816,19 +842,21 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
                                             const Spacer(),
                                             if (isSelected)
                                               SizedBox(
-                                                width: 80,
+                                                width: 105,
                                                 child: TextFormField(
                                                   controller: priceController,
                                                   keyboardType: TextInputType.number,
                                                   decoration: const InputDecoration(
                                                     prefixText: '₦',
                                                     border: OutlineInputBorder(),
-                                                    contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                                     isDense: true,
-                                                    hintText: 'Price',
+                                                    labelText: 'Your Price',
+                                                    labelStyle: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold),
+                                                    hintText: 'e.g 3500',
                                                     hintStyle: TextStyle(fontSize: 10),
                                                   ),
-                                                  style: const TextStyle(fontSize: 12),
+                                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
                                                 ),
                                               ),
                                           ],
