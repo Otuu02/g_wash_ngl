@@ -12,12 +12,6 @@ class AdminService {
   // ============================================================
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
-      // Auto-purge old unverified test jobs & test data from Firestore if present
-      final testJobsCheck = await _firestore.collection('jobs').get();
-      if (testJobsCheck.docs.any((j) => j.data()['paystackVerified'] != true)) {
-        await clearTestRevenueData();
-      }
-
       final users = await _firestore.collection('users').get();
       final washers = await _firestore.collection('washers').get();
       final jobs = await _firestore.collection('jobs').get();
@@ -136,13 +130,26 @@ class AdminService {
         await doc.reference.delete();
       }
 
-      // 5. Delete non-admin users from 'users' collection (Keep master admin)
+      // 5. Delete non-admin users from 'users' collection (Keep master admin safe)
       final users = await _firestore.collection('users').get();
       for (var doc in users.docs) {
         final data = doc.data();
-        final role = (data['role'] ?? '').toString();
-        // 🔒 SECURITY: Admin protection based on Firestore 'role' field only — no hardcoded phone numbers
-        if (role != 'admin') {
+        final role = (data['role'] ?? '').toString().toLowerCase();
+        final email = (data['email'] ?? '').toString().toLowerCase();
+        final name = (data['name'] ?? '').toString().toLowerCase();
+        final phone = (data['phone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+        final docId = doc.id.toLowerCase();
+
+        final isAdmin = role.contains('admin') ||
+            name.contains('admin') ||
+            name.contains('g-wash') ||
+            email.contains('admin') ||
+            email.contains('gwashng') ||
+            phone.contains('8679267153') ||
+            phone.contains('7065584504') ||
+            docId.contains('admin');
+
+        if (!isAdmin) {
           await doc.reference.delete();
         }
       }
