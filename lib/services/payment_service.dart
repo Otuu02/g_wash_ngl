@@ -681,7 +681,7 @@ class PaymentService {
 
   // ============================================================
   // ============================================================
-  // GET DAILY EARNINGS (Washer - 95% Net Share)
+  // GET DAILY EARNINGS (Washer - 90% Net Share)
   // ============================================================
   Future<Map<String, dynamic>> getDailyEarnings(String washerId, DateTime date) async {
     try {
@@ -692,7 +692,11 @@ class PaymentService {
           .collection('payments')
           .where('washerId', isEqualTo: washerId)
           .where('status', isEqualTo: 'completed')
-          .where('paymentDate', isGreat      double total = 0;
+          .where('paymentDate', isGreaterThanOrEqualTo: startOfDay)
+          .where('paymentDate', isLessThan: endOfDay)
+          .get();
+
+      double total = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data();
         final share = data['providerShare'] ?? ((data['amount'] ?? 0) * 0.90);
