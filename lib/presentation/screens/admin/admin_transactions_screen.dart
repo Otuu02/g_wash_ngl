@@ -45,7 +45,7 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: const [
-            Tab(text: 'Payment Logs (5% Fee Split)'),
+            Tab(text: 'Payment Logs (10% Fee Split)'),
             Tab(text: 'Washer Payout Requests'),
           ],
         ),
@@ -235,13 +235,13 @@ class _AdminTransactionsScreenState extends State<AdminTransactionsScreen>
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          'Fee (5%): ₦${NumberFormat('#,###').format(fee.toInt())}',
+                          'Fee (10%): ₦${NumberFormat('#,###').format(fee.toInt())}',
                           style: const TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold),
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Washer (95%): ₦${NumberFormat('#,###').format(net.toInt())}',
+                        'Washer (90%): ₦${NumberFormat('#,###').format(net.toInt())}',
                         style: const TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
                       ),
                     ],

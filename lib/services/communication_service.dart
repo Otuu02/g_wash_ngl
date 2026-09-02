@@ -606,7 +606,7 @@ The G-Wash NG Team
       await sendRealEmail(
         email: providerEmail,
         subject: '💰 Payment Received Notice - G Wash NG',
-        body: 'Hello ${providerName ?? 'Provider'},\n\nPayment confirmed for $serviceName.\nCustomer: $customerName\nTotal: NGN ${amount.toStringAsFixed(0)}\nYour Share (95% Net): NGN ${pShare.toStringAsFixed(0)}\n\nThank you for providing great service on G Wash NG!',
+        body: 'Hello ${providerName ?? 'Provider'},\n\nPayment confirmed for $serviceName.\nCustomer: $customerName\nTotal: NGN ${amount.toStringAsFixed(0)}\nYour Share (90% Net): NGN ${pShare.toStringAsFixed(0)}\n\nThank you for providing great service on G Wash NG!',
         htmlBody: generateProviderPaymentReceivedHtml(
           providerName: providerName ?? 'Provider',
           customerName: customerName,
@@ -720,11 +720,11 @@ The G-Wash NG Team
                 <td style="padding: 4px 0; text-align: right; font-weight: bold;">NGN ${amount.toStringAsFixed(2)}</td>
               </tr>
               <tr>
-                <td style="padding: 4px 0; color: #64748b;">Provider Net Earnings (95%)</td>
+                <td style="padding: 4px 0; color: #64748b;">Provider Net Earnings (90%)</td>
                 <td style="padding: 4px 0; text-align: right; color: #16a34a; font-weight: bold;">NGN ${providerShare.toStringAsFixed(2)}</td>
               </tr>
               <tr>
-                <td style="padding: 4px 0; color: #64748b;">G Wash Platform Fee (5%)</td>
+                <td style="padding: 4px 0; color: #64748b;">G Wash Platform Fee (10%)</td>
                 <td style="padding: 4px 0; text-align: right; color: #ea580c; font-weight: bold;">NGN ${platformFee.toStringAsFixed(2)}</td>
               </tr>
             </table>
@@ -1333,14 +1333,14 @@ The G-Wash NG Team
       
       <div class="card">
         <div style="text-align: center; margin-bottom: 15px;">
-          <span style="font-size: 12px; color: #166534; font-weight: bold; text-transform: uppercase;">Net Earnings Credited (95%)</span>
+          <span style="font-size: 12px; color: #166534; font-weight: bold; text-transform: uppercase;">Net Earnings Credited (90%)</span>
           <h2 style="margin: 4px 0 0 0; font-size: 28px; color: #15803d; font-weight: bold;">NGN ${providerShare.toStringAsFixed(2)}</h2>
         </div>
         <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
           <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Transaction Ref</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$reference</td></tr>
           <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Customer Name</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">$customerName</td></tr>
           <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">Gross Job Value</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0f172a;">NGN ${grossAmount.toStringAsFixed(2)}</td></tr>
-          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">G-Wash Platform Fee (5%)</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #ea580c;">NGN ${platformFee.toStringAsFixed(2)}</td></tr>
+          <tr style="border-bottom: 1px dashed #cbd5e1;"><td style="padding: 8px 0; color: #475569;">G-Wash Platform Fee (10%)</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #ea580c;">NGN ${platformFee.toStringAsFixed(2)}</td></tr>
           <tr><td style="padding: 8px 0; color: #475569;">Wallet Status</td><td style="padding: 8px 0; text-align: right; font-weight: bold; color: #16a34a;">CREDITED & AVAILABLE</td></tr>
         </table>
       </div>

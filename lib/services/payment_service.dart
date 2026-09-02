@@ -157,7 +157,7 @@ class PaymentService {
   }
 
   // ============================================================
-  // PROCESS PAYMENT - WITH PAYSTACK 5% PLATFORM FEE SPLIT (95% TO WASHER)
+  // PROCESS PAYMENT - WITH PAYSTACK 10% PLATFORM FEE SPLIT (90% TO WASHER)
   // ============================================================
   Future<Map<String, dynamic>> processPayment({
     required String jobId,
@@ -171,7 +171,7 @@ class PaymentService {
     String? paystackTransactionRef,
   }) async {
     try {
-      // ðŸ”’ SECURITY GUARD: Validate inputs
+      // 🔒 SECURITY GUARD: Validate inputs
       if (amount <= 0 || jobId.isEmpty || userId.isEmpty) {
         throw ArgumentError('Invalid payment parameters: amount, jobId, and userId must be valid.');
       }
@@ -199,8 +199,8 @@ class PaymentService {
         'washerId': washerId,
         'serviceName': serviceName,
         'amount': grossAmount,
-        'platformFee': platformFee, // 5%
-        'providerShare': providerShare, // 95%
+        'platformFee': platformFee, // 10%
+        'providerShare': providerShare, // 90%
         'location': location,
         'paymentMethod': paymentMethod,
         'gateway': 'paystack',
@@ -298,7 +298,7 @@ class PaymentService {
         });
       }
 
-      // Credit Washer Account Balance (95% share)
+      // Credit Washer Account Balance (90% share)
       if (washerId != null && washerId.toString().isNotEmpty) {
         final washerRef = _firestore.collection('washers').doc(washerId);
         await washerRef.set({

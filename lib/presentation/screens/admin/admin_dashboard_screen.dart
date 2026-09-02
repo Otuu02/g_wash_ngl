@@ -35,7 +35,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final AdminService _adminService = AdminService();
   
   // Settings Controllers
-  final TextEditingController _commissionController = TextEditingController(text: '5');
+  final TextEditingController _commissionController = TextEditingController(text: '10');
   final TextEditingController _radiusController = TextEditingController(text: '15');
   final TextEditingController _subscriptionPriceController = TextEditingController(text: '5000');
   final TextEditingController _minWithdrawalController = TextEditingController(text: '10000');
@@ -498,8 +498,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             mainAxisSpacing: 12,
             childAspectRatio: 1.3,
             children: [
-              _buildStatCard('Admin 5% Revenue', '₦${NumberFormat('#,###').format(_totalPlatformRevenue)}', Icons.pie_chart, Colors.purple),
-              _buildStatCard('Washer 95% Share', '₦${NumberFormat('#,###').format(_totalWasherPayouts)}', Icons.savings, Colors.teal),
+              _buildStatCard('Admin 10% Revenue', '₦${NumberFormat('#,###').format(_totalPlatformRevenue)}', Icons.pie_chart, Colors.purple),
+              _buildStatCard('Washer 90% Share', '₦${NumberFormat('#,###').format(_totalWasherPayouts)}', Icons.savings, Colors.teal),
               _buildStatCard('Gross Volume', '₦${NumberFormat('#,###').format(_totalRevenue)}', Icons.payments, Colors.indigo),
               _buildStatCard('Total Users', _totalUsers.toString(), Icons.people, Colors.blue),
               _buildStatCard('Total Washers', _totalWashers.toString(), Icons.emoji_transportation, Colors.green),

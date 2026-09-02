@@ -320,7 +320,7 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
     '🔒 How Escrow Works',
     '📸 Photo Proof Policy',
     '🚚 Track My Washer',
-    '💵 Washer Earnings (95%)',
+    '💵 Washer Earnings (90%)',
     '📞 Speak to Human Agent',
   ];
 
@@ -346,7 +346,7 @@ class _LiveChatBottomSheetState extends State<LiveChatBottomSheet> {
       return '📞 Connecting you to a live support agent... You can also call us directly at 07065584504 or email giftotuuobinna1995@gmail.com.';
     }
 
-    return '🤖 I am here to help! You can ask me about Escrow payments, real-time tracking, washer payouts (95%), or photo proof policies.';
+    return '🤖 I am here to help! You can ask me about Escrow payments, real-time tracking, washer payouts (90%), or photo proof policies.';
   }
 
   void _sendMessage({String? customText}) {

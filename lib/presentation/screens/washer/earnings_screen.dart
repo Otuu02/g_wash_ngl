@@ -352,7 +352,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                   child: Column(
                     children: [
                       const Text(
-                        'Available Balance (95% Net Share)',
+                        'Available Balance (90% Net Share)',
                         style: TextStyle(color: Colors.white70, fontSize: 13),
                       ),
                       const SizedBox(height: 8),
@@ -450,7 +450,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Financial Breakdown Stats (Net Share vs 5% Commission)
+                // Financial Breakdown Stats (Net Share vs 10% Commission)
                 Row(
                   children: [
                     Expanded(
@@ -548,7 +548,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Recent Washer Earnings (95% Share)',
+                    'Recent Washer Earnings (90% Share)',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -614,7 +614,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                                   children: [
                                     Text(service, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                                     const SizedBox(height: 2),
-                                    Text('Gross: ₦${NumberFormat('#,###').format(gross.toInt())} (5% Fee: ₦${NumberFormat('#,###').format(fee.toInt())})',
+                                    Text('Gross: ₦${NumberFormat('#,###').format(gross.toInt())} (10% Fee: ₦${NumberFormat('#,###').format(fee.toInt())})',
                                         style: const TextStyle(fontSize: 11, color: Colors.grey)),
                                   ],
                                 ),
