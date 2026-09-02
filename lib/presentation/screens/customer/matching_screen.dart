@@ -374,14 +374,20 @@ class _MatchingScreenState extends State<MatchingScreen> {
         final parsed = int.tryParse(valStr);
         if (parsed != null && parsed > 0) return parsed;
       }
-      final sNameLower = serviceName.trim().toLowerCase().replaceAll(' ', '_');
+      final sNameClean = serviceName.trim().toLowerCase().replaceAll(RegExp(r'[\s_]+'), '');
       for (var entry in subPrices.entries) {
-        final keyLower = entry.key.toString().trim().toLowerCase();
-        if (keyLower == sNameLower || keyLower.endsWith(sNameLower) || keyLower.contains(sNameLower) || sNameLower.contains(keyLower)) {
+        final keyClean = entry.key.toString().trim().toLowerCase().replaceAll(RegExp(r'[\s_]+'), '');
+        if (keyClean == sNameClean || keyClean.contains(sNameClean) || sNameClean.contains(keyClean)) {
           final valStr = entry.value.toString().replaceAll(RegExp(r'[^0-9]'), '');
           final parsed = int.tryParse(valStr);
           if (parsed != null && parsed > 0) return parsed;
         }
+      }
+      // If there is only one price set by provider, use that
+      if (subPrices.length == 1) {
+        final valStr = subPrices.values.first.toString().replaceAll(RegExp(r'[^0-9]'), '');
+        final parsed = int.tryParse(valStr);
+        if (parsed != null && parsed > 0) return parsed;
       }
     }
     if (data['customPrice'] != null && data['customPrice'] is num && (data['customPrice'] as num) > 0) {

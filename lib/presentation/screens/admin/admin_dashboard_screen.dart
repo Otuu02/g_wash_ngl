@@ -43,30 +43,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final TextEditingController _bookingFeeController = TextEditingController(text: '100');
   final TextEditingController _cancellationFeeController = TextEditingController(text: '500');
   
-  // Service Prices
-  final Map<String, TextEditingController> _servicePriceControllers = {};
-  
   @override
   void initState() {
     super.initState();
     _loadDashboardData();
     _loadSettings();
-    _initServicePriceControllers();
-  }
-  
-  void _initServicePriceControllers() {
-    _servicePriceControllers['Exterior Wash'] = TextEditingController(text: '3000');
-    _servicePriceControllers['Interior Cleaning'] = TextEditingController(text: '5000');
-    _servicePriceControllers['Full Detailing'] = TextEditingController(text: '10000');
-    _servicePriceControllers['Engine Wash'] = TextEditingController(text: '7000');
-    _servicePriceControllers['Standard Cleaning'] = TextEditingController(text: '15000');
-    _servicePriceControllers['Deep Cleaning'] = TextEditingController(text: '25000');
-    _servicePriceControllers['Move In/Out'] = TextEditingController(text: '35000');
-    _servicePriceControllers['Office Cleaning'] = TextEditingController(text: '20000');
-    _servicePriceControllers['Wash & Fold'] = TextEditingController(text: '2000');
-    _servicePriceControllers['Wash & Iron'] = TextEditingController(text: '3500');
-    _servicePriceControllers['Dry Cleaning'] = TextEditingController(text: '5000');
-    _servicePriceControllers['Ironing Only'] = TextEditingController(text: '1500');
   }
   
   Future<void> _loadDashboardData() async {
@@ -103,14 +84,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _maxDistanceController.text = settings['maxDistance']?.toString() ?? '20';
         _bookingFeeController.text = settings['bookingFee']?.toString() ?? '100';
         _cancellationFeeController.text = settings['cancellationFee']?.toString() ?? '500';
-        
-        // Load service prices
-        final servicePrices = settings['servicePrices'] ?? {};
-        for (var entry in servicePrices.entries) {
-          if (_servicePriceControllers.containsKey(entry.key)) {
-            _servicePriceControllers[entry.key]?.text = entry.value.toString();
-          }
-        }
       }
     } catch (e) {
       // Silently fail - settings will use defaults
@@ -255,28 +228,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                       const SizedBox(height: 20),
                       
-                      // ==================== SERVICE PRICES ====================
+                      // ==================== PRICING ARCHITECTURE ====================
                       const Text(
-                        'Service Prices',
+                        'Service Pricing Architecture',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Update service prices across the platform',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 12),
-                      ..._servicePriceControllers.entries.map((entry) => 
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _buildSettingsTextField(
-                            controller: entry.value,
-                            label: entry.key,
-                            icon: Icons.price_change,
-                            helperText: 'Price in Naira (₦)',
-                          ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.2)),
                         ),
-                      ).toList(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.verified_user, color: AppColors.primary, size: 18),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Provider Custom Pricing Model',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Service providers set their own custom prices directly during onboarding and within their profile dashboard. The exact prices set by each provider are displayed live to clients when selecting a nearby professional.',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       
                       // ==================== SAVE BUTTONS ====================
@@ -333,15 +318,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   
   Future<void> _saveAllSettings() async {
     try {
-      // Collect all service prices
-      final Map<String, int> servicePrices = {};
-      for (var entry in _servicePriceControllers.entries) {
-        final price = int.tryParse(entry.value.text) ?? 0;
-        if (price > 0) {
-          servicePrices[entry.key] = price;
-        }
-      }
-      
       await _adminService.updateSettings({
         'commissionRate': double.tryParse(_commissionController.text) ?? 10.0,
         'radiusLimit': double.tryParse(_radiusController.text) ?? 15.0,
@@ -350,7 +326,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'maxDistance': double.tryParse(_maxDistanceController.text) ?? 20.0,
         'bookingFee': int.tryParse(_bookingFeeController.text) ?? 100,
         'cancellationFee': int.tryParse(_cancellationFeeController.text) ?? 500,
-        'servicePrices': servicePrices,
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
