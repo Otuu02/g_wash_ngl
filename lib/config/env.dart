@@ -113,6 +113,12 @@ class Env {
     return val.isNotEmpty ? val : 'xonspumasgtmnlqx';
   }
 
+  // Admin Notification Email
+  static String get adminEmail {
+    const val = String.fromEnvironment('ADMIN_EMAIL');
+    return val.isNotEmpty ? val : 'gwashng@gmail.com';
+  }
+
   static String get smtpHost {
     const val = String.fromEnvironment('SMTP_HOST');
     return val.isNotEmpty ? val : 'smtp.gmail.com';

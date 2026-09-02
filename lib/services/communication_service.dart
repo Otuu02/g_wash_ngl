@@ -162,7 +162,24 @@ class CommunicationService {
       );
     }
 
-    // 4. Update Job Document with Communication Flag
+    // 4. Send Instant Alert Email to Admin Console
+    await sendAdminNotificationEmail(
+      subject: 'New Booking: $serviceName (NGN $price) - #$jobId',
+      title: 'New Service Booking Placed',
+      message: 'A new service booking was submitted and registered in the system.',
+      details: {
+        'Booking ID': '#$jobId',
+        'Service': serviceName,
+        'Price': 'NGN ${price.toStringAsFixed(0)}',
+        'Customer Name': customerName,
+        'Customer Phone': customerPhone,
+        'Customer Email': customerEmail.isNotEmpty ? customerEmail : 'Not provided',
+        'Location': location,
+        'Assigned Provider': providerName ?? 'Matching nearby providers',
+      },
+    );
+
+    // 5. Update Job Document with Communication Flag
     await _firestore.collection('jobs').doc(jobId).update({
       'communicationSent': true,
       'smsSent': true,
@@ -601,6 +618,24 @@ The G-Wash NG Team
       );
     }
 
+    // Admin Instant Payment Alert
+    await sendAdminNotificationEmail(
+      subject: 'Payment Received: NGN ${amount.toStringAsFixed(0)} (Ref: $reference)',
+      title: 'Paystack Payment Confirmed',
+      message: 'A payment was completed and settled through Paystack escrow.',
+      details: {
+        'Payment Reference': reference,
+        'Service Name': serviceName,
+        'Gross Amount': 'NGN ${amount.toStringAsFixed(2)}',
+        'Platform 10% Fee': 'NGN ${pFee.toStringAsFixed(2)}',
+        'Provider 90% Share': 'NGN ${pShare.toStringAsFixed(2)}',
+        'Customer Name': customerName,
+        'Customer Phone': customerPhone,
+        'Customer Email': customerEmail.isNotEmpty ? customerEmail : 'Not provided',
+        'Provider Name': providerName ?? 'Assigned Provider',
+      },
+    );
+
     debugPrint("Payment completed & official receipt notifications dispatched for ref: $reference");
   }
 
@@ -855,9 +890,190 @@ The G-Wash NG Team
   }
 
   // ============================================================
+  // SEND ADMIN NOTIFICATION EMAIL (All Marketplace Operations)
+  // ============================================================
+  Future<bool> sendAdminNotificationEmail({
+    required String subject,
+    required String title,
+    required String message,
+    Map<String, String>? details,
+    String? htmlContent,
+  }) async {
+    try {
+      final adminEmail = Env.adminEmail;
+      if (adminEmail.isEmpty) return false;
+
+      final formattedHtml = htmlContent ?? generateAdminAlertHtml(
+        title: title,
+        message: message,
+        details: details ?? {},
+      );
+
+      final success = await sendRealEmail(
+        email: adminEmail,
+        subject: '[ADMIN] $subject',
+        body: message,
+        htmlBody: formattedHtml,
+      );
+
+      // Log in Firestore admin collection
+      await _firestore.collection('admin_email_logs').add({
+        'adminEmail': adminEmail,
+        'subject': subject,
+        'title': title,
+        'message': message,
+        'details': details,
+        'sentAt': FieldValue.serverTimestamp(),
+        'success': success,
+      });
+
+      return success;
+    } catch (e) {
+      debugPrint('Error sending Admin notification email: $e');
+      return false;
+    }
+  }
+
+  // ============================================================
+  // SEND OFFLINE PAYMENT REPORT ADMIN ALERT
+  // ============================================================
+  Future<void> sendOfflinePaymentReportAdminAlert({
+    required String jobId,
+    required String customerName,
+    required String customerPhone,
+    required String washerName,
+    required String serviceName,
+    required String reason,
+    String? notes,
+  }) async {
+    await sendAdminNotificationEmail(
+      subject: '🚨 URGENT: Offline Payment Violation Reported (#$jobId)',
+      title: 'Offline Payment Request Violation Reported',
+      message: 'A customer reported that a service provider requested cash or direct bank transfer outside G-Wash NG.',
+      details: {
+        'Job ID': '#$jobId',
+        'Service': serviceName,
+        'Customer Name': customerName,
+        'Customer Phone': customerPhone,
+        'Reported Provider': washerName,
+        'Violation Category': reason,
+        'Customer Notes': notes?.isNotEmpty == true ? notes! : 'None provided',
+        'Action Required': 'Investigate provider account & review compliance history',
+      },
+    );
+  }
+
+  // ============================================================
+  // SEND PROVIDER REGISTRATION ADMIN ALERT
+  // ============================================================
+  Future<void> sendProviderRegistrationAdminAlert({
+    required String providerName,
+    required String providerPhone,
+    required String providerEmail,
+    required String category,
+    required String city,
+    String? businessAddress,
+  }) async {
+    await sendAdminNotificationEmail(
+      subject: 'New Provider Application: $providerName ($category - $city)',
+      title: 'New Service Provider Application',
+      message: 'A new service provider has submitted their registration/onboarding details.',
+      details: {
+        'Provider Name': providerName,
+        'Phone Number': providerPhone,
+        'Email Address': providerEmail.isNotEmpty ? providerEmail : 'Not provided',
+        'Service Category': category,
+        'City / Location': city,
+        'Business Address': businessAddress?.isNotEmpty == true ? businessAddress! : 'Not specified',
+      },
+    );
+  }
+
+  // ============================================================
+  // SEND CONTACT / SUPPORT FORM EMAIL TO ADMIN
+  // ============================================================
+  Future<bool> sendContactFormEmail({
+    required String senderName,
+    required String senderEmail,
+    required String senderPhone,
+    required String subject,
+    required String message,
+  }) async {
+    return await sendAdminNotificationEmail(
+      subject: 'Support Inquiry: $subject from $senderName',
+      title: 'New Customer Support / Contact Message',
+      message: message,
+      details: {
+        'Sender Name': senderName,
+        'Sender Email': senderEmail,
+        'Sender Phone': senderPhone.isNotEmpty ? senderPhone : 'Not provided',
+        'Subject': subject,
+      },
+    );
+  }
+
+  // ============================================================
   // HTML EMAIL TEMPLATE GENERATORS
   // ============================================================
-  String generateBookingEmailHtml({
+  String generateAdminAlertHtml({
+    required String title,
+    required String message,
+    required Map<String, String> details,
+  }) {
+    final dateStr = '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')} WAT';
+
+    final detailsRows = details.entries.map((e) {
+      return '''
+        <tr style="border-bottom: 1px dashed #e2e8f0;">
+          <td style="padding: 10px 0; color: #64748b; font-size: 13px; font-weight: 600;">${e.key}</td>
+          <td style="padding: 10px 0; text-align: right; color: #0f172a; font-size: 14px; font-weight: bold;">${e.value}</td>
+        </tr>
+      ''';
+    }).join('');
+
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin Notification - G-Wash NG</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0A192F; margin: 0; padding: 24px;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+    
+    <!-- Admin Header -->
+    <div style="background: linear-gradient(135deg, #0A192F 0%, #008080 100%); padding: 26px; text-align: center; color: #ffffff;">
+      <h1 style="margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px;">G-WASH NG &bull; ADMIN CONTROL</h1>
+      <span style="display: inline-block; background: #00E5FF; color: #0A192F; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 20px; margin-top: 8px; text-transform: uppercase;">Real-Time System Notification</span>
+    </div>
+
+    <!-- Body -->
+    <div style="padding: 24px;">
+      <h2 style="color: #0A192F; font-size: 18px; margin-top: 0;">$title</h2>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6; margin-bottom: 20px;">${message.replaceAll('\n', '<br>')}</p>
+
+      <!-- Details Card -->
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 18px 0;">
+        <div style="font-size: 12px; font-weight: bold; color: #008080; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 0.5px;">Operational Details</div>
+        <table style="width: 100%; border-collapse: collapse;">
+          $detailsRows
+        </table>
+      </div>
+
+      <div style="margin-top: 20px; padding: 12px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0; text-align: center;">
+        <span style="font-size: 12px; color: #166534; font-weight: 600;">Recorded live in G-Wash Cloud at $dateStr</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background: #0A192F; padding: 14px; text-align: center; color: #94a3b8; font-size: 12px;">
+      <p style="margin: 0;">&copy; 2026 G-Wash Nigeria Limited &bull; Executive System Dispatch</p>
+    </div>
+  </div>
+</body>
+</html>
+    ''';
+  }
     required String customerName,
     required String serviceName,
     required int price,

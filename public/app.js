@@ -1,4 +1,4 @@
-﻿// ==========================================================================
+// ==========================================================================
 // G-WASH NG LANDING PAGE JAVASCRIPT
 // Interactive Features: Business Booking Funnel, Provider Registration,
 // Realtime Firestore Integration, Dynamic Service Modals & Responsive Layout
@@ -112,6 +112,29 @@ async function handleBookingSubmit(event) {
     console.log('Online booking submitted locally:', err);
   }
 
+  // Dispatch Email Notification to Admin
+  sendEmailNotification({
+    to: 'gwashng@gmail.com',
+    subject: `[ADMIN ALERT] New Booking: ${service} by ${name} (Ref: ${bookingRef})`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+        <div style="background:#0A192F;color:#fff;padding:20px;text-align:center;">
+          <h2 style="margin:0;color:#00E5FF;font-size:18px;">New Service Booking (Landing Page)</h2>
+        </div>
+        <div style="padding:20px;color:#334155;line-height:1.6;font-size:14px;">
+          <p><strong>Customer Name:</strong> ${name}</p>
+          <p><strong>Customer Phone:</strong> ${phone}</p>
+          <p><strong>Service Requested:</strong> ${service}</p>
+          <p><strong>City / Address:</strong> ${city} - ${address}</p>
+          <p><strong>Scheduled Time:</strong> ${datetime}</p>
+          <p><strong>Booking Ref:</strong> ${bookingRef}</p>
+          <p><strong>Security OTP Code:</strong> ${otpCode}</p>
+          <p><strong>Notes:</strong> ${notes || 'None'}</p>
+        </div>
+      </div>
+    `
+  });
+
   submitBtn.disabled = false;
   submitBtn.innerHTML = originalText;
   closeModal('modal-book-service');
@@ -173,6 +196,48 @@ async function handleProviderSubmit(event) {
     console.log('Provider registration submitted locally:', err);
   }
 
+  // Dispatch Email Notification to Admin
+  sendEmailNotification({
+    to: 'gwashng@gmail.com',
+    subject: `[ADMIN ALERT] New Provider Application: ${name} (${role.toUpperCase()} - ${city})`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+        <div style="background:#0A192F;color:#fff;padding:20px;text-align:center;">
+          <h2 style="margin:0;color:#00E5FF;font-size:18px;">New Service Provider Application</h2>
+        </div>
+        <div style="padding:20px;color:#334155;line-height:1.6;font-size:14px;">
+          <p><strong>Applicant Name:</strong> ${name}</p>
+          <p><strong>Phone Number:</strong> ${phone}</p>
+          <p><strong>Email:</strong> ${email || 'Not provided'}</p>
+          <p><strong>Category:</strong> ${role.toUpperCase()}</p>
+          <p><strong>City / State:</strong> ${city}</p>
+          <p><strong>Experience:</strong> ${exp}</p>
+          <p><strong>Address:</strong> ${address}</p>
+        </div>
+      </div>
+    `
+  });
+
+  // Dispatch Welcome Email to Provider (if email provided)
+  if (email) {
+    sendEmailNotification({
+      to: email,
+      subject: 'Welcome to G-Wash NG Provider Network!',
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+          <div style="background:#008080;color:#fff;padding:20px;text-align:center;">
+            <h2 style="margin:0;">Welcome to G-Wash NG</h2>
+          </div>
+          <div style="padding:20px;color:#334155;line-height:1.6;font-size:14px;">
+            <p>Hello <strong>${name}</strong>,</p>
+            <p>Thank you for registering to provide services on G-Wash NG. Our compliance team will review your application and contact you within 24 hours.</p>
+            <p>You keep <strong>90% of your earnings</strong> on every completed job!</p>
+          </div>
+        </div>
+      `
+    });
+  }
+
   submitBtn.disabled = false;
   submitBtn.innerHTML = originalText;
   closeModal('modal-provider-register');
@@ -188,6 +253,25 @@ async function handleProviderSubmit(event) {
     <div class="detail-row"><span>Revenue Share:</span> <strong class="text-green">90% of all completed jobs</strong></div>
   `;
   openModal('modal-success-notice');
+}
+
+// Helper to send emails via serverless API
+async function sendEmailNotification({ to, subject, html, text }) {
+  try {
+    await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: to || 'gwashng@gmail.com',
+        subject: subject,
+        html: html,
+        text: text,
+        fromName: 'G-Wash NG'
+      })
+    });
+  } catch (e) {
+    console.log('Email notification dispatched:', e);
+  }
 }
 
 // ==================== 4. LOGIN & SIGNUP HANDLERS ====================

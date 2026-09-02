@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/auth_service.dart';
+import '../../services/communication_service.dart';
 
 /// 🔒 Mandatory Payment & Safety Notice Modal
 /// Shown immediately after selecting a provider before navigating to TrackingScreen
@@ -331,6 +332,17 @@ class _ReportOfflinePaymentDialogState extends State<ReportOfflinePaymentDialog>
         'offlinePaymentReported': true,
         'offlinePaymentReportedAt': FieldValue.serverTimestamp(),
       }).catchError((e) {});
+
+      // 3. Dispatch Urgent Email Alert to Admin
+      CommunicationService().sendOfflinePaymentReportAdminAlert(
+        jobId: widget.jobId,
+        customerName: customerName,
+        customerPhone: customerPhone,
+        washerName: widget.washerName ?? 'Assigned Provider',
+        serviceName: widget.serviceName ?? 'Service',
+        reason: _selectedReason,
+        notes: _notesController.text.trim(),
+      );
 
       if (mounted) {
         Navigator.pop(context);

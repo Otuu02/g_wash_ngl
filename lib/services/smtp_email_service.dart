@@ -69,37 +69,73 @@ class SmtpEmailService {
     required String bodyHtml,
     String? bodyText,
   }) async {
-    try {
-      final plainText = bodyText ?? bodyHtml.replaceAll(RegExp(r'<[^>]*>'), '');
+    final plainText = bodyText ?? bodyHtml.replaceAll(RegExp(r'<[^>]*>'), '');
+    final payload = jsonEncode({
+      'to': recipient,
+      'subject': subject,
+      'html': bodyHtml,
+      'text': plainText,
+      'fromName': 'G-Wash NG',
+    });
 
-      // Attempt 1: Brevo / REST API Gateway
-      final brevoResponse = await http.post(
-        Uri.parse('https://api.brevo.com/v3/smtp/email'),
-        headers: {
-          'accept': 'application/json',
-          'content-type': 'application/json',
-          'api-key': 'xkeysib-demo-gwash-ng',
-        },
-        body: jsonEncode({
-          'sender': {'name': 'G-Wash NG', 'email': Env.gmailUser},
-          'to': [{'email': recipient}],
-          'subject': subject,
-          'htmlContent': bodyHtml,
-        }),
-      ).timeout(const Duration(seconds: 8));
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
 
-      if (brevoResponse.statusCode == 200 || brevoResponse.statusCode == 201) {
-        debugPrint('✅ [Web HTTP REST Email Sent] To: $recipient | Subject: $subject');
-        return true;
+    // Attempt 1: Direct Vercel Serverless Function (/api/send-email)
+    final candidateEndpoints = [
+      '/api/send-email',
+      'https://g-wash-ngl.vercel.app/api/send-email',
+      'https://api.brevo.com/v3/smtp/email',
+    ];
+
+    for (final endpoint in candidateEndpoints) {
+      try {
+        if (endpoint.contains('brevo')) {
+          // Brevo Fallback
+          final brevoResponse = await http.post(
+            Uri.parse(endpoint),
+            headers: {
+              'accept': 'application/json',
+              'content-type': 'application/json',
+              'api-key': 'xkeysib-demo-gwash-ng',
+            },
+            body: jsonEncode({
+              'sender': {'name': 'G-Wash NG', 'email': Env.gmailUser},
+              'to': [{'email': recipient}],
+              'subject': subject,
+              'htmlContent': bodyHtml,
+            }),
+          ).timeout(const Duration(seconds: 8));
+
+          if (brevoResponse.statusCode == 200 || brevoResponse.statusCode == 201) {
+            debugPrint('✅ [Brevo Email Gateway Sent] To: $recipient | Subject: $subject');
+            return true;
+          }
+        } else {
+          final uri = Uri.parse(endpoint);
+          final response = await http.post(
+            uri,
+            headers: headers,
+            body: payload,
+          ).timeout(const Duration(seconds: 10));
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            debugPrint('✅ [Vercel API Gateway Email Sent] To: $recipient | Subject: $subject');
+            return true;
+          }
+        }
+      } catch (e) {
+        debugPrint('ℹ️ [Email endpoint attempt failed for $endpoint]: $e');
       }
+    }
 
-      // Attempt 2: FormSubmit AJAX Gateway
+    // Final Fallback: FormSubmit AJAX
+    try {
       final formResponse = await http.post(
         Uri.parse('https://formsubmit.co/ajax/$recipient'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: headers,
         body: jsonEncode({
           '_subject': subject,
           'message': plainText,
@@ -109,12 +145,13 @@ class SmtpEmailService {
       ).timeout(const Duration(seconds: 8));
 
       if (formResponse.statusCode == 200) {
-        debugPrint('✅ [FormSubmit Web Email Sent] To: $recipient');
+        debugPrint('✅ [FormSubmit Email Sent] To: $recipient');
         return true;
       }
     } catch (e) {
-      debugPrint('ℹ️ [Web Email Gateway Notice]: $e');
+      debugPrint('ℹ️ [FormSubmit fallback failed]: $e');
     }
+
     return false;
   }
 }

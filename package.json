@@ -1,0 +1,11 @@
+{
+  "name": "g-wash-ngl",
+  "version": "1.0.0",
+  "description": "G-Wash Nigeria Limited - On-demand mobile car wash & home care marketplace",
+  "scripts": {
+    "build": "bash build.sh"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.16"
+  }
+}

@@ -485,6 +485,15 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
         role: 'Service Provider',
       );
 
+      // Dispatch Provider Registration Alert to Admin
+      CommunicationService().sendProviderRegistrationAdminAlert(
+        providerName: _nameController.text.trim(),
+        providerPhone: _phoneController.text.trim(),
+        providerEmail: _emailController.text.trim(),
+        category: mainCategoryNames.join(', '),
+        city: '${_cityController.text.trim()}, ${_stateController.text.trim()}',
+      );
+
       await Future.delayed(const Duration(milliseconds: 500));
       
       if (mounted) {
