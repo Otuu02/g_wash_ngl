@@ -1459,13 +1459,15 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
               Text(
                 '1. You must be at least 18 years old\n'
                 '2. You must have a valid means of transport\n'
-                '3. You agree to a background check\n'
-                '4. 20% commission on each job\n'
-                '5. You must maintain 4.0+ rating\n'
-                '6. Cancellation policy applies\n'
-                '7. You can withdraw your earnings at any time\n'
-                '8. You are an independent contractor\n'
-                '9. G Wash NG reserves the right to suspend accounts\n\n'
+                '3. You agree to a background & identity check (KYC)\n'
+                '4. 10% platform commission on completed jobs (90% payout to you)\n'
+                '5. STRICT NO-CASH POLICY: You must NEVER request or accept cash payments or offline transfers from customers. All payments must be processed exclusively through the G Wash NG Escrow system. Attempting off-platform transactions results in immediate, permanent account termination.\n'
+                '6. You must submit mandatory Before & After photo proof of completion\n'
+                '7. You must maintain a 4.0+ rating\n'
+                '8. Cancellation policy applies\n'
+                '9. You can withdraw your earnings anytime to your registered bank account\n'
+                '10. You are an independent service partner\n'
+                '11. G Wash NG reserves the right to suspend or ban non-compliant accounts\n\n'
                 'By registering, you agree to all terms.',
                 style: TextStyle(fontSize: 14),
               ),

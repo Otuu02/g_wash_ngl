@@ -26,6 +26,8 @@ class SecurityService {
     '/otp',
     '/privacy-policy',
     '/terms',
+    '/washer-registration',
+    '/help-support',
   };
 
   /// List of protected routes requiring customer role
@@ -40,7 +42,6 @@ class SecurityService {
     '/payment-methods',
     '/notifications',
     '/privacy-security',
-    '/help-support',
     '/matching',
     '/tracking',
     '/payment',
@@ -59,7 +60,6 @@ class SecurityService {
     '/washer-profile',
     '/washer-earnings',
     '/washer-history',
-    '/washer-registration',
     '/washer-jobs',
     '/washer-subscription',
   };

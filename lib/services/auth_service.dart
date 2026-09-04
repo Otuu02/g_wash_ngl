@@ -8,9 +8,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'communication_service.dart';
 import 'validation_service.dart';
 import 'security_service.dart';
+
+// 🔒 SECURITY: SHA-256 hash a value (for OTP tokens stored in Firestore).
+// Passwords are NEVER hashed here — they are managed exclusively by Firebase Auth.
+String _sha256Hash(String input) {
+  final bytes = utf8.encode(input);
+  return sha256.convert(bytes).toString();
+}
 
 class AuthService extends ChangeNotifier {
   bool _isLoggedIn = false;
@@ -620,7 +628,7 @@ class AuthService extends ChangeNotifier {
       bool authSuccess = false;
       User? firebaseUser;
 
-      // 3. Attempt sign in with candidate emails
+      // 3. Attempt sign in with candidate emails — Firebase Auth is the ONLY source of truth
       for (final emailCandidate in candidateEmails) {
         try {
           UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -634,55 +642,24 @@ class AuthService extends ChangeNotifier {
             break;
           }
         } on FirebaseAuthException catch (e) {
+          // 🔒 SECURITY: wrong-password means wrong password — do NOT fall back to Firestore.
+          // Firebase Auth is the single source of truth for credentials.
           debugPrint('⚠️ Firebase Auth sign-in notice ($emailCandidate): ${e.code}');
-          if (e.code == 'wrong-password') {
-            // Check if password matches stored Firestore password (e.g. after OTP reset)
-            final storedPassword = userData?['password']?.toString();
-            if (storedPassword != null && storedPassword == cleanPassword) {
-              authSuccess = true;
-              debugPrint('✅ Validated password against Firestore record');
-              break;
-            }
+          if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+            debugPrint('❌ Login rejected: incorrect password for $emailCandidate');
+            return false;
           }
         } catch (e) {
           debugPrint('⚠️ Firebase Auth sign-in error for $emailCandidate: $e');
         }
       }
 
-      // 4. If Firebase Auth hasn't authenticated, check stored password in Firestore
-      if (!authSuccess && userData != null) {
-        final storedPassword = userData['password']?.toString();
-        if (storedPassword != null && storedPassword == cleanPassword) {
-          authSuccess = true;
-          debugPrint('✅ Password verified via Firestore record');
+      // 🔒 SECURITY: Firestore plain-text password comparison removed.
+      // If all Firebase Auth candidate emails failed, reject the login.
 
-          // Attempt on-the-fly Firebase Auth synchronization
-          final primaryEmail = candidateEmails.isNotEmpty
-              ? candidateEmails.first
-              : (isEmailInput ? cleanInput.toLowerCase() : '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com');
-          try {
-            UserCredential newUser = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-              email: primaryEmail,
-              password: cleanPassword,
-            );
-            firebaseUser = newUser.user;
-          } catch (_) {
-            try {
-              UserCredential existingUser = await FirebaseAuth.instance.signInWithEmailAndPassword(
-                email: primaryEmail,
-                password: cleanPassword,
-              );
-              firebaseUser = existingUser.user;
-            } catch (_) {}
-          }
-        }
-      }
-
-      // 5. Fallback for offline / cached demo session
-      if (!authSuccess && firebaseUser == null && userData == null) {
-        if (!isEmailInput && _localLogin(formattedPhone, cleanPassword)) {
-          return true;
-        }
+      // 4. If Firebase Auth rejected with user-not-found / no matching email, reject.
+      if (!authSuccess) {
+        debugPrint('❌ Login rejected: Firebase Auth did not authenticate the user');
         return false;
       }
 
@@ -716,21 +693,13 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // LOCAL LOGIN — Cached session fallback
+  // LOCAL LOGIN — 🔒 SECURITY: This method is intentionally disabled as a login bypass.
+  // Passwords are never stored in the local cache (removed in _saveUserState).
+  // Firebase Auth is the sole authenticator — no local password check is possible or allowed.
+  // This method always returns false to prevent any credential bypass.
+  // ignore: unused_element
   bool _localLogin(String formattedPhone, String password) {
-    if (_registeredUsers.containsKey(formattedPhone)) {
-      final cached = _registeredUsers[formattedPhone]!;
-      _isLoggedIn = true;
-      _userName = cached['name'];
-      _userPhone = formattedPhone;
-      _userId = cached['userId'];
-      _userRole = cached['role'] ?? 'customer';
-      _serviceCategory = cached['serviceCategory'];
-      _saveUserState();
-      notifyListeners();
-      debugPrint('✅ User session restored from local cache: $_userName (role: $_userRole)');
-      return true;
-    }
+    debugPrint('🔒 _localLogin: disabled — Firebase Auth is the sole authenticator');
     return false;
   }
 
@@ -1395,14 +1364,21 @@ class AuthService extends ChangeNotifier {
       }
 
       // 🔒 SECURITY: Rate Limiting — max 3 OTP requests per identifier per hour
-      final oneHourAgo = Timestamp.fromDate(DateTime.now().subtract(const Duration(hours: 1)));
-      final recentRequests = await FirebaseFirestore.instance
+      // Query by identifier only (no composite index needed), filter createdAt in Dart
+      final oneHourAgo = DateTime.now().subtract(const Duration(hours: 1));
+      final recentRequestsSnap = await FirebaseFirestore.instance
           .collection('password_resets')
           .where('identifier', isEqualTo: identifier.toLowerCase())
-          .where('createdAt', isGreaterThan: oneHourAgo)
+          .orderBy('createdAt', descending: true)
+          .limit(10)
           .get();
 
-      if (recentRequests.docs.length >= 3) {
+      final recentCount = recentRequestsSnap.docs.where((doc) {
+        final createdAt = (doc.data()['createdAt'] as Timestamp?)?.toDate();
+        return createdAt != null && createdAt.isAfter(oneHourAgo);
+      }).length;
+
+      if (recentCount >= 3) {
         debugPrint('🚫 OTP rate limit hit for: $identifier');
         return {
           'success': false,
@@ -1491,12 +1467,16 @@ class AuthService extends ChangeNotifier {
       final otpCode = (Random().nextInt(900000) + 100000).toString();
       final expiresAt = DateTime.now().add(const Duration(minutes: 10));
 
+      // 🔒 SECURITY: Store only the SHA-256 hash of the OTP in Firestore,
+      // never the plain-text code. The raw code is only sent to the user.
+      final otpHash = _sha256Hash(otpCode);
+
       // 3. Save OTP record in password_resets collection
       await FirebaseFirestore.instance.collection('password_resets').add({
         'identifier': identifier.toLowerCase(),
         'targetDocId': targetDocId,
         'collectionName': collectionName,
-        'otp': otpCode,
+        'otpHash': otpHash,
         'email': targetEmail,
         'phone': targetPhone,
         'name': targetName,
@@ -1545,17 +1525,21 @@ class AuthService extends ChangeNotifier {
         return {'success': false, 'error': 'Please enter a valid 6-digit code'};
       }
 
+      // 🔒 SECURITY: Compare SHA-256 hash of submitted OTP against stored hash
+      final otpHash = _sha256Hash(cleanOtp);
+
       final query = await FirebaseFirestore.instance
           .collection('password_resets')
           .where('identifier', isEqualTo: cleanId)
-          .where('otp', isEqualTo: cleanOtp)
+          .where('otpHash', isEqualTo: otpHash)
           .where('used', isEqualTo: false)
           .get();
 
       if (query.docs.isEmpty) {
+        // Fallback: search by hash only (phone-based reset where identifier may differ)
         final phoneQuery = await FirebaseFirestore.instance
             .collection('password_resets')
-            .where('otp', isEqualTo: cleanOtp)
+            .where('otpHash', isEqualTo: otpHash)
             .where('used', isEqualTo: false)
             .get();
 
@@ -1566,7 +1550,7 @@ class AuthService extends ChangeNotifier {
 
       final doc = query.docs.isNotEmpty ? query.docs.first : (await FirebaseFirestore.instance
           .collection('password_resets')
-          .where('otp', isEqualTo: cleanOtp)
+          .where('otpHash', isEqualTo: otpHash)
           .where('used', isEqualTo: false)
           .get()).docs.first;
 
@@ -1608,24 +1592,47 @@ class AuthService extends ChangeNotifier {
         return {'success': false, 'error': 'Password must be at least 6 characters long'};
       }
 
-      // Update password in Firestore
+      // 🔒 SECURITY: Update the password in Firebase Auth (single source of truth).
+      // We never store plain-text passwords in Firestore.
+      // Also strip any legacy plain-text 'password' field from the user document.
       if (targetDocId != null && targetDocId.toString().isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection(collectionName)
-            .doc(targetDocId)
-            .set({
-          'password': newPassword,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        if (collectionName == 'washers') {
-          try {
-            await FirebaseFirestore.instance.collection('users').doc(targetDocId).set({
-              'password': newPassword,
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
-          } catch (_) {}
+        // 1. Update password in Firebase Auth
+        try {
+          final targetDoc = await FirebaseFirestore.instance
+              .collection(collectionName)
+              .doc(targetDocId)
+              .get();
+          final email = (targetDoc.data()?['email'] ?? '').toString();
+          if (email.isNotEmpty) {
+            // Use Firebase Admin SDK approach via re-authentication is not possible client-side
+            // without current password. The correct client-side flow is sendPasswordResetEmail.
+            // We send a Firebase Auth password reset email so the user can reset via Firebase.
+            await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+            debugPrint('🔒 Firebase Auth password reset email sent to: $email');
+          }
+        } catch (authErr) {
+          debugPrint('ℹ️ Firebase Auth reset email notice: $authErr');
         }
+
+        // 2. Remove any legacy plain-text 'password' field from Firestore
+        try {
+          await FirebaseFirestore.instance
+              .collection(collectionName)
+              .doc(targetDocId)
+              .update({
+            'password': FieldValue.delete(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          if (collectionName == 'washers') {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(targetDocId)
+                .update({
+              'password': FieldValue.delete(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        } catch (_) {}
       }
 
       // Mark OTP as used
