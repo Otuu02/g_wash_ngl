@@ -364,7 +364,7 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       );
 
       if (!signupSuccess) {
-        _showError('Account creation failed. Phone number may already exist.');
+        _showError(authService.authError ?? 'Account creation failed. Phone number or email may already exist.');
         setState(() => _isLoading = false);
         return;
       }
@@ -538,17 +538,39 @@ class _WasherRegistrationScreenState extends State<WasherRegistrationScreen> {
       }
     } catch (e) {
       debugPrint('❌ Registration error: $e');
-      _showError('Registration failed: ${e.toString().substring(0, 100)}...');
+      final authService = Provider.of<AuthService>(context, listen: false);
+      _showError(authService.cleanAuthErrorMessage(e));
       setState(() => _isLoading = false);
     }
   }
 
   void _showError(String message) {
+    var displayMsg = message.trim();
+    if (displayMsg.startsWith('Error:')) displayMsg = displayMsg.substring(6).trim();
+    displayMsg = displayMsg.replaceAll(RegExp(r'\[.*?\]'), '').trim();
+    if (displayMsg.isEmpty) displayMsg = 'Registration failed. Please check your details.';
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-        duration: const Duration(seconds: 3),
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                displayMsg,
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade800,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
