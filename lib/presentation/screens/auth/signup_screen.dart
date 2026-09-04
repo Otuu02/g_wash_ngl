@@ -24,8 +24,11 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  String? _errorMessage;
 
   Future<void> _signup() async {
+    setState(() => _errorMessage = null);
+
     if (_nameController.text.trim().isEmpty) {
       _showError('Please enter your name');
       return;
@@ -66,14 +69,24 @@ class _SignupScreenState extends State<SignupScreen> {
       email: _emailController.text.trim(),
     );
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 10),
+              Expanded(child: Text('Account created successfully!')),
+            ],
+          ),
+          backgroundColor: const Color(0xFF0CAF60),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 2),
         ),
       );
       final routeName = (authService.isServiceProvider || authService.isWasher)
@@ -86,11 +99,41 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _showError(String message) {
+    var displayMsg = message.trim();
+    if (displayMsg.startsWith('Error:')) {
+      displayMsg = displayMsg.substring(6).trim();
+    }
+    if (displayMsg.startsWith('Exception:')) {
+      displayMsg = displayMsg.substring(10).trim();
+    }
+    displayMsg = displayMsg.replaceAll(RegExp(r'\[.*?\]'), '').trim();
+    if (displayMsg.isEmpty) {
+      displayMsg = 'Account creation failed. Please check your details or login.';
+    }
+
+    setState(() => _errorMessage = displayMsg);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 2),
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                displayMsg,
+                style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red.shade800,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -200,7 +243,36 @@ class _SignupScreenState extends State<SignupScreen> {
                   border: const OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              if (_errorMessage != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(
+                            color: Colors.red.shade900,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               // Sign Up Button
               SizedBox(
                 width: double.infinity,

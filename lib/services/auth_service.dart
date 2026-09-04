@@ -432,6 +432,44 @@ class AuthService extends ChangeNotifier {
   }
 
   // ============================================================
+  // Error Message Sanitizer — Human-friendly messages without raw code
+  // ============================================================
+  String cleanAuthErrorMessage(dynamic error) {
+    if (error == null) return 'An error occurred. Please try again.';
+    final str = error.toString().toLowerCase();
+    if (str.contains('email-already-in-use') || str.contains('email_already_in_use')) {
+      return 'This email address is already registered. Please sign in or use a different email.';
+    }
+    if (str.contains('weak-password') || str.contains('weak_password')) {
+      return 'Password is too weak. Please use at least 6 characters with letters and numbers.';
+    }
+    if (str.contains('invalid-email') || str.contains('invalid_email')) {
+      return 'The email address is invalid. Please check your email.';
+    }
+    if (str.contains('operation-not-allowed')) {
+      return 'Email/password sign-in is not enabled. Please contact support.';
+    }
+    if (str.contains('too-many-requests')) {
+      return 'Too many attempts. Please wait a minute and try again.';
+    }
+    if (str.contains('network-request-failed')) {
+      return 'Network connection error. Please check your internet connection.';
+    }
+    if (str.contains('permission-denied')) {
+      return 'Access permission denied by server. Please try signing in.';
+    }
+    if (str.contains('user-not-found') || str.contains('wrong-password') || str.contains('invalid-credential')) {
+      return 'Invalid login details or password. Please verify your credentials.';
+    }
+    final cleaned = error.toString()
+        .replaceAll(RegExp(r'\[.*?\]'), '')
+        .replaceFirst(RegExp(r'^Error:\s*', caseSensitive: false), '')
+        .replaceFirst(RegExp(r'^Exception:\s*', caseSensitive: false), '')
+        .trim();
+    return cleaned.isNotEmpty ? cleaned : 'An error occurred. Please try again.';
+  }
+
+  // ============================================================
   // SIGNUP - Creates user in Firebase Auth
   // ============================================================
   Future<bool> signup(String name, String phoneNumber, String password, {String? email, String role = 'customer'}) async {
@@ -439,33 +477,38 @@ class AuthService extends ChangeNotifier {
       name = SecurityService().sanitizeInput(name);
       final formattedPhone = formatPhone(phoneNumber);
       final validator = ValidationService();
+      _authError = null;
       
       // 🔒 SECURITY: Admin role is assigned exclusively from Firestore.
       // Do NOT auto-assign admin based on phone number here.
       // To grant admin, set role = 'admin' directly in Firebase Console → Firestore → users collection.
       
-      // ðŸ”’ Validation Check 1: Phone Authenticity
+      // 🔒 Validation Check 1: Phone Authenticity
       final phoneRes = validator.validatePhone(formattedPhone, allowAdminBypass: role == 'admin');
       if (!phoneRes.isValid) {
-        debugPrint('â›” Signup rejected: ${phoneRes.errorMessage}');
+        debugPrint('⛔ Signup rejected: ${phoneRes.errorMessage}');
+        _authError = phoneRes.errorMessage ?? 'Invalid phone number';
         return false;
       }
 
-      // ðŸ”’ Validation Check 2: Email Authenticity & Disposable Domain Block
+      // 🔒 Validation Check 2: Email Authenticity & Disposable Domain Block
       if (email != null && email.trim().isNotEmpty) {
         final emailRes = validator.validateEmail(email);
         if (!emailRes.isValid) {
-          debugPrint('â›” Signup rejected: ${emailRes.errorMessage}');
+          debugPrint('⛔ Signup rejected: ${emailRes.errorMessage}');
+          _authError = emailRes.errorMessage ?? 'Invalid email address';
           return false;
         }
       }
       
       if (name.isEmpty || password.isEmpty) {
+        _authError = 'Please enter your name and password.';
         return false;
       }
 
       if (_registeredUsers.containsKey(formattedPhone)) {
         debugPrint('⛔ Signup rejected: Phone number $formattedPhone exists in local cache');
+        _authError = 'This phone number is already registered. Please sign in instead.';
         return false;
       }
       
@@ -479,6 +522,7 @@ class AuthService extends ChangeNotifier {
 
         if (existingUserFormatted.docs.isNotEmpty) {
           debugPrint('⛔ Signup rejected: Phone number $formattedPhone already exists in users database');
+          _authError = 'This phone number is already registered. Please sign in instead.';
           return false;
         }
 
@@ -490,6 +534,7 @@ class AuthService extends ChangeNotifier {
 
         if (existingUserRaw.docs.isNotEmpty) {
           debugPrint('⛔ Signup rejected: Raw phone number $phoneNumber already exists in users database');
+          _authError = 'This phone number is already registered. Please sign in instead.';
           return false;
         }
 
@@ -501,6 +546,7 @@ class AuthService extends ChangeNotifier {
 
         if (existingWasher.docs.isNotEmpty) {
           debugPrint('⛔ Signup rejected: Phone number $formattedPhone already exists in washers database');
+          _authError = 'This phone number is already registered as a service provider.';
           return false;
         }
       } catch (e) {
@@ -511,7 +557,6 @@ class AuthService extends ChangeNotifier {
           ? email.trim().toLowerCase()
           : '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
       String uid = '';
-      _authError = null;
 
       try {
         UserCredential userCredential = await FirebaseAuth.instance
@@ -528,33 +573,25 @@ class AuthService extends ChangeNotifier {
         } catch (mailErr) {
           debugPrint('ℹ️ Firebase email verification notice: $mailErr');
         }
-      } on FirebaseAuthException catch (e) {
-        debugPrint('❌ Firebase Auth signup error: ${e.message} (code: ${e.code})');
-        if (e.code == 'email-already-in-use') {
-          _authError = 'This email address is already registered. Please login instead.';
-        } else if (e.code == 'weak-password') {
-          _authError = 'Password is too weak. Please use at least 6 characters with numbers.';
-        } else if (e.code == 'invalid-email') {
-          _authError = 'The email address is invalid.';
-        } else {
-          _authError = e.message ?? 'Signup failed in Firebase Auth';
-        }
-        return false;
       } catch (e) {
         debugPrint('❌ Firebase Auth signup error: $e');
-        _authError = e.toString();
+        _authError = cleanAuthErrorMessage(e);
         return false;
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'name': name,
-        'phone': formattedPhone,
-        'email': userEmail,
-        'role': role,
-        'isBlocked': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      debugPrint('✅ User saved to Firestore: $name with ID: $uid');
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'name': name,
+          'phone': formattedPhone,
+          'email': userEmail,
+          'role': role,
+          'isBlocked': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint('✅ User saved to Firestore: $name with ID: $uid');
+      } catch (firestoreErr) {
+        debugPrint('⚠️ Firestore user doc save notice: $firestoreErr');
+      }
 
       final digitsOnly = formattedPhone.replaceAll(RegExp(r'[^0-9]'), '');
       final rawDigits = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
@@ -619,6 +656,7 @@ class AuthService extends ChangeNotifier {
       
     } catch (e) {
       debugPrint('❌ Signup error: $e');
+      _authError = cleanAuthErrorMessage(e);
       return false;
     }
   }
@@ -820,7 +858,7 @@ class AuthService extends ChangeNotifier {
 
     } catch (e) {
       debugPrint('❌ Login error: $e');
-      _authError = 'An error occurred during login. Please try again.';
+      _authError = cleanAuthErrorMessage(e);
       return false;
     }
   }
