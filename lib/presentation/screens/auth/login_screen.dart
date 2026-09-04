@@ -132,7 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError('Account locked for $_lockoutMinutes minutes after $_maxLoginAttempts failed attempts.');
       } else {
         final remaining = _maxLoginAttempts - _failedAttempts;
-        _showError('Invalid login details or password. $remaining attempt(s) remaining.');
+        final errorMsg = authService.authError ?? 'Invalid login details or password.';
+        _showError('$errorMsg $remaining attempt(s) remaining.');
       }
     }
   }

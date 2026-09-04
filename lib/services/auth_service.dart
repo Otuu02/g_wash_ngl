@@ -50,6 +50,7 @@ class AuthService extends ChangeNotifier {
   
   // Store registered users
   Map<String, Map<String, String>> _registeredUsers = {};
+  String? _authError;
 
   AuthService() {
     _loadSavedUser();
@@ -68,6 +69,7 @@ class AuthService extends ChangeNotifier {
   String? get serviceCategory => _serviceCategory;
   String? get userEmail => _userEmail;
   String? get photoURL => _photoURL;
+  String? get authError => _authError;
   
   bool get isCustomer => _userRole == 'customer' || _userRole == null;
   bool get isWasher => _userRole == 'washer';
@@ -508,8 +510,9 @@ class AuthService extends ChangeNotifier {
       final String userEmail = (email != null && email.trim().isNotEmpty)
           ? email.trim().toLowerCase()
           : '${formattedPhone.replaceAll(RegExp(r'[^0-9]'), '')}@gwashng.com';
-      String uid = 'usr_${DateTime.now().millisecondsSinceEpoch}';
-      
+      String uid = '';
+      _authError = null;
+
       try {
         UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(
@@ -526,14 +529,21 @@ class AuthService extends ChangeNotifier {
           debugPrint('ℹ️ Firebase email verification notice: $mailErr');
         }
       } on FirebaseAuthException catch (e) {
-        debugPrint('⚠️ Firebase Auth signup notice: ${e.message} (code: ${e.code})');
+        debugPrint('❌ Firebase Auth signup error: ${e.message} (code: ${e.code})');
         if (e.code == 'email-already-in-use') {
-          debugPrint('⛔ Account/Phone already exists in Firebase Auth');
-          return false;
+          _authError = 'This email address is already registered. Please login instead.';
+        } else if (e.code == 'weak-password') {
+          _authError = 'Password is too weak. Please use at least 6 characters with numbers.';
+        } else if (e.code == 'invalid-email') {
+          _authError = 'The email address is invalid.';
+        } else {
+          _authError = e.message ?? 'Signup failed in Firebase Auth';
         }
+        return false;
       } catch (e) {
-        debugPrint('⚠️ Firebase Auth signup fallback: $e');
-        _userEmail = userEmail;
+        debugPrint('❌ Firebase Auth signup error: $e');
+        _authError = e.toString();
+        return false;
       }
 
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
@@ -545,16 +555,42 @@ class AuthService extends ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
       });
       debugPrint('✅ User saved to Firestore: $name with ID: $uid');
-      
-      _registeredUsers[formattedPhone] = {
+
+      final digitsOnly = formattedPhone.replaceAll(RegExp(r'[^0-9]'), '');
+      final rawDigits = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+
+      // Store in local registered users cache
+      final userCacheEntry = {
         'name': name,
-        // 🔒 SECURITY: Password is never stored locally — authentication is handled exclusively by Firebase Auth
         'phone': formattedPhone,
         'email': userEmail,
         'userId': uid,
         'role': role,
       };
-      
+      _registeredUsers[formattedPhone] = userCacheEntry;
+      if (digitsOnly.isNotEmpty) _registeredUsers[digitsOnly] = userCacheEntry;
+      if (rawDigits.isNotEmpty) _registeredUsers[rawDigits] = userCacheEntry;
+      if (phoneNumber.isNotEmpty) _registeredUsers[phoneNumber] = userCacheEntry;
+
+      // 🌐 Save phone-to-email mapping in Firestore so phone login works across all devices
+      try {
+        final mapPayload = {
+          'email': userEmail,
+          'phone': formattedPhone,
+          'uid': uid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        await FirebaseFirestore.instance.collection('phone_mappings').doc(formattedPhone).set(mapPayload, SetOptions(merge: true));
+        if (digitsOnly.isNotEmpty) {
+          await FirebaseFirestore.instance.collection('phone_mappings').doc(digitsOnly).set(mapPayload, SetOptions(merge: true));
+        }
+        if (rawDigits.isNotEmpty && rawDigits != digitsOnly) {
+          await FirebaseFirestore.instance.collection('phone_mappings').doc(rawDigits).set(mapPayload, SetOptions(merge: true));
+        }
+      } catch (mapErr) {
+        debugPrint('ℹ️ Phone mapping background save notice: $mapErr');
+      }
+
       _isLoggedIn = true;
       _userName = name;
       _userPhone = formattedPhone;
@@ -592,11 +628,13 @@ class AuthService extends ChangeNotifier {
   // ============================================================
   Future<bool> login(String identifier, String password) async {
     try {
+      _authError = null;
       final cleanInput = identifier.trim();
       final cleanPassword = password.trim();
 
       if (cleanInput.isEmpty || cleanPassword.isEmpty) {
         debugPrint('❌ Identifier or password is empty');
+        _authError = 'Identifier or password is empty';
         return false;
       }
 
@@ -611,110 +649,104 @@ class AuthService extends ChangeNotifier {
 
       final isEmailInput = cleanInput.contains('@');
       final formattedPhone = isEmailInput ? '' : formatPhone(cleanInput);
+      final digitsOnly = formattedPhone.replaceAll(RegExp(r'[^0-9]'), '');
+      final rawDigits = cleanInput.replaceAll(RegExp(r'[^0-9]'), '');
 
       debugPrint('📫 Login attempt for: $cleanInput (isEmail: $isEmailInput, formattedPhone: $formattedPhone)');
 
-      // 1. Resolve user profile and credentials from Firestore (users & washers collections)
-      Map<String, dynamic>? userData;
-      String? userDocId;
+      // 1. Resolve candidate emails for Firebase Auth sign-in
+      final List<String> candidateEmails = [];
+      if (isEmailInput) {
+        candidateEmails.add(cleanInput.toLowerCase());
+      } else {
+        // Priority 1: Check local registered users cache (instant on this device)
+        final localEmail = _registeredUsers[formattedPhone]?['email'] ??
+            _registeredUsers[cleanInput]?['email'] ??
+            _registeredUsers[digitsOnly]?['email'] ??
+            _registeredUsers[rawDigits]?['email'];
+        if (localEmail != null && localEmail.isNotEmpty && localEmail.contains('@')) {
+          final cleanLocal = localEmail.toLowerCase().trim();
+          if (!candidateEmails.contains(cleanLocal)) {
+            candidateEmails.add(cleanLocal);
+            debugPrint('📱 Found local cached email for $formattedPhone: $cleanLocal');
+          }
+        }
 
-      try {
-        if (isEmailInput) {
-          final usersByEmail = await FirebaseFirestore.instance
-              .collection('users')
-              .where('email', isEqualTo: cleanInput.toLowerCase())
-              .limit(1)
-              .get();
-
-          if (usersByEmail.docs.isNotEmpty) {
-            userData = usersByEmail.docs.first.data();
-            userDocId = usersByEmail.docs.first.id;
-          } else {
-            final washersByEmail = await FirebaseFirestore.instance
-                .collection('washers')
-                .where('email', isEqualTo: cleanInput.toLowerCase())
-                .limit(1)
-                .get();
-
-            if (washersByEmail.docs.isNotEmpty) {
-              userData = washersByEmail.docs.first.data();
-              userDocId = washersByEmail.docs.first.id;
+        // Priority 2: Check Firestore phone_mappings collection (cross-device)
+        try {
+          if (digitsOnly.isNotEmpty) {
+            final doc = await FirebaseFirestore.instance.collection('phone_mappings').doc(digitsOnly).get();
+            if (doc.exists) {
+              final mappedEmail = (doc.data()?['email'] ?? '').toString().trim().toLowerCase();
+              if (mappedEmail.isNotEmpty && mappedEmail.contains('@') && !candidateEmails.contains(mappedEmail)) {
+                candidateEmails.add(mappedEmail);
+                debugPrint('📱 Found Firestore phone_mappings email for $digitsOnly: $mappedEmail');
+              }
             }
           }
-        } else {
-          // Check by formatted phone (+234...)
+          if (formattedPhone.isNotEmpty) {
+            final doc2 = await FirebaseFirestore.instance.collection('phone_mappings').doc(formattedPhone).get();
+            if (doc2.exists) {
+              final mappedEmail = (doc2.data()?['email'] ?? '').toString().trim().toLowerCase();
+              if (mappedEmail.isNotEmpty && mappedEmail.contains('@') && !candidateEmails.contains(mappedEmail)) {
+                candidateEmails.add(mappedEmail);
+                debugPrint('📱 Found Firestore phone_mappings email for $formattedPhone: $mappedEmail');
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('ℹ️ phone_mappings lookup notice: $e');
+        }
+
+        // Priority 3: Check Firestore users & washers collection by phone (if readable)
+        try {
           final usersByPhone = await FirebaseFirestore.instance
               .collection('users')
               .where('phone', isEqualTo: formattedPhone)
               .limit(1)
               .get();
-
           if (usersByPhone.docs.isNotEmpty) {
-            userData = usersByPhone.docs.first.data();
-            userDocId = usersByPhone.docs.first.id;
-          } else {
-            // Check by raw phone input
-            final usersByRawPhone = await FirebaseFirestore.instance
-                .collection('users')
-                .where('phone', isEqualTo: cleanInput)
-                .limit(1)
-                .get();
-
-            if (usersByRawPhone.docs.isNotEmpty) {
-              userData = usersByRawPhone.docs.first.data();
-              userDocId = usersByRawPhone.docs.first.id;
-            } else {
-              final washersByPhone = await FirebaseFirestore.instance
-                  .collection('washers')
-                  .where('phone', isEqualTo: formattedPhone)
-                  .limit(1)
-                  .get();
-
-              if (washersByPhone.docs.isNotEmpty) {
-                userData = washersByPhone.docs.first.data();
-                userDocId = washersByPhone.docs.first.id;
-              } else {
-                final washersByRawPhone = await FirebaseFirestore.instance
-                    .collection('washers')
-                    .where('phone', isEqualTo: cleanInput)
-                    .limit(1)
-                    .get();
-
-                if (washersByRawPhone.docs.isNotEmpty) {
-                  userData = washersByRawPhone.docs.first.data();
-                  userDocId = washersByRawPhone.docs.first.id;
-                }
-              }
+            final emailFromUser = (usersByPhone.docs.first.data()['email'] ?? '').toString().trim().toLowerCase();
+            if (emailFromUser.isNotEmpty && emailFromUser.contains('@') && !candidateEmails.contains(emailFromUser)) {
+              candidateEmails.add(emailFromUser);
             }
           }
+        } catch (_) {}
+
+        try {
+          final washersByPhone = await FirebaseFirestore.instance
+              .collection('washers')
+              .where('phone', isEqualTo: formattedPhone)
+              .limit(1)
+              .get();
+          if (washersByPhone.docs.isNotEmpty) {
+            final emailFromWasher = (washersByPhone.docs.first.data()['email'] ?? '').toString().trim().toLowerCase();
+            if (emailFromWasher.isNotEmpty && emailFromWasher.contains('@') && !candidateEmails.contains(emailFromWasher)) {
+              candidateEmails.add(emailFromWasher);
+            }
+          }
+        } catch (_) {}
+
+        // Priority 4: Synthetic emails for accounts registered by phone without custom email
+        if (digitsOnly.isNotEmpty) {
+          final s1 = '$digitsOnly@gwashng.com';
+          if (!candidateEmails.contains(s1)) candidateEmails.add(s1);
         }
-      } catch (firestoreErr) {
-        debugPrint('⚠️ Firestore lookup during login: $firestoreErr');
+        if (rawDigits.isNotEmpty && rawDigits != digitsOnly) {
+          final s2 = '$rawDigits@gwashng.com';
+          if (!candidateEmails.contains(s2)) candidateEmails.add(s2);
+        }
       }
 
-      // 2. Candidate emails for Firebase Auth sign-in
-      final List<String> candidateEmails = [];
-      if (isEmailInput) {
-        candidateEmails.add(cleanInput.toLowerCase());
-      } else {
-        // Prioritize actual registered email from Firestore if available
-        final registeredEmail = (userData?['email'] ?? '').toString().trim();
-        if (registeredEmail.isNotEmpty && registeredEmail.contains('@')) {
-          candidateEmails.add(registeredEmail.toLowerCase());
-        }
-        // Also add standard synthetic email: 234xxxxxxxxxx@gwashng.com
-        final digitsOnly = formattedPhone.replaceAll(RegExp(r'[^0-9]'), '');
-        if (digitsOnly.isNotEmpty) {
-          candidateEmails.add('$digitsOnly@gwashng.com');
-        }
-      }
+      debugPrint('🔍 Candidate emails to try for sign-in: $candidateEmails');
 
       bool authSuccess = false;
       User? firebaseUser;
 
-      // 3. Attempt sign in with candidate emails — Firebase Auth is the ONLY source of truth
+      // 2. Attempt sign in with candidate emails — Firebase Auth is the ONLY source of truth
       for (final emailCandidate in candidateEmails) {
         try {
+          debugPrint('🔑 Attempting Firebase Auth sign-in with: $emailCandidate');
           UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
             email: emailCandidate,
             password: cleanPassword,
@@ -726,42 +758,60 @@ class AuthService extends ChangeNotifier {
             break;
           }
         } on FirebaseAuthException catch (e) {
-          // 🔒 SECURITY: wrong-password means wrong password — do NOT fall back to Firestore.
-          // Firebase Auth is the single source of truth for credentials.
           debugPrint('⚠️ Firebase Auth sign-in notice ($emailCandidate): ${e.code}');
-          if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-            debugPrint('❌ Login rejected: incorrect password for $emailCandidate');
-            return false;
-          }
+          // DO NOT early return! Continue testing remaining candidates!
         } catch (e) {
           debugPrint('⚠️ Firebase Auth sign-in error for $emailCandidate: $e');
         }
       }
 
-      // 🔒 SECURITY: Firestore plain-text password comparison removed.
-      // If all Firebase Auth candidate emails failed, reject the login.
-
-      // 4. If Firebase Auth rejected with user-not-found / no matching email, reject.
-      if (!authSuccess) {
-        debugPrint('❌ Login rejected: Firebase Auth did not authenticate the user');
+      // If all candidates failed, reject login
+      if (!authSuccess || firebaseUser == null) {
+        debugPrint('❌ Login rejected: Firebase Auth did not authenticate any candidate: $candidateEmails');
+        _authError = 'Invalid login details or password.';
         return false;
       }
 
-      // 6. Establish Session State
-      final resolvedUid = firebaseUser?.uid ?? userDocId ?? 'usr_${DateTime.now().millisecondsSinceEpoch}';
-      _userId = resolvedUid;
-      _userName = userData?['name'] ?? userData?['fullName'] ?? firebaseUser?.displayName ?? 'User';
-      _userPhone = (userData?['phone'] ?? userData?['phoneNumber'] ?? formattedPhone).toString();
-      _userEmail = (userData?['email'] ?? firebaseUser?.email ?? (isEmailInput ? cleanInput : '')).toString();
-      _userRole = (userData?['role'] ?? 'customer').toString();
-      _serviceCategory = userData?['serviceCategory']?.toString();
-      _photoURL = sanitizePhotoUrl(userData?['photoURL'] ?? userData?['profileImage'] ?? userData?['profilePicture'] ?? userData?['customerPhotoURL'] ?? firebaseUser?.photoURL);
+      // 3. Now that user IS authenticated with Firebase Auth, load their complete Firestore profile
+      final uid = firebaseUser.uid;
+      _userId = uid;
       _isLoggedIn = true;
 
-      // Check washer status to ensure correct role
-      await _checkIfWasher(resolvedUid);
+      await _loadUserFromFirestore(uid);
+      await _checkIfWasher(uid);
 
-      // Save user state in local preferences
+      // 4. Ensure local phone mapping & Firestore phone_mappings are stored for future logins
+      final effectivePhone = (_userPhone != null && _userPhone!.isNotEmpty) ? _userPhone! : formattedPhone;
+      final effectiveEmail = (_userEmail != null && _userEmail!.isNotEmpty) ? _userEmail! : firebaseUser.email ?? '';
+
+      if (effectivePhone.isNotEmpty && effectiveEmail.isNotEmpty) {
+        final phDigits = effectivePhone.replaceAll(RegExp(r'[^0-9]'), '');
+        final entry = {
+          'name': _userName ?? 'User',
+          'phone': effectivePhone,
+          'email': effectiveEmail,
+          'userId': uid,
+          'role': _userRole ?? 'customer',
+        };
+        _registeredUsers[effectivePhone] = entry;
+        if (phDigits.isNotEmpty) _registeredUsers[phDigits] = entry;
+
+        try {
+          final mapPayload = {
+            'email': effectiveEmail,
+            'phone': effectivePhone,
+            'uid': uid,
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          await FirebaseFirestore.instance.collection('phone_mappings').doc(effectivePhone).set(mapPayload, SetOptions(merge: true));
+          if (phDigits.isNotEmpty) {
+            await FirebaseFirestore.instance.collection('phone_mappings').doc(phDigits).set(mapPayload, SetOptions(merge: true));
+          }
+        } catch (mErr) {
+          debugPrint('ℹ️ Phone mapping background save notice: $mErr');
+        }
+      }
+
       await _saveUserState();
       notifyListeners();
 
@@ -770,9 +820,7 @@ class AuthService extends ChangeNotifier {
 
     } catch (e) {
       debugPrint('❌ Login error: $e');
-      if (!identifier.contains('@')) {
-        return _localLogin(formatPhone(identifier), password);
-      }
+      _authError = 'An error occurred during login. Please try again.';
       return false;
     }
   }

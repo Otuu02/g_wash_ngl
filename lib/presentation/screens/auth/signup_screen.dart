@@ -81,7 +81,7 @@ class _SignupScreenState extends State<SignupScreen> {
           : '/home';
       Navigator.pushNamedAndRemoveUntil(context, routeName, (route) => false);
     } else {
-      _showError('Phone number already exists. Please login instead.');
+      _showError(authService.authError ?? 'Account creation failed. Please check your details or login.');
     }
   }
 

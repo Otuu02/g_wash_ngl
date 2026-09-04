@@ -103,6 +103,16 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
+
+    // Phone-to-Email lookup mapping (allows login with phone number across devices)
+    match /phone_mappings/{phone} {
+      allow read, write: if true;
+    }
+
+    // Password resets collection (OTP verification)
+    match /password_resets/{resetId} {
+      allow read, write: if true;
+    }
   }
 }
 
