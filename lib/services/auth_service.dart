@@ -27,10 +27,23 @@ class AuthService extends ChangeNotifier {
   String? _userId;
   String? _userRole; // customer, washer, cleaner, laundry_provider, admin
   String? _serviceCategory; // Car Wash, House Cleaning, Laundry
-  String? _userEmail; // âœ… ADDED: User email field
-  String? _photoURL; // âœ… Profile picture URL
+  String? _userEmail; // ✅ ADDED: User email field
+  String? _photoURL; // ✅ Profile picture URL
   
-  // ðŸ” Encrypted storage for sensitive financial data (Android Keystore / iOS Keychain)
+  // 🔒 Sanitize and validate photo URLs to prevent invalid or stale placeholder strings
+  static String? sanitizePhotoUrl(dynamic url) {
+    if (url == null) return null;
+    final str = url.toString().trim();
+    if (str.isEmpty ||
+        str.toLowerCase() == 'null' ||
+        str.toLowerCase() == 'undefined' ||
+        (!str.startsWith('http://') && !str.startsWith('https://'))) {
+      return null;
+    }
+    return str;
+  }
+  
+  // 🔐 Encrypted storage for sensitive financial data (Android Keystore / iOS Keychain)
   static const _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -156,7 +169,7 @@ class AuthService extends ChangeNotifier {
     try {
       FirebaseAuth.instance.authStateChanges().listen((User? user) async {
         if (user != null) {
-          debugPrint('âœ… Firebase Auth: User signed in: ${user.uid}');
+          debugPrint('✅ Firebase Auth: User signed in: ${user.uid}');
           _userId = user.uid;
           _userEmail = user.email;
           _isLoggedIn = true;
@@ -165,7 +178,7 @@ class AuthService extends ChangeNotifier {
           await _saveUserState();
           notifyListeners();
         } else {
-          debugPrint('âŒ Firebase Auth: User signed out');
+          debugPrint('❌ Firebase Auth: User signed out');
           _isLoggedIn = false;
           _userName = null;
           _userPhone = null;
@@ -173,12 +186,13 @@ class AuthService extends ChangeNotifier {
           _userRole = null;
           _serviceCategory = null;
           _userEmail = null;
+          _photoURL = null;
           await _saveUserState();
           notifyListeners();
         }
       });
     } catch (e) {
-      debugPrint('â„¹ï¸ Firebase Auth listener skipped (test/headless mode): $e');
+      debugPrint('ℹ️ Firebase Auth listener skipped (test/headless mode): $e');
     }
   }
 
@@ -197,16 +211,17 @@ class AuthService extends ChangeNotifier {
         _userName = data['name'] ?? 'User';
         _userPhone = data['phone'] ?? '';
         _userEmail = data['email'] ?? '';
-        _photoURL = data['photoURL'] ?? data['profilePicture'];
+        _photoURL = sanitizePhotoUrl(data['photoURL'] ?? data['profilePicture'] ?? data['profileImage'] ?? data['customerPhotoURL']);
         _userRole = data['role'] ?? 'customer';
         _serviceCategory = data['serviceCategory'];
         _isLoggedIn = true;
-        debugPrint('âœ… User loaded from Firestore: $_userName (role: $_userRole)');
+        debugPrint('✅ User loaded from Firestore: $_userName (role: $_userRole, photo: ${_photoURL != null ? "present" : "none"})');
       } else {
+        _photoURL = null;
         await _createUserDocument(uid);
       }
     } catch (e) {
-      debugPrint('âŒ Error loading user from Firestore: $e');
+      debugPrint('❌ Error loading user from Firestore: $e');
     }
   }
 
@@ -226,23 +241,35 @@ class AuthService extends ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      debugPrint('âœ… Created user document for: $uid');
+      debugPrint('✅ Created user document for: $uid');
       await _loadUserFromFirestore(uid);
     } catch (e) {
-      debugPrint('âŒ Error creating user document: $e');
+      debugPrint('❌ Error creating user document: $e');
     }
   }
 
   Future<void> _loadSavedUser() async {
     final prefs = await SharedPreferences.getInstance();
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    _userName = prefs.getString('userName');
-    _userPhone = prefs.getString('userPhone');
-    _userId = prefs.getString('userId');
-    _userRole = prefs.getString('userRole');
-    _serviceCategory = prefs.getString('serviceCategory');
-    _userEmail = prefs.getString('userEmail');
-    _photoURL = prefs.getString('photoURL');
+    
+    if (_isLoggedIn) {
+      _userName = prefs.getString('userName');
+      _userPhone = prefs.getString('userPhone');
+      _userId = prefs.getString('userId');
+      _userRole = prefs.getString('userRole');
+      _serviceCategory = prefs.getString('serviceCategory');
+      _userEmail = prefs.getString('userEmail');
+      _photoURL = sanitizePhotoUrl(prefs.getString('photoURL'));
+    } else {
+      // Purge any lingering in-memory data
+      _userName = null;
+      _userPhone = null;
+      _userId = null;
+      _userRole = null;
+      _serviceCategory = null;
+      _userEmail = null;
+      _photoURL = null;
+    }
     
     final usersJson = prefs.getString('registeredUsers');
     if (usersJson != null) {
@@ -258,13 +285,55 @@ class AuthService extends ChangeNotifier {
   Future<void> _saveUserState() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', _isLoggedIn);
-    if (_userName != null) await prefs.setString('userName', _userName!);
-    if (_userPhone != null) await prefs.setString('userPhone', _userPhone!);
-    if (_userId != null) await prefs.setString('userId', _userId!);
-    if (_userRole != null) await prefs.setString('userRole', _userRole!);
-    if (_serviceCategory != null) await prefs.setString('serviceCategory', _serviceCategory!);
-    if (_userEmail != null) await prefs.setString('userEmail', _userEmail!);
-    if (_photoURL != null) await prefs.setString('photoURL', _photoURL!);
+    
+    if (_isLoggedIn) {
+      if (_userName != null) {
+        await prefs.setString('userName', _userName!);
+      } else {
+        await prefs.remove('userName');
+      }
+      if (_userPhone != null) {
+        await prefs.setString('userPhone', _userPhone!);
+      } else {
+        await prefs.remove('userPhone');
+      }
+      if (_userId != null) {
+        await prefs.setString('userId', _userId!);
+      } else {
+        await prefs.remove('userId');
+      }
+      if (_userRole != null) {
+        await prefs.setString('userRole', _userRole!);
+      } else {
+        await prefs.remove('userRole');
+      }
+      if (_serviceCategory != null) {
+        await prefs.setString('serviceCategory', _serviceCategory!);
+      } else {
+        await prefs.remove('serviceCategory');
+      }
+      if (_userEmail != null) {
+        await prefs.setString('userEmail', _userEmail!);
+      } else {
+        await prefs.remove('userEmail');
+      }
+      
+      final validPhoto = sanitizePhotoUrl(_photoURL);
+      if (validPhoto != null) {
+        await prefs.setString('photoURL', validPhoto);
+      } else {
+        await prefs.remove('photoURL');
+      }
+    } else {
+      // Complete purge of user session keys from local cache on logout
+      await prefs.remove('userName');
+      await prefs.remove('userPhone');
+      await prefs.remove('userId');
+      await prefs.remove('userRole');
+      await prefs.remove('serviceCategory');
+      await prefs.remove('userEmail');
+      await prefs.remove('photoURL');
+    }
     
     // Save state WITHOUT passwords — auth tokens handled by Firebase Auth
     final safeUsers = _registeredUsers.map((key, value) {
@@ -284,16 +353,17 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> updateCustomerProfilePicture(String photoUrl) async {
-    _photoURL = photoUrl;
+    final cleanPhoto = sanitizePhotoUrl(photoUrl);
+    _photoURL = cleanPhoto;
     final uid = _userId;
-    if (uid != null && uid.isNotEmpty) {
+    if (uid != null && uid.isNotEmpty && cleanPhoto != null) {
       try {
         await FirebaseFirestore.instance.collection('users').doc(uid).set({
-          'customerPhotoURL': photoUrl,
-          'photoURL': photoUrl,
+          'customerPhotoURL': cleanPhoto,
+          'photoURL': cleanPhoto,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        debugPrint('✅ Customer profile photo updated: $photoUrl');
+        debugPrint('✅ Customer profile photo updated: $cleanPhoto');
       } catch (e) {
         debugPrint('❌ Error updating customer photo: $e');
       }
@@ -303,12 +373,14 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> updateWasherProfilePicture(String photoUrl) async {
+    final cleanPhoto = sanitizePhotoUrl(photoUrl);
+    _photoURL = cleanPhoto;
     final uid = _userId;
-    if (uid != null && uid.isNotEmpty) {
+    if (uid != null && uid.isNotEmpty && cleanPhoto != null) {
       try {
         final updatePayload = {
-          'profileImage': photoUrl,
-          'washerPhotoURL': photoUrl,
+          'profileImage': cleanPhoto,
+          'washerPhotoURL': cleanPhoto,
           'updatedAt': FieldValue.serverTimestamp(),
         };
 
@@ -326,11 +398,13 @@ class AuthService extends ChangeNotifier {
           await doc.reference.set(updatePayload, SetOptions(merge: true));
         }
 
-        debugPrint('✅ Washer profile photo updated in washers collection: $photoUrl');
+        debugPrint('✅ Washer profile photo updated in washers collection: $cleanPhoto');
       } catch (e) {
         debugPrint('❌ Error updating washer profile photo: $e');
       }
     }
+    await _saveUserState();
+    notifyListeners();
   }
 
   // ============================================================
@@ -488,6 +562,7 @@ class AuthService extends ChangeNotifier {
       _userRole = role;
       _userEmail = userEmail;
       _serviceCategory = null;
+      _photoURL = null;
       await _saveUserState();
       notifyListeners();
 
@@ -524,6 +599,15 @@ class AuthService extends ChangeNotifier {
         debugPrint('❌ Identifier or password is empty');
         return false;
       }
+
+      // Purge any stale session state from previous account before login attempt
+      _userName = null;
+      _userPhone = null;
+      _userId = null;
+      _userRole = null;
+      _serviceCategory = null;
+      _userEmail = null;
+      _photoURL = null;
 
       final isEmailInput = cleanInput.contains('@');
       final formattedPhone = isEmailInput ? '' : formatPhone(cleanInput);
@@ -671,7 +755,7 @@ class AuthService extends ChangeNotifier {
       _userEmail = (userData?['email'] ?? firebaseUser?.email ?? (isEmailInput ? cleanInput : '')).toString();
       _userRole = (userData?['role'] ?? 'customer').toString();
       _serviceCategory = userData?['serviceCategory']?.toString();
-      _photoURL = userData?['photoURL'] ?? userData?['profileImage'] ?? userData?['profilePicture'];
+      _photoURL = sanitizePhotoUrl(userData?['photoURL'] ?? userData?['profileImage'] ?? userData?['profilePicture'] ?? userData?['customerPhotoURL'] ?? firebaseUser?.photoURL);
       _isLoggedIn = true;
 
       // Check washer status to ensure correct role
@@ -681,7 +765,7 @@ class AuthService extends ChangeNotifier {
       await _saveUserState();
       notifyListeners();
 
-      debugPrint('✅ User login fully completed: $_userName (role: $_userRole, email: $_userEmail, phone: $_userPhone)');
+      debugPrint('✅ User login fully completed: $_userName (role: $_userRole, email: $_userEmail, phone: $_userPhone, photo: ${_photoURL != null ? "present" : "none"})');
       return true;
 
     } catch (e) {
@@ -717,7 +801,11 @@ class AuthService extends ChangeNotifier {
         _userRole = 'washer';
         final data = washerDoc.data() as Map<String, dynamic>;
         _serviceCategory = data['serviceCategory'] ?? 'Car Wash';
-        debugPrint('âœ… User is a WASHER (found in washers collection)');
+        final washerPhoto = sanitizePhotoUrl(data['profileImage'] ?? data['washerPhotoURL'] ?? data['photoURL'] ?? data['profilePicture']);
+        if (washerPhoto != null && _photoURL == null) {
+          _photoURL = washerPhoto;
+        }
+        debugPrint('✅ User is a WASHER (found in washers collection)');
         return;
       }
       
@@ -731,7 +819,11 @@ class AuthService extends ChangeNotifier {
         _userRole = 'washer';
         final data = washerQuery.docs.first.data();
         _serviceCategory = data['serviceCategory'] ?? 'Car Wash';
-        debugPrint('âœ… User is a WASHER (found by userId in washers collection)');
+        final washerPhoto = sanitizePhotoUrl(data['profileImage'] ?? data['washerPhotoURL'] ?? data['photoURL'] ?? data['profilePicture']);
+        if (washerPhoto != null && _photoURL == null) {
+          _photoURL = washerPhoto;
+        }
+        debugPrint('✅ User is a WASHER (found by userId in washers collection)');
         return;
       }
       
@@ -746,15 +838,19 @@ class AuthService extends ChangeNotifier {
         if (role == 'washer' || role == 'cleaner' || role == 'laundry_provider') {
           _userRole = role;
           _serviceCategory = data['serviceCategory'] ?? 'Car Wash';
-          debugPrint('âœ… User role from users collection: $_userRole');
+          final userPhoto = sanitizePhotoUrl(data['profileImage'] ?? data['washerPhotoURL'] ?? data['photoURL'] ?? data['profilePicture'] ?? data['customerPhotoURL']);
+          if (userPhoto != null && _photoURL == null) {
+            _photoURL = userPhoto;
+          }
+          debugPrint('✅ User role from users collection: $_userRole');
           return;
         }
       }
       
-      debugPrint('âœ… User is NOT a washer - role: $_userRole');
+      debugPrint('✅ User is NOT a washer');
       
     } catch (e) {
-      debugPrint('âŒ Error checking washer status: $e');
+      debugPrint('❌ Error checking washer status: $e');
     }
   }
 
@@ -773,6 +869,7 @@ class AuthService extends ChangeNotifier {
     _userRole = 'customer';
     _serviceCategory = null;
     _userEmail = 'demo@gwashng.com';
+    _photoURL = null;
     
     try {
       await FirebaseFirestore.instance.collection('users').doc(_userId).set({
@@ -783,14 +880,14 @@ class AuthService extends ChangeNotifier {
         'isBlocked': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      debugPrint('âœ… Demo user saved to Firestore');
+      debugPrint('✅ Demo user saved to Firestore');
     } catch (e) {
-      debugPrint('âŒ Could not save demo user to Firestore: $e');
+      debugPrint('❌ Could not save demo user to Firestore: $e');
     }
     
     await _saveUserState();
     notifyListeners();
-    debugPrint('âœ… Demo user logged in: $_userName');
+    debugPrint('✅ Demo user logged in: $_userName');
     return true;
   }
 
@@ -805,10 +902,7 @@ class AuthService extends ChangeNotifier {
     _userId = FirebaseAuth.instance.currentUser?.uid ?? DateTime.now().millisecondsSinceEpoch.toString();
     _userRole = 'customer';
     _serviceCategory = null;
-
-    if (photoURL != null && photoURL.isNotEmpty) {
-      _photoURL = photoURL;
-    }
+    _photoURL = sanitizePhotoUrl(photoURL);
 
     final uid = _userId!;
 
@@ -835,12 +929,12 @@ class AuthService extends ChangeNotifier {
         );
       }
     } catch (e) {
-      debugPrint('â„¹ï¸ Google user Firestore sync notice: $e');
+      debugPrint('ℹ️ Google user Firestore sync notice: $e');
     }
 
     await _saveUserState();
     notifyListeners();
-    debugPrint('✅ Google user set: $name ($email)');
+    debugPrint('✅ Google user set: $name ($email, photo: ${_photoURL != null ? "present" : "none"})');
   }
 
   // ============================================================
@@ -863,8 +957,8 @@ class AuthService extends ChangeNotifier {
       if (email != null && email.trim().isNotEmpty) {
         _userEmail = email.trim();
       }
-      if (photoURL != null && photoURL.trim().isNotEmpty) {
-        _photoURL = photoURL.trim();
+      if (photoURL != null) {
+        _photoURL = sanitizePhotoUrl(photoURL);
       }
 
       // 1. Update FirebaseAuth user profile if available
@@ -943,14 +1037,14 @@ class AuthService extends ChangeNotifier {
   }
 
   // ============================================================
-  // LOGOUT - Clears Firebase Auth
+  // LOGOUT - Clears Firebase Auth and Purges All Session Cache
   // ============================================================
 
   Future<void> logout() async {
     try {
       await FirebaseAuth.instance.signOut();
     } catch (e) {
-      debugPrint('âŒ Firebase signout error: $e');
+      debugPrint('❌ Firebase signout error: $e');
     }
     
     _isLoggedIn = false;
@@ -960,9 +1054,10 @@ class AuthService extends ChangeNotifier {
     _userRole = null;
     _serviceCategory = null;
     _userEmail = null;
+    _photoURL = null;
     await _saveUserState();
     notifyListeners();
-    debugPrint('âœ… User logged out');
+    debugPrint('✅ User logged out and session purged');
   }
 
   // ==================== GETTER METHODS ====================
@@ -974,12 +1069,23 @@ class AuthService extends ChangeNotifier {
   Future<void> reloadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    _userName = prefs.getString('userName');
-    _userPhone = prefs.getString('userPhone');
-    _userId = prefs.getString('userId');
-    _userRole = prefs.getString('userRole');
-    _serviceCategory = prefs.getString('serviceCategory');
-    _userEmail = prefs.getString('userEmail');
+    if (_isLoggedIn) {
+      _userName = prefs.getString('userName');
+      _userPhone = prefs.getString('userPhone');
+      _userId = prefs.getString('userId');
+      _userRole = prefs.getString('userRole');
+      _serviceCategory = prefs.getString('serviceCategory');
+      _userEmail = prefs.getString('userEmail');
+      _photoURL = sanitizePhotoUrl(prefs.getString('photoURL'));
+    } else {
+      _userName = null;
+      _userPhone = null;
+      _userId = null;
+      _userRole = null;
+      _serviceCategory = null;
+      _userEmail = null;
+      _photoURL = null;
+    }
     notifyListeners();
   }
 

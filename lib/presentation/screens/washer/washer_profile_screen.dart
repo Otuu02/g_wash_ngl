@@ -199,7 +199,8 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
           final doc = query.docs.first;
           _washerId = doc.id;
           final data = doc.data();
-          final imgUrl = (data['profileImage'] ?? data['photoURL'] ?? data['profilePicture'] ?? userData?['photoURL'] ?? userData?['profilePicture'] ?? userData?['profileImage'] ?? authPhoto ?? '').toString();
+          final rawImg = (data['profileImage'] ?? data['washerPhotoURL'] ?? data['photoURL'] ?? data['profilePicture'] ?? userData?['photoURL'] ?? userData?['profilePicture'] ?? userData?['profileImage'] ?? authPhoto ?? '').toString().trim();
+          final imgUrl = (rawImg.startsWith('http://') || rawImg.startsWith('https://')) ? rawImg : '';
           setState(() {
             _washerData = data;
             _profileImageUrl = imgUrl;
@@ -224,7 +225,8 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
             userDoc = await FirebaseFirestore.instance.collection('users').doc(uId).get();
           }
           final userData = userDoc != null && userDoc.exists ? userDoc.data() : null;
-          final imgUrl = (data['profileImage'] ?? data['photoURL'] ?? data['profilePicture'] ?? userData?['photoURL'] ?? userData?['profilePicture'] ?? userData?['profileImage'] ?? '').toString();
+          final rawImg = (data['profileImage'] ?? data['washerPhotoURL'] ?? data['photoURL'] ?? data['profilePicture'] ?? userData?['photoURL'] ?? userData?['profilePicture'] ?? userData?['profileImage'] ?? '').toString().trim();
+          final imgUrl = (rawImg.startsWith('http://') || rawImg.startsWith('https://')) ? rawImg : '';
           setState(() {
             _washerData = data;
             _profileImageUrl = imgUrl;
@@ -430,7 +432,7 @@ class _WasherProfileScreenState extends State<WasherProfileScreen> {
                               ],
                             ),
                             child: ClipOval(
-                              child: _profileImageUrl.isNotEmpty
+                              child: (_profileImageUrl.startsWith('http://') || _profileImageUrl.startsWith('https://'))
                                   ? CachedNetworkImage(
                                       imageUrl: _profileImageUrl,
                                       fit: BoxFit.cover,

@@ -141,19 +141,25 @@ class ProfileScreen extends StatelessWidget {
                     child: Stack(
                       children: [
                         ClipOval(
-                          child: authService.photoURL != null && authService.photoURL!.isNotEmpty
-                              ? Image.network(
-                                  authService.photoURL!,
-                                  width: 100,
-                                  height: 100,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) => const Center(
-                                    child: Icon(Icons.person, size: 50, color: Color(0xFF0CAF60)),
-                                  ),
-                                )
-                              : const Center(
+                          child: () {
+                            final photo = authService.photoURL;
+                            final isValid = photo != null &&
+                                (photo.startsWith('http://') || photo.startsWith('https://'));
+                            if (isValid) {
+                              return Image.network(
+                                photo,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Center(
                                   child: Icon(Icons.person, size: 50, color: Color(0xFF0CAF60)),
                                 ),
+                              );
+                            }
+                            return const Center(
+                              child: Icon(Icons.person, size: 50, color: Color(0xFF0CAF60)),
+                            );
+                          }(),
                         ),
                         Positioned(
                           bottom: 0,

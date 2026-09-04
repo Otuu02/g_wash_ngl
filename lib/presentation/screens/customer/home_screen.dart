@@ -509,19 +509,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 child: ClipOval(
-                  child: authService.photoURL != null && authService.photoURL!.isNotEmpty
-                      ? Image.network(
-                          authService.photoURL!,
-                          width: 36,
-                          height: 36,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Center(
-                            child: Icon(Icons.person, color: AppColors.primary, size: 20),
-                          ),
-                        )
-                      : const Center(
+                  child: () {
+                    final photo = authService.photoURL;
+                    final isValid = photo != null &&
+                        (photo.startsWith('http://') || photo.startsWith('https://'));
+                    if (isValid) {
+                      return Image.network(
+                        photo,
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Center(
                           child: Icon(Icons.person, color: AppColors.primary, size: 20),
                         ),
+                      );
+                    }
+                    return const Center(
+                      child: Icon(Icons.person, color: AppColors.primary, size: 20),
+                    );
+                  }(),
                 ),
               ),
             ),
